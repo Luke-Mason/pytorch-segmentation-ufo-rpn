@@ -1,0 +1,11 @@
+# AP and precision/recall per class
+3.74% = boat AP 	||	score_threhold=0.5 : F1=0.17 ; Recall=14.88% ; Precision=20.78% ; False Negative=85.12%
+
+# mAP of all classes
+mAP = 3.74%
+
+# Number of ground-truth objects per class
+boat: 430
+
+# Number of detected objects per class
+boat: 308 (tp:64, fp:244)

@@ -1,0 +1,11 @@
+# AP and precision/recall per class
+6.37% = sports_ball AP 	||	score_threhold=0.5 : F1=0.18 ; Recall=10.40% ; Precision=57.78% ; False Negative=89.60%
+
+# mAP of all classes
+mAP = 6.37%
+
+# Number of ground-truth objects per class
+sports_ball: 250
+
+# Number of detected objects per class
+sports_ball: 45 (tp:26, fp:19)

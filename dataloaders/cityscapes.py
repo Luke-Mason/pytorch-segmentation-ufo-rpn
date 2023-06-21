@@ -34,8 +34,8 @@ class CityScapesDataset(BaseDataSet):
             img_dir_name = 'leftImg8bit_trainextra' if self.split == 'train_extra' else 'leftImg8bit_trainvaltest'
             label_path = os.path.join(self.root, 'gtCoarse', 'gtCoarse', self.split)
         else:
-            img_dir_name = 'leftImg8bit_trainvaltest'
-            label_path = os.path.join(self.root, 'gtFine_trainvaltest', 'gtFine', self.split)
+            img_dir_name = 'cityscapes'
+            label_path = os.path.join(self.root, 'cityscapes', 'gtFine', self.split)
         image_path = os.path.join(self.root, img_dir_name, 'leftImg8bit', self.split)
         assert os.listdir(image_path) == os.listdir(label_path)
 

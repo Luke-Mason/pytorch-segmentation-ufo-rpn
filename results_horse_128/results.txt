@@ -1,0 +1,11 @@
+# AP and precision/recall per class
+13.28% = horse AP 	||	score_threhold=0.5 : F1=0.35 ; Recall=37.92% ; Precision=32.08% ; False Negative=62.08%
+
+# mAP of all classes
+mAP = 13.28%
+
+# Number of ground-truth objects per class
+horse: 269
+
+# Number of detected objects per class
+horse: 318 (tp:102, fp:216)

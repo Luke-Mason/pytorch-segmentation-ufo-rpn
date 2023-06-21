@@ -1,0 +1,11 @@
+# AP and precision/recall per class
+28.57% = pizza AP 	||	score_threhold=0.5 : F1=0.52 ; Recall=46.64% ; Precision=58.96% ; False Negative=53.36%
+
+# mAP of all classes
+mAP = 28.57%
+
+# Number of ground-truth objects per class
+pizza: 268
+
+# Number of detected objects per class
+pizza: 212 (tp:125, fp:87)

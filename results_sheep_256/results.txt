@@ -1,0 +1,11 @@
+# AP and precision/recall per class
+6.23% = sheep AP 	||	score_threhold=0.5 : F1=0.23 ; Recall=18.01% ; Precision=32.50% ; False Negative=81.99%
+
+# mAP of all classes
+mAP = 6.23%
+
+# Number of ground-truth objects per class
+sheep: 361
+
+# Number of detected objects per class
+sheep: 200 (tp:65, fp:135)

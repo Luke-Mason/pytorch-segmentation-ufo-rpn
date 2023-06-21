@@ -1,0 +1,11 @@
+# AP and precision/recall per class
+19.93% = elephant AP 	||	score_threhold=0.5 : F1=0.42 ; Recall=35.83% ; Precision=50.28% ; False Negative=64.17%
+
+# mAP of all classes
+mAP = 19.93%
+
+# Number of ground-truth objects per class
+elephant: 254
+
+# Number of detected objects per class
+elephant: 181 (tp:91, fp:90)

@@ -76,8 +76,8 @@ if __name__ == "__main__":
     iters_per_epoch = 100
     lrs = []
     mementums = []
-    lr_scheduler = OneCycle(optimizer, epochs, iters_per_epoch)
-    #lr_scheduler = Poly(optimizer, epochs, iters_per_epoch)
+    #lr_scheduler = OneCycle(optimizer, epochs, iters_per_epoch)
+    lr_scheduler = Poly(optimizer, epochs, iters_per_epoch)
 
     for epoch in range(epochs):
         for i in range(iters_per_epoch):
