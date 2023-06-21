@@ -96,6 +96,8 @@ class BaseTrainer:
         return device, available_gpus
     
     def train(self):
+        print(self.start_epoch)
+        print(self.epochs)
         for epoch in range(self.start_epoch, self.epochs+1):
             # RUN TRAIN (AND VAL)
             results = self._train_epoch(epoch)

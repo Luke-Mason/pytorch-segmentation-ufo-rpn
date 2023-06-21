@@ -1,0 +1,11 @@
+# AP and precision/recall per class
+1.67% = suitcase AP 	||	score_threhold=0.5 : F1=0.12 ; Recall=11.88% ; Precision=12.59% ; False Negative=88.12%
+
+# mAP of all classes
+mAP = 1.67%
+
+# Number of ground-truth objects per class
+suitcase: 303
+
+# Number of detected objects per class
+suitcase: 286 (tp:36, fp:250)

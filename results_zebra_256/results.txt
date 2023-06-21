@@ -1,0 +1,11 @@
+# AP and precision/recall per class
+35.33% = zebra AP 	||	score_threhold=0.5 : F1=0.57 ; Recall=46.85% ; Precision=74.24% ; False Negative=53.15%
+
+# mAP of all classes
+mAP = 35.33%
+
+# Number of ground-truth objects per class
+zebra: 1046
+
+# Number of detected objects per class
+zebra: 660 (tp:490, fp:170)

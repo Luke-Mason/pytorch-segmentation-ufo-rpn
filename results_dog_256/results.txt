@@ -1,0 +1,11 @@
+# AP and precision/recall per class
+14.46% = dog AP 	||	score_threhold=0.5 : F1=0.35 ; Recall=54.73% ; Precision=25.58% ; False Negative=45.27%
+
+# mAP of all classes
+mAP = 14.46%
+
+# Number of ground-truth objects per class
+dog: 201
+
+# Number of detected objects per class
+dog: 430 (tp:110, fp:320)

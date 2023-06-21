@@ -1,0 +1,11 @@
+# AP and precision/recall per class
+0.23% = baseball_bat AP 	||	score_threhold=0.5 : F1=0.01 ; Recall=0.69% ; Precision=4.17% ; False Negative=99.31%
+
+# mAP of all classes
+mAP = 0.23%
+
+# Number of ground-truth objects per class
+baseball_bat: 144
+
+# Number of detected objects per class
+baseball_bat: 24 (tp:1, fp:23)

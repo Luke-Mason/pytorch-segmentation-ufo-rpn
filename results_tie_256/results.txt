@@ -1,0 +1,11 @@
+# AP and precision/recall per class
+0.33% = tie AP 	||	score_threhold=0.5 : F1=0.03 ; Recall=2.06% ; Precision=9.52% ; False Negative=97.94%
+
+# mAP of all classes
+mAP = 0.33%
+
+# Number of ground-truth objects per class
+tie: 194
+
+# Number of detected objects per class
+tie: 42 (tp:4, fp:38)

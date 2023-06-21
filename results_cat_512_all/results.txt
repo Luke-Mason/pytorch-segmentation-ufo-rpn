@@ -1,0 +1,11 @@
+# AP and precision/recall per class
+0.69% = cat AP 	||	score_threhold=0.5 : F1=0.02 ; Recall=73.27% ; Precision=0.80% ; False Negative=26.73%
+
+# mAP of all classes
+mAP = 0.69%
+
+# Number of ground-truth objects per class
+cat: 202
+
+# Number of detected objects per class
+cat: 18466 (tp:148, fp:18318)

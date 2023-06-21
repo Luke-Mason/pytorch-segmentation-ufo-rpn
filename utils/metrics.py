@@ -40,6 +40,7 @@ class AverageMeter(object):
         return np.round(self.avg, 5)
 
 def batch_pix_accuracy(predict, target, labeled):
+
     pixel_labeled = labeled.sum()
     pixel_correct = ((predict == target) * labeled).sum()
     assert pixel_correct <= pixel_labeled, "Correct area should be smaller than Labeled"
