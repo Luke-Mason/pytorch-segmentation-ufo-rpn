@@ -43,6 +43,7 @@ pip install --user -r requirements.txt
 **So, what's available ?**
 
 ### Models 
+- **[NEW]** (**UFO-RPN**) A Region Proposal Network for Ultra Fast Object Detection, [[Paper]]()
 - (**Deeplab V3+**) Encoder-Decoder with Atrous Separable Convolution for Semantic Image Segmentation [[Paper]](https://arxiv.org/abs/1802.02611)
 - (**GCN**) Large Kernel Matter, Improve Semantic Segmentation by Global Convolutional Network [[Paper]](https://arxiv.org/abs/1703.02719)
 - (**UperNet**) Unified Perceptual Parsing for Scene Understanding [[Paper]](https://arxiv.org/abs/1807.10221)
