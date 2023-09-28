@@ -1,0 +1,11 @@
+# AP and precision/recall per class
+0.38% = backpack AP 	||	score_threhold=0.5 : F1=0.04 ; Recall=2.72% ; Precision=7.81% ; False Negative=97.28%
+
+# mAP of all classes
+mAP = 0.38%
+
+# Number of ground-truth objects per class
+backpack: 368
+
+# Number of detected objects per class
+backpack: 128 (tp:10, fp:118)

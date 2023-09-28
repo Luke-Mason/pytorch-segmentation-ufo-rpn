@@ -1,0 +1,11 @@
+# AP and precision/recall per class
+16.03% = frisbee AP 	||	score_threhold=0.5 : F1=0.38 ; Recall=31.58% ; Precision=47.37% ; False Negative=68.42%
+
+# mAP of all classes
+mAP = 16.03%
+
+# Number of ground-truth objects per class
+frisbee: 114
+
+# Number of detected objects per class
+frisbee: 76 (tp:36, fp:40)

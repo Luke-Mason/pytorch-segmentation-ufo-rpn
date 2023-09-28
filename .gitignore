@@ -114,3 +114,6 @@ trained_models/
 .idea/
 __MACOSX/
 
+*.pdf
+*.png
+

@@ -1,0 +1,11 @@
+# AP and precision/recall per class
+3.85% = snowboard AP 	||	score_threhold=0.5 : F1=0.12 ; Recall=21.74% ; Precision=8.67% ; False Negative=78.26%
+
+# mAP of all classes
+mAP = 3.85%
+
+# Number of ground-truth objects per class
+snowboard: 69
+
+# Number of detected objects per class
+snowboard: 173 (tp:15, fp:158)

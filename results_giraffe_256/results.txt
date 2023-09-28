@@ -1,0 +1,11 @@
+# AP and precision/recall per class
+37.74% = giraffe AP 	||	score_threhold=0.5 : F1=0.60 ; Recall=57.33% ; Precision=61.86% ; False Negative=42.67%
+
+# mAP of all classes
+mAP = 37.74%
+
+# Number of ground-truth objects per class
+giraffe: 232
+
+# Number of detected objects per class
+giraffe: 215 (tp:133, fp:82)

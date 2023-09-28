@@ -1,0 +1,11 @@
+# AP and precision/recall per class
+8.22% = parking_meter AP 	||	score_threhold=0.5 : F1=0.28 ; Recall=25.00% ; Precision=30.61% ; False Negative=75.00%
+
+# mAP of all classes
+mAP = 8.22%
+
+# Number of ground-truth objects per class
+parking_meter: 60
+
+# Number of detected objects per class
+parking_meter: 49 (tp:15, fp:34)

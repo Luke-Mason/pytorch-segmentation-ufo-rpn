@@ -1,0 +1,11 @@
+# AP and precision/recall per class
+37.54% = stop sign AP 	||	score_threhold=0.5 : F1=0.59 ; Recall=53.33% ; Precision=65.57% ; False Negative=46.67%
+
+# mAP of all classes
+mAP = 37.54%
+
+# Number of ground-truth objects per class
+stop sign: 75
+
+# Number of detected objects per class
+stop: 61 (tp:0, fp:61)

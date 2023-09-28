@@ -1,0 +1,11 @@
+# AP and precision/recall per class
+11.12% = cow AP 	||	score_threhold=0.5 : F1=0.31 ; Recall=24.21% ; Precision=43.60% ; False Negative=75.79%
+
+# mAP of all classes
+mAP = 11.12%
+
+# Number of ground-truth objects per class
+cow: 380
+
+# Number of detected objects per class
+cow: 211 (tp:92, fp:119)

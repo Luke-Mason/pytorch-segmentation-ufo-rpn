@@ -1,0 +1,11 @@
+# AP and precision/recall per class
+5.81% = banana AP 	||	score_threhold=0.5 : F1=0.18 ; Recall=10.90% ; Precision=47.62% ; False Negative=89.10%
+
+# mAP of all classes
+mAP = 5.81%
+
+# Number of ground-truth objects per class
+banana: 367
+
+# Number of detected objects per class
+banana: 84 (tp:40, fp:44)
