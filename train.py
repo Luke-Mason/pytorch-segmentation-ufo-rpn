@@ -10,7 +10,7 @@ from utils import losses
 from utils import Logger
 from utils.torchsummary import summary
 from trainer import Trainer
-
+torch.cuda.empty_cache()
 def get_instance(module, name, config, *args):
     # GET THE CORRESPONDING CLASS / FCT 
     return getattr(module, config[name]['type'])(*args, **config[name]['args'])
@@ -22,9 +22,9 @@ def main(config, resume):
     train_loader = get_instance(dataloaders, 'train_loader', config)
     val_loader = get_instance(dataloaders, 'val_loader', config)
 
-    # MODEL
+    # MODELMODEL
     model = get_instance(models, 'arch', config, train_loader.dataset.num_classes)
-    print(f'\n{model}\n')
+    #print(f'\n{model}\n')
 
     # LOSS
     loss = getattr(losses, config['loss'])(ignore_index = config['ignore_index'])
@@ -33,7 +33,7 @@ def main(config, resume):
     trainer = Trainer(
         model=model,
         loss=loss,
-        resume=resume,
+        resume=resume,  
         config=config,
         train_loader=train_loader,
         val_loader=val_loader,
@@ -53,9 +53,14 @@ if __name__=='__main__':
     args = parser.parse_args()
 
     config = json.load(open(args.config))
-    if args.resume:
-        config = torch.load(args.resume)['config']
+    #args.resume = 'saved/ERFNet_voc_512_batch8_split_1_2/06-21_21-18/best_model.pth'
+    #if args.resume:
+        #config = torch.load(args.resume)['config']
     if args.device:
         os.environ["CUDA_VISIBLE_DEVICES"] = args.device
     
     main(config, args.resume)
+    # main(config, args.resume)
+    # main(config, args.resume)
+    # main(config, args.resume)
+    # main(config, args.resume)

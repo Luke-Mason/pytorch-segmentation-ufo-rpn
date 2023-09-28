@@ -1,0 +1,11 @@
+# AP and precision/recall per class
+14.52% = fire_hydrant AP 	||	score_threhold=0.5 : F1=0.31 ; Recall=54.46% ; Precision=21.83% ; False Negative=45.54%
+
+# mAP of all classes
+mAP = 14.52%
+
+# Number of ground-truth objects per class
+fire_hydrant: 101
+
+# Number of detected objects per class
+fire_hydrant: 252 (tp:55, fp:197)

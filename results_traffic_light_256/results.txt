@@ -1,0 +1,11 @@
+# AP and precision/recall per class
+5.16% = traffic_light AP 	||	score_threhold=0.5 : F1=0.17 ; Recall=10.36% ; Precision=45.83% ; False Negative=89.64%
+
+# mAP of all classes
+mAP = 5.16%
+
+# Number of ground-truth objects per class
+traffic_light: 637
+
+# Number of detected objects per class
+traffic_light: 144 (tp:66, fp:78)

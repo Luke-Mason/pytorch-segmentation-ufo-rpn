@@ -1,0 +1,11 @@
+# AP and precision/recall per class
+1.80% = bench AP 	||	score_threhold=0.5 : F1=0.13 ; Recall=15.25% ; Precision=11.73% ; False Negative=84.75%
+
+# mAP of all classes
+mAP = 1.80%
+
+# Number of ground-truth objects per class
+bench: 413
+
+# Number of detected objects per class
+bench: 537 (tp:63, fp:474)

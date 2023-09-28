@@ -46,18 +46,20 @@ class BaseDataSet(Dataset):
             else:
                 h, w = (int(self.crop_size * h / w), self.crop_size)
 
+            h = self.crop_size
+            w = self.crop_size
             image = cv2.resize(image, (w, h), interpolation=cv2.INTER_LINEAR)
             label = Image.fromarray(label).resize((w, h), resample=Image.NEAREST)
             label = np.asarray(label, dtype=np.int32)
 
             # Center Crop
-            h, w = label.shape
-            start_h = (h - self.crop_size )// 2
-            start_w = (w - self.crop_size )// 2
-            end_h = start_h + self.crop_size
-            end_w = start_w + self.crop_size
-            image = image[start_h:end_h, start_w:end_w]
-            label = label[start_h:end_h, start_w:end_w]
+            # h, w = label.shape
+            # start_h = (h - self.crop_size )// 2
+            # start_w = (w - self.crop_size )// 2
+            # end_h = start_h + self.crop_size
+            # end_w = start_w + self.crop_size
+            # image = image[start_h:end_h, start_w:end_w]
+            # label = label[start_h:end_h, start_w:end_w]
         return image, label
 
     def _augmentation(self, image, label):
@@ -70,6 +72,8 @@ class BaseDataSet(Dataset):
             else:
                 longside = self.base_size
             h, w = (longside, int(1.0 * longside * w / h + 0.5)) if h > w else (int(1.0 * longside * h / w + 0.5), longside)
+            h = self.base_size
+            w = self.base_size
             image = cv2.resize(image, (w, h), interpolation=cv2.INTER_LINEAR)
             label = cv2.resize(label, (w, h), interpolation=cv2.INTER_NEAREST)
     
