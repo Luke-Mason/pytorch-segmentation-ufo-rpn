@@ -16,22 +16,28 @@ import csv
 class DSTLDataset(BaseDataSet):
 
     def __init__(self, mean: [float], **kwargs):
-        self.classes = [1, 10]
-        self.num_classes = len(self.classes)
-        self.palette = palette.get_voc_palette(self.num_classes)
-        self._wkt_data = None
 
-        all_im_ids = list(self.get_wkt_data())
+        # The classes to detect
+        self.classes = [1, 10]
+
+        # The number of classes
+        self.num_classes = len(self.classes)
+
+        # The colour palette for the classes
+        self.palette = palette.get_voc_palette(self.num_classes)
+
+        all_train_ids = list(self._get_wkt_data())
+        print(all_train_ids)
         class_stats_dir = os.path.join(self.root, 'cls-stats.json')
         class_label_stats = json.loads(Path(class_stats_dir).read_text())
         labeled_area = [(im_id, np.mean([class_label_stats[im_id][str(cls)]['area']
                                     for cls in self.classes]))
-                   for im_id in all_im_ids]
+                   for im_id in all_train_ids]
 
 
         super(DSTLDataset, self).__init__(mean=mean, **kwargs)
 
-    def get_wkt_data(self) -> Dict[str, Dict[int, str]]:
+    def _get_wkt_data(self) -> Dict[str, Dict[int, str]]:
         _wkt_data = {}
         with open(self.root + '/train_wkt_v4.csv/train_wkt_v4.csv') as f:
             for im_id, poly_type, poly in islice(csv.reader(f), 1, None):
@@ -65,30 +71,30 @@ class DSTLDatasetP(DSTLDataset):
         return image, label, image_id
 
 
-class DSTLDatasetRGB(DSTLDataset):
-
-    def __init__(self, **kwargs):
-        self.num_classes = 1
-        self.palette = palette.get_voc_palette(self.num_classes)
-        super(DSTLDatasetRGB, self).__init__(**kwargs)
-
-    def _set_files(self):
-        self.root = os.path.join(self.root, 'three_band/three_band')
-        self.image_dir = os.path.join(self.root, 'JPEGImages')
-        self.label_dir = os.path.join(self.root, 'SegmentationClass')
-
-        file_list = os.path.join(self.root, "ImageSets/Segmentation",
-                                 self.split + ".txt")
-        self.files = [line.rstrip() for line in tuple(open(file_list, "r"))]
-
-    def _load_data(self, index):
-        image_id = self.files[index]
-        image_path = os.path.join(self.image_dir, image_id + '.jpg')
-        label_path = os.path.join(self.label_dir, image_id + '.png')
-        image = np.asarray(Image.open(image_path), dtype=np.float32)
-        label = np.asarray(Image.open(label_path), dtype=np.int32)
-        image_id = self.files[index].split("/")[-1].split(".")[0]
-        return image, label, image_id
+# class DSTLDatasetRGB(DSTLDataset):
+#
+#     def __init__(self, **kwargs):
+#         self.num_classes = 1
+#         self.palette = palette.get_voc_palette(self.num_classes)
+#         super(DSTLDatasetRGB, self).__init__(**kwargs)
+#
+#     def _set_files(self):
+#         self.root = os.path.join(self.root, 'three_band/three_band')
+#         self.image_dir = os.path.join(self.root, 'JPEGImages')
+#         self.label_dir = os.path.join(self.root, 'SegmentationClass')
+#
+#         file_list = os.path.join(self.root, "ImageSets/Segmentation",
+#                                  self.split + ".txt")
+#         self.files = [line.rstrip() for line in tuple(open(file_list, "r"))]
+#
+#     def _load_data(self, index):
+#         image_id = self.files[index]
+#         image_path = os.path.join(self.image_dir, image_id + '.jpg')
+#         label_path = os.path.join(self.label_dir, image_id + '.png')
+#         image = np.asarray(Image.open(image_path), dtype=np.float32)
+#         label = np.asarray(Image.open(label_path), dtype=np.int32)
+#         image_id = self.files[index].split("/")[-1].split(".")[0]
+#         return image, label, image_id
 
 class DSTL(BaseDataLoader):
     def __init__(self, data_dir, batch_size, split, crop_size=None,
@@ -147,8 +153,9 @@ class DSTL(BaseDataLoader):
             'val': val
         }
 
+        self.dataset = DSTLDatasetP(**kwargs)
         if split in ["train_rgb", "trainval_rgb", "val_rgb", "test_rgb"]:
-            self.dataset = DSTLDatasetRGB(**kwargs)
+            # self.dataset = DSTLDatasetRGB(**kwargs)
         # elif split in ["train", "trainval", "val", "test"]:
         #     self.dataset = VOCDataset(**kwargs)
         else:

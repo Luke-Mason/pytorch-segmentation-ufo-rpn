@@ -1,6 +1,27 @@
 # Semantic Segmentation in PyTorch
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 
+```bash
+sudo apt-get install lzma
+sudo apt-get install liblzma-dev
+sudo apt-get install libbz2-dev
+```
+If you get the error: `ModuleNotFoundError: No module named 'lzma'`, then 
+install do the below.
+```bash
+pip install backports.lzma
+
+vi lzma.py 
+
+# Modify the line 29 to be:
+try:
+    from _lzma import *
+    from _lzma import _encode_filter_properties, _decode_filter_properties
+except ImportError:
+    from backports.lzma import *
+    from backports.lzma import _encode_filter_properties, _decode_filter_properties
+```
+
 <!-- TOC -->
 
 - [Semantic Segmentation in PyTorch](#semantic-segmentation-in-pytorch)
