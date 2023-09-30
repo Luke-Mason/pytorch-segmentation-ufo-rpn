@@ -4,3 +4,7 @@ tqdm
 tensorboard
 Pillow
 opencv-python
+scipy
+torch-summary
+scikit-learn
+scikit-image
