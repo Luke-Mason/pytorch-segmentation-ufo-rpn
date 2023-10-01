@@ -217,6 +217,7 @@ class Trainer(BaseTrainer):
     def _get_seg_metrics(self):
         pixAcc = 1.0 * self.total_correct / (np.spacing(1) + self.total_label)
         IoU = 1.0 * self.total_inter / (np.spacing(1) + self.total_union)
+        print('IoU: ', IoU)
         mIoU = IoU.mean()
         return {
             "Pixel_Accuracy": np.round(pixAcc, 3),

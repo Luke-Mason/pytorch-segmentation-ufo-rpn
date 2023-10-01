@@ -14,7 +14,7 @@
     },
 
     "train_loader": {
-        "type": "COCO",
+        "type": "DSTL",
         "args":{
             "data_dir": "/opt/home/s3630120/dstl-satellite-imagery-feature-detection",
             "batch_size": 32,
@@ -32,7 +32,7 @@
     },
 
     "val_loader": {
-        "type": "COCO",
+        "type": "DSTL",
         "args":{
             "data_dir": "/opt/home/s3630120/dstl-satellite-imagery-feature-detection/",
             "batch_size": 32,
@@ -44,7 +44,7 @@
     },
 
     "optimizer": {
-        "type": "SGD",
+        "type": "ADAM",
         "differential_lr": true,
         "args":{
             "lr": 0.05,
@@ -57,7 +57,11 @@
     "ignore_index": 255,
     "lr_scheduler": {
         "type": "Poly",
-        "args": {}
+        "args": {
+            "lr": 0.01,
+            "weight_decay": 0.001,
+            "momentum": 0.9
+        }
     },
 
     "trainer": {

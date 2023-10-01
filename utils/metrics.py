@@ -66,3 +66,8 @@ def eval_metrics(output, target, num_class):
     correct, num_labeled = batch_pix_accuracy(predict, target, labeled)
     inter, union = batch_intersection_union(predict, target, num_class, labeled)
     return [np.round(correct, 5), np.round(num_labeled, 5), np.round(inter, 5), np.round(union, 5)]
+
+# def eval_metrics(output, target, num_class):
+#     correct, labeled = batch_pix_accuracy(output.data, target, num_class)
+#     inter, union = batch_intersection_union(output.data, target, num_class)
+#     return [np.round(correct, 5), np.round(labeled, 5), np.round(inter, 5), np.round(union, 5)]
