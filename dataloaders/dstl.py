@@ -484,6 +484,7 @@ class DSTL(BaseDataLoader):
             1, 4, 5, 6, 7, 8, 9, 10, 11, 12
         ]
         params = {
+            # A list of classes that are to be trained on as labels. empty = all.
             "training_classes": training_classes,
             # The list of band groups to use for training
             "training_band_groups": training_band_groups,
@@ -492,8 +493,6 @@ class DSTL(BaseDataLoader):
             # Stride is made across the band axis.
             "band_merge_strategy": SlidingWindowConfig(
                 name="max", kernal_3d=(3, 2, 2), stride_3d=(3, 1, 1)),
-            # A list of classes that are to be trained on as labels. None = all.
-            "training_classes": None,
             # The size of the patches to be extracted from the images
             "patch_size": 116,
             # The overlap percetnage of the patches
