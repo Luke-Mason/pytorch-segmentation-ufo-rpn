@@ -1,16 +1,25 @@
 # Semantic Segmentation in PyTorch
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 
+Couldn't get the gpu to work on wsl2, followed this guide to help: https://gist.github.com/Ayke/5f37ebdb84c758f57d7a3c8b847648bb
+```bash
+sudo apt update && sudo apt upgrade
+sudo do-release-upgrade
+```
+
 ```bash
 sudo apt-get install lzma
 sudo apt-get install liblzma-dev
 sudo apt-get install libbz2-dev
+# sudo apt install libblas3 libomp5 liblapack3
 ```
 If you get the error: `ModuleNotFoundError: No module named 'lzma'`, then 
 install do the below.
 ```bash
 pip install backports.lzma
 
+# Then go to the folder where the lzma.py file is located in the error message 
+and do the below:
 vi lzma.py 
 
 # Modify the line 29 to be:
