@@ -126,7 +126,11 @@ class DSTLDataset(BaseDataSet):
         # The semantic segmentation map where each class id is an element of
         # the mask.
         label_mask = np.full((height, width), unknown_class_id, dtype=np.int32)
-
+        class_to_polygons = self._load_polygons(im_id, (height, width))
+        mask = np.array(
+            [utils.mask_for_polygons(im_size, poly_by_type[cls + 1])
+             for cls in range(self.hps.total_classes)],
+            dtype=np.uint8)
         # TODO get class mask for each class
         # for cls_idx, cls in enumerate(self.classes):
         #     poly = self._wkt_data[image_id][cls]
@@ -141,7 +145,7 @@ class DSTLDataset(BaseDataSet):
             return f"/{img_id}.tif"
         return f"/{img_id}_{self.file_type}.tif"
 
-    def _def image_size(filename):
+    def _image_size(filename):
         sz = os.stat(filename)
         return sz.sz_size
 
@@ -162,7 +166,21 @@ class DSTLDataset(BaseDataSet):
 
         return self._wkt_data
 
-    def _scale_to_mask(im_id: str, im_size: Tuple[int, int],
+    def _load_polygons(self, im_id: str, im_size: Tuple[int, int])\
+            -> Dict[int, MultiPolygon]:
+        """
+        Load the polygons for the image id and scale them to the image size.
+        :param im_id: The image id.
+        :param im_size: The image size.
+        :return: A dictionary of class type to polygon.
+        """
+        return {
+            int(poly_type): self_scale_to_mask(im_id, im_size,
+                                               shapely.wkt.loads(poly))
+            for poly_type, poly in self._get_wkt_data()[im_id].items()
+        }
+
+    def _scale_to_mask(self, im_id: str, im_size: Tuple[int, int],
                        poly: MultiPolygon) \
             -> MultiPolygon:
         """
@@ -178,7 +196,7 @@ class DSTLDataset(BaseDataSet):
         return shapely.affinity.scale(
             poly, xfact=x_scaler, yfact=y_scaler, origin=(0, 0, 0))
 
-    def _get_scalers(im_id: str, im_size: Tuple[int, int]) -> Tuple[float,
+    def _get_scalers(self, im_id: str, im_size: Tuple[int, int]) -> Tuple[float,
     float]:
         """
         Get the scalers for the x and y axis as according to the DSTL
@@ -196,7 +214,7 @@ class DSTLDataset(BaseDataSet):
         y_scaler = h_ / y_min
         return x_scaler, y_scaler
 
-    def _get_x_max_y_min(im_id: str) -> Tuple[float, float]:
+    def _get_x_max_y_min(self, im_id: str) -> Tuple[float, float]:
         """
         Get the max x and y values from grid sizes file that is provided from the dataset in competition.
         According to the DSTL competition documentation there is some scaling and preprocessing
