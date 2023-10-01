@@ -16,7 +16,6 @@
             "data_dir": "/opt/home/s3630120/dstl-satellite-imagery-feature-detection",
             "batch_size": 128,
             "crop_size": 512,
-            "base_size": None,
             "augment": false,
             "shuffle": false,
             "scale": false,
