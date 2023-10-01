@@ -11,14 +11,44 @@ from pathlib import Path
 from itertools import islice
 import json
 import csv
+import pandas as pd
+from shapely.geometry import MultiPolygon, Polygon
+import shapely.wkt
+import shapely.affinity
+import shapely.geometry
 
+# 10 is the unknown class because 0 - 9 are class ids in the DSTL dataset.
+unknown_class_id = 10
 
 class DSTLDataset(BaseDataSet):
 
-    def __init__(self, mean: [float], **kwargs):
+    def __init__(self, classes: [int], hold_imagery_in_memory file_type: str,
+    image_sub_dir: str, mean: [float], **kwargs):
+    """
+    :param hold_imagery_in_memory: Whether to hold the imagery in memory or not.
+    :param file_type: The file type of the imagery. Either 'A', 'P',
+    'M', 'RGB' or a combination of them i.e ARGBM.
+    :param image_sub_dir: The sub directory of the imagery within the root
+    directory.
+    :param mean: The mean value of the imagery bands.
+    :param kwargs: The keyword arguments.
+    """
+        print(kwargs)
+
+        # The label data but is represented as in WKT format.
+        # img_id -> class_id, WKT
+        self._wkt_data = None # type: Dict[str, Dict[int, str]]
+
+        # The map of image ids to max x and y values.
+        self._x_max_y_min = None # type: Dict[str, Tuple[float, float]]
+        self.hold_imagery_in_memory = hold_imagery_in_memory
+        self.file_type = file_type
+        self.root = kwargs.get('root')
+        self.image_dir = os.path.join(self.root, image_sub_dir)
+        self.images = {}
 
         # The classes to detect
-        self.classes = [1, 10]
+        self.classes = classes
 
         # The number of classes
         self.num_classes = len(self.classes)
@@ -28,46 +58,200 @@ class DSTLDataset(BaseDataSet):
 
         all_train_ids = list(self._get_wkt_data())
         print(all_train_ids)
-        class_stats_dir = os.path.join(self.root, 'cls-stats.json')
-        class_label_stats = json.loads(Path(class_stats_dir).read_text())
-        labeled_area = [(im_id, np.mean([class_label_stats[im_id][str(cls)]['area']
-                                    for cls in self.classes]))
-                   for im_id in all_train_ids]
+        self.class_label_stats = json.loads(Path(
+            'dataloaders/labels/dstl-stats.json').resolve().read_text())
+        labeled_area = [
+            (im_id,
+             np.mean([self.class_label_stats[im_id][str(cls)]['area']for cls in
+                      self.classes]))
+                   for im_id in all_train_ids
+        ]
 
+        print('Labelled area: ', labeled_area)
 
         super(DSTLDataset, self).__init__(mean=mean, **kwargs)
 
+    def _set_files(self):
+        ids = list(self.class_label_stats.keys())
+
+        # We want to know how many patches can be made out of all the images
+        # in the dataset and then figure out the amount of patches that can
+        # be created from it by returning the set of 'files' but really is a
+        # set of patches in all files.
+        patches = [] #type: List[Tuple[str, Tuple[int, int]]]
+        step_size = self.patch_size - (self.overlap_percentage * self.patch_size)
+        for img_id in ids:
+            file_name = slef._get_filename(img_id)
+            image_path = os.path.join(self.image_dir, file_name)
+            if image_path is None:
+                print(f"Could not find file for image_id: {img_id}")
+                continue
+            width, height = self._image_size(image_path)
+            chunk_offsets = self._chunk_offsets(width, height, step_size)
+            patches.extend([(img_id, chunk) for chunk in chunk_offsets])
+
+        print('Amount of images: ', len(self.class_label_stats))
+        print('Amount of patches: ', len(patches))
+
+        self.files = patches
+
+    def _chunk_offsets(width, height, step_size):
+        """
+        Returns a list of (x, y) offsets corresponding to chunks of the image
+        TODO - make this utilise left over pixels that don't fit the step size.
+        :param height: The height of the image.
+        :param step_size: The step size to use when generating the chunks.
+        :return: A list of (x, y) offsets.
+        """
+        x_offsets = range(0, width - step_size + 1, step_size)
+        y_offsets = range(0, height - step_size + 1, step_size)
+        chunk_offsets = [(x, y) for x in x_offsets for y in y_offsets]
+
+        return chunk_offsets
+
+
+    def _get_label(self, image_id):
+        """
+        Returns the mask for the entire image so that it can be chipped.
+        :param image_id: The image id.
+        :return: The label_mask for the image.
+        """
+        file_name = slef._get_filename(img_id)
+        image_path = os.path.join(self.image_dir, file_name)
+        if image_path is None:
+            print(f"Could not find file for image_id: {img_id}")
+            continue
+        width, height = self._image_size(image_path)
+
+        # The semantic segmentation map where each class id is an element of
+        # the mask.
+        label_mask = np.full((height, width), unknown_class_id, dtype=np.int32)
+
+        # TODO get class mask for each class
+        # for cls_idx, cls in enumerate(self.classes):
+        #     poly = self._wkt_data[image_id][cls]
+        #     if poly is None:
+        #         continue
+        #     label_mask[cls_idx] = self._poly_to_mask(poly, image_id)
+
+        return label_mask
+
+    def _get_filename(self, img_id):
+        if self.file_type is None:
+            return f"/{img_id}.tif"
+        return f"/{img_id}_{self.file_type}.tif"
+
+    def _def image_size(filename):
+        sz = os.stat(filename)
+        return sz.sz_size
+
     def _get_wkt_data(self) -> Dict[str, Dict[int, str]]:
-        _wkt_data = {}
-        with open(self.root + '/train_wkt_v4.csv/train_wkt_v4.csv') as f:
-            for im_id, poly_type, poly in islice(csv.reader(f), 1, None):
-                _wkt_data.setdefault(im_id, {})[int(poly_type)] = poly
-        return _wkt_data
+        if self._wkt_data is None:
+            self._wkt_data = {}
+
+            # Load the CSV into a DataFrame
+            df = pd.read_csv(
+                os.path.join(self.root, '/train_wkt_v4.csv/train_wkt_v4.csv'))
+
+            for index, row in df.iterrows():
+                im_id = row['ImageId']
+                class_type = row['ClassType']
+                poly = row['MultipolygonWKT']
+                # Add the polygon to the dictionary
+                self._wkt_data.setdefault(im_id, {})[int(class_type)] = poly
+
+        return self._wkt_data
+
+    def _scale_to_mask(im_id: str, im_size: Tuple[int, int],
+                       poly: MultiPolygon) \
+            -> MultiPolygon:
+        """
+        Scale the polygon to the mask size because the polygon coordinates
+        are obfuscated for privacy reasons and so they gave us scalers to
+        bring them to a usable value.... so annoying.
+        :param im_id: The image id.
+        :param im_size: The image size.
+        :param poly: The polygon containing the class labeled pixel areas.
+        :return:
+        """
+        x_scaler, y_scaler = self._get_scalers(im_id, im_size)
+        return shapely.affinity.scale(
+            poly, xfact=x_scaler, yfact=y_scaler, origin=(0, 0, 0))
+
+    def _get_scalers(im_id: str, im_size: Tuple[int, int]) -> Tuple[float,
+    float]:
+        """
+        Get the scalers for the x and y axis as according to the DSTL
+        competition documentation there is some scaling and preprocessing
+        that needs to occur to correc the training data..... so annoying
+        :param im_id:
+        :param im_size:
+        :return:
+        """
+        h, w = im_size  # they are flipped so that mask_for_polygons works correctly
+        w_ = w * (w / (w + 1))
+        h_ = h * (h / (h + 1))
+        x_max, y_min = self._get_x_max_y_min(im_id)
+        x_scaler = w_ / x_max
+        y_scaler = h_ / y_min
+        return x_scaler, y_scaler
+
+    def _get_x_max_y_min(im_id: str) -> Tuple[float, float]:
+        """
+        Get the max x and y values from grid sizes file that is provided from the dataset in competition.
+        According to the DSTL competition documentation there is some scaling and preprocessing
+        that needs to occur to correc the training data..... so annoying
+        :param im_id:
+        :return:
+        """
+        if self._x_max_y_min is None:
+            with open(os.path.join(self.root, 'grid_sizes.csv/grid_sizes.csv')) as f:
+                self._x_max_y_min = {im_id: (float(x), float(y))
+                                for im_id, x, y in islice(csv.reader(f), 1, None)}
+        return self._x_max_y_min[im_id]
 
 
 class DSTLDatasetP(DSTLDataset):
 
     def __init__(self, **kwargs):
-        self.num_classes = 2
-        self.palette = palette.get_voc_palette(self.num_classes)
-        super(DSTLDatasetP, self).__init__(**kwargs)
-
-    def _set_files(self):
-        self.image_dir = os.path.join(self.root, '/sixteen_band/sixteen_band')
-        file_list = os.path.join(self.image_dir, self.split + ".txt")
-
-        self.files = [line.rstrip() for line in tuple(open(file_list, "r"))]
+        super(DSTLDatasetP, self).__init__([1],
+            true, 'P', '/sixteen_band/sixteen_band', **kwargs)
 
     def _load_data(self, index):
-        # TODO do we get 80% train 10% valid and 10% test for each image,
-        #  or do we split the images them selves into 80% train 10% valid and 10% test?
+        image_id, chunk = self.files[index]
+        image_path = os.path.join(self.image_dir, _get_filename(image_id))
 
-        image_id = self.files[index]
-        image_path = os.path.join(self.image_dir, image_id + '.jpg')
+        if self.hold_imagery_in_memory:
+            if image_id not in self.images:
+                self.images[image_id] = np.asarray(Image.open(image_path), dtype=np.float32)
+                self.labels[image_id] = self._get_label(image_id)
+            image = self.images[image_id]
+        else:
+            image = np.asarray(Image.open(image_path), dtype=np.float32)
+        # Cut out the patch of the image
+        x, y = chunk
+        patch = np.copy(image[y:y + self.patch_size, x:x + self.patch_size, :])
+
+        # For each patch generate the label mask over the classes so
+        # that we can get the loss for each class for each patch. You need to
+        # find the polygons that are within the patch and then generate the
+        # mask. Maybe calculate the coordinate per pixel and then use the chunk
+        # offset to get the polygon coordinate to do an intersection with.
+
+        # TODO - generate the label mask for each class for each patch.
+
+        # All pixels that are not labelled are the non-classes = id of 10. So
+        # we initialise the array with 10s and then set the pixels that are
+        # labelled to the class id.
+        label = np.full((self.patch_size, self.patch_size), 10, dtype=np.int32)
+
+
+        label_data = self._get_wkt_data()[image_id]
+
         label_path = os.path.join(self.label_dir, image_id + '.png')
         image = np.asarray(Image.open(image_path), dtype=np.float32)
         label = np.asarray(Image.open(label_path), dtype=np.int32)
-        image_id = self.files[index].split("/")[-1].split(".")[0]
+        image_id = image_id.split("/")[-1].split(".")[0]
         return image, label, image_id
 
 
@@ -153,8 +337,12 @@ class DSTL(BaseDataLoader):
             'val': val
         }
 
-        self.dataset = DSTLDatasetP(**kwargs)
-        if split in ["train_rgb", "trainval_rgb", "val_rgb", "test_rgb"]:
+        print("kwargs", kwargs)
+
+        if split in ["train", "trainval", "val", "test"]:
+            self.dataset = DSTLDatasetP(**kwargs)
+
+        # if split in ["train_rgb", "trainval_rgb", "val_rgb", "test_rgb"]:
             # self.dataset = DSTLDatasetRGB(**kwargs)
         # elif split in ["train", "trainval", "val", "test"]:
         #     self.dataset = VOCDataset(**kwargs)
