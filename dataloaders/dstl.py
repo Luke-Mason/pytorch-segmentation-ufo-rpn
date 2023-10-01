@@ -55,6 +55,11 @@ class DSTLDataset(BaseDataSet):
         if img_ref_scale not in ['RGB', 'P', 'M', 'A']:
             raise ValueError(f"Unknown image reference scale: {img_ref_scale}")
 
+        if len(training_band_groups) != 3:
+            raise ValueError("Band groups must be 3")
+
+        self.num_classes = 10 if len(training_classes) == 0 else len(training_classes)
+
         # Attributes
         self.img_ref_scale = img_ref_scale
         self.training_classes = training_classes
@@ -479,11 +484,13 @@ class DSTL(BaseDataLoader):
                  shuffle=False, flip=False, rotate=False, blur=False,
                  augment=False, val_split=None, return_id=False):
 
-        training_classes = []
+        training_classes = [2]
         training_band_groups = [
-            1, 4, 5, 6, 7, 8, 9, 10, 11, 12
+            [1], [2,3,4], [5,6,7]
         ]
         params = {
+            # The image band to scale other bands to as a reference size.
+            "img_ref_scale": 'RGB',
             # A list of classes that are to be trained on as labels. empty = all.
             "training_classes": training_classes,
             # The list of band groups to use for training
@@ -492,7 +499,7 @@ class DSTL(BaseDataLoader):
             # The shape of image when merging is (num_bands, height, width)
             # Stride is made across the band axis.
             "band_merge_strategy": SlidingWindowConfig(
-                name="max", kernal_3d=(3, 2, 2), stride_3d=(3, 1, 1)),
+                name="max", kernel_3d=(3, 2, 2), stride_3d=(3, 1, 1)),
             # The size of the patches to be extracted from the images
             "patch_size": 116,
             # The overlap percetnage of the patches
@@ -528,9 +535,7 @@ class DSTL(BaseDataLoader):
             'rotate': rotate,
             'return_id': return_id,
             'val': val,
-            "val_split": 0.8,
-            "num_classes": 10 if len(training_classes) == 0 else len(
-                training_classes),
+            "val_split": 0.8
         }
 
         print("kwargs", kwargs)

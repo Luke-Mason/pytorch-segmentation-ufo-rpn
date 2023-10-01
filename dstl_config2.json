@@ -25,17 +25,7 @@
             "blur": false,
             "split": "train",
             "val_split": 0.8,
-            "num_workers": 8,
-            "classes": [
-                0
-            ],
-            "training_bands": [
-                1
-            ],
-            "patch_size": 512,
-            "overlap_percentage": 10,
-            "align_images": false,
-            "interpolation_method": 4
+            "num_workers": 8
         }
     },
     "val_loader": {
