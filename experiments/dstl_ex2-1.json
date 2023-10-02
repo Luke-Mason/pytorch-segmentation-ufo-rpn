@@ -11,7 +11,7 @@
         }
     },
     "trainer": {
-        "epochs": 200,
+        "epochs": 100,
         "save_dir": "saved/",
         "save_period": 20,
         "monitor": "max Mean_IoU",
@@ -42,14 +42,14 @@
             }]
         },
         "args": {
-            "add_negative_class": false,
+            "add_negative_class": true,
             "auto_balance_classes": true,
             "batch_size": 128,
             "augment": false,
             "shuffle": true,
             "flip": true,
             "rotate": true,
-            "blur": true,
+            "blur": false,
             "num_workers": 8
         }
     },

@@ -11,7 +11,7 @@
         }
     },
     "trainer": {
-        "epochs": 200,
+        "epochs": 100,
         "save_dir": "saved/",
         "save_period": 20,
         "monitor": "max Mean_IoU",
@@ -30,26 +30,26 @@
         "preprocessing": {
             "patch_size": 128,
             "align_images": false,
-            "img_ref_scale": "A",
+            "img_ref_scale": "M",
             "overlap_pixels": 56,
             "interpolation_method": 4,
             "training_band_groups": [{
-                "bands": [16]
+                "bands": [6]
             }, {
-                "bands": [18]
+                "bands": [7]
             }, {
-                "bands": [20]
+                "bands": [8]
             }]
         },
         "args": {
-            "add_negative_class": false,
+            "add_negative_class": true,
             "auto_balance_classes": true,
             "batch_size": 128,
             "augment": false,
             "shuffle": true,
             "flip": true,
             "rotate": true,
-            "blur": true,
+            "blur": false,
             "num_workers": 8
         }
     },

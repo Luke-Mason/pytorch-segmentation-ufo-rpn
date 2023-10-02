@@ -158,7 +158,7 @@ class DSTLDataset(BaseDataSet):
             # Load image with 3 bands
             image = np.load(Path(self.get_stage_2_file_path(image_id) +
                                  ".data.npy"),  allow_pickle=True)
-            print(f"loaded image shape: {image.shape}")
+
             height, width = image.shape[1], image.shape[2]
             chunk_offsets = self._gen_chunk_offsets(width, height, step_size)
 
@@ -279,12 +279,11 @@ class DSTLDataset(BaseDataSet):
         old_stat = pixel_area_stats[imblanced_classes[-1]]
 
         while True:
-            print(
-                f"| Class Balancing {'% | '.join(map(str, np.round((pixel_area_stats / np.sum(pixel_area_stats)) * 100, 2)))}% |")
+            self.logger.info(f"| Class Balancing {'% | '.join(map(str, np.round((pixel_area_stats / np.sum(pixel_area_stats)) * 100, 2)))}% |")
             ascending_imblanced_classes = np.argsort(pixel_area_stats)
 
             # Calculate the threshold for a 5% difference
-            threshold = 0.05 * pixel_area_stats
+            threshold = 0.02 * pixel_area_stats
 
             # Check if any element is more than 5% different from another element
             more_than_5_percent_difference = np.any(np.abs(
@@ -389,7 +388,11 @@ class DSTLDataset(BaseDataSet):
 
         # Append the files that need to be duplicated
         self.files = updated_list
+
+        # Append the files that need to be duplicated
         self.files.extend(files_to_append)
+
+        self.logger.info(f"Total files: {len(self.files)}")
 
     def get_file_indexes(self):
         return self.file_train_indxs, self.file_val_indxs
@@ -448,8 +451,6 @@ class DSTLDataset(BaseDataSet):
         np.save(Path(mask_path + ".mask.npy"), mask, allow_pickle=True)
 
     def _load_data(self, index: int):
-        if index > len(self.files):
-            index = index % len(self.files)
         return self.files[index]
 
     def __getitem__(self, index):

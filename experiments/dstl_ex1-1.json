@@ -11,11 +11,11 @@
         }
     },
     "trainer": {
-        "epochs": 200,
+        "epochs": 100,
         "save_dir": "saved/",
         "save_period": 20,
         "monitor": "max Mean_IoU",
-        "early_stop": 10000,
+        "early_stop": 3,
         "tensorboard": true,
         "log_dir": "saved/runs",
         "log_per_iter": 10,
@@ -36,13 +36,13 @@
             "training_band_groups": [{
                 "bands": [1]
             }, {
-                "bands": [3]
+                "bands": [2]
             }, {
-                "bands": [5]
+                "bands": [3]
             }]
         },
         "args": {
-            "add_negative_class": false,
+            "add_negative_class": true,
             "auto_balance_classes": true,
             "batch_size": 128,
             "augment": false,
@@ -54,11 +54,11 @@
         }
     },
     "optimizer": {
-        "type": "AdamW",
+        "type": "Adam",
         "differential_lr": true,
-        "args":{
-            "lr": 0.005,
-            "weight_decay": 1e-4
+        "args": {
+            "lr": 0.01,
+            "weight_decay": 1e-3
         }
     },
     "loss": "JaccardCoefficient",

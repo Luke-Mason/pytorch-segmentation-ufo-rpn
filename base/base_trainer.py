@@ -134,11 +134,11 @@ class BaseTrainer:
         available_gpus = list(range(n_gpu))
         return device, available_gpus
     
-    def train(self, fold):
+    def train(self):
         stats = dict()
 
         for epoch in range(self.start_epoch, self.epochs+1):
-            # RUN TRAIN (AND VAL) Metric is dict[Class][Metric Name]: [Idx, Total]
+            # RUN TRAIN (AND VAL)
             epoch_stats = self._train_epoch(epoch)
             for class_name, metric_totals in epoch_stats.items():
                 if class_name not in stats:
@@ -150,8 +150,6 @@ class BaseTrainer:
                             'train': [],
                             'val': []
                         })
-                    # if fold_indx >= len(fold_stats[class_name][metric_name][type]):
-                    #     fold_stats[class_name][metric_name][type].append([])
                     stats[class_name][metric_name]['train'].append(total)
             metrics = {}
             if self.do_validation and epoch % self.config['trainer']['val_per_epochs'] == 0:

@@ -241,7 +241,7 @@ class DSTLTrainer(BaseTrainer):
         total_metric_totals = dict()
 
         tbar = tqdm(self.val_loader, ncols=130)
-        with (((((((((((torch.no_grad()))))))))))):
+        with ((((torch.no_grad())))):
             for batch_idx, (data, target) in enumerate(tbar):
                 # LOSS
                 output = self.model(data)
