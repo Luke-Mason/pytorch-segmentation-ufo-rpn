@@ -11,7 +11,7 @@ dstl_ex5.jsondstl_ex4.json{
         }
     },
     "trainer": {
-        "epochs": 100,
+        "epochs": 200,
         "save_dir": "saved/",
         "save_period": 20,
         "monitor": "max Mean_IoU",
