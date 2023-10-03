@@ -181,7 +181,7 @@ class BaseTrainer:
                 self.train_logger.info(log)
 
             # CHECKING IF THIS IS THE BEST MODEL (ONLY FOR VAL)
-            if self.mnt_mode != 'off' and epoch % self.config['trainer']['val_per_epochs'] == 0:
+            if epoch > self.config['lr_scheduler']["args"]['last_epoch'] and self.mnt_mode != 'off' and epoch % self.config['trainer']['val_per_epochs'] == 0:
                 try:
                     # TODO Seg metrics, check result here
                     if self.mnt_mode == 'min':
