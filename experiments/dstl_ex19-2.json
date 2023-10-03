@@ -1,6 +1,6 @@
-dstl_ex5.jsondstl_ex4.json{
-    "name": "dstl_ex4",
-    "n_gpu": 1,
+{
+    "name": "dstl_ex19-2",
+     "n_gpu": 1,
     "use_synch_bn": false,
     "arch": {
         "type": "UFONet",
@@ -15,18 +15,18 @@ dstl_ex5.jsondstl_ex4.json{
         "save_dir": "saved/",
         "save_period": 20,
         "monitor": "max Mean_IoU",
-        "early_stop": 10000,
+        "early_stop": 2,
         "tensorboard": true,
         "log_dir": "saved/runs",
         "log_per_iter": 10,
         "val": true,
-        "val_per_epochs": 5,
+        "val_per_epochs": 1,
         "k_stop": 1,
         "k_split": 5,
         "k_shuffle": false,
         "k_random_state": 42
     },
-    "train_loader": {
+    "all_loader": {
         "preprocessing": {
             "patch_size": 256,
             "align_images": false,
@@ -46,14 +46,27 @@ dstl_ex5.jsondstl_ex4.json{
         },
         "args": {
             "add_negative_class": true,
-            "auto_balance_classes": true,
             "batch_size": 128,
-            "augment": false,
+            "return_id": false,
+            "num_workers": 8
+        }
+    },
+    "train_loader": {
+        "args": {
+            "augment": true,
             "shuffle": true,
             "flip": true,
             "rotate": true,
-            "blur": false,
-            "num_workers": 8
+            "blur": false
+        }
+    },
+    "val_loader":  {
+        "args": {
+            "augment": false,
+            "shuffle": false,
+            "flip": false,
+            "rotate": false,
+            "blur": false
         }
     },
     "optimizer": {
