@@ -101,7 +101,7 @@ def write_metric(logger, writer, do_validation, val_per_epochs, stats,
     for key, m in stats.items():
         metric_name = key.capitalize()
         train_m1 = np.array(m['train'])
-        val_m1 = np.array(m['val']) if 'val' in else None
+        val_m1 = np.array(m['val']) if 'val' in m else None
         for epoch in range(train_m1.shape[1]):
             metric_t = func(train_m1[:, epoch])
             metrics = dict({ 'train': np.mean(metric_t) })
