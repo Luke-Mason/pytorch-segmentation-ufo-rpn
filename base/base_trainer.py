@@ -187,7 +187,7 @@ class BaseTrainer:
                     if self.mnt_mode == 'min':
                         self.improved = (log[self.mnt_metric] < self.mnt_best)
                     else:
-                        self.improved = (log[self.mnt_metric] > self.mnt_best)
+                        self.improved = (log[self.mnt_metric] >= self.mnt_best)
                 except KeyError:
                     self.logger.warning(f'The metrics being tracked ({self.mnt_metric}) has not been calculated. Training stops.')
                     break
