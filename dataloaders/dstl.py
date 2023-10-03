@@ -419,7 +419,7 @@ class DSTLDataset(BaseDataSet):
             # If when adding it, it increases the already largest class by more
             # than we need to try delete the largest class instead,
             # and continue to do it until they are balanced.
-            idx_to_be_duped = largest_area_of_smallest_class_patch[-1]
+            # idx_to_be_duped = largest_area_of_smallest_class_patch[-1]
             # for patch_to_be_duped in patch_class_areas_asc:
             patch_to_be_duped = patch_class_areas_asc[0]
             idx_to_be_duped = patch_to_be_duped[-1]
