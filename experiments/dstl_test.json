@@ -68,6 +68,7 @@
     },
     "optimizer": {
         "type": "Adam",
+        "differential_lr": false,
         "args": {
             "lr": 0.1,
             "weight_decay": 1e-4
