@@ -26,6 +26,7 @@ from utils import palette
 # 10 is the unknown class because 0 - 9 are class ids in the DSTL dataset.
 unknown_class_id = 10
 
+
 class DSTLDataset(BaseDataSet):
 
     def __init__(self, classes: List[int], training_bands: List[int],
@@ -120,7 +121,7 @@ class DSTLDataset(BaseDataSet):
     def _load_data(self, index: int):
         image_id, chunk, band_id = self.files[index]
         file_type, band_idx = self._get_file_type_and_band_index(band_id)
-        file_name = self._get_filename(image_id, file_type)
+        file_name = self._get_filename(image_id, band_id)
 
         # Caches - we store all imagery data and info loaded in RAM.
         info = self.info[file_name]
@@ -237,48 +238,42 @@ class DSTLDataset(BaseDataSet):
         :param image: The image.
         :return: The label_mask for the image.
         """
-        # The semantic segmentation map where each class id is an element of
-        # the mask.
-        #  np.full(image.shape, unknown_class_id, dtype=np.int32)
         class_to_polygons = self._load_polygons(image_id, height, width)
-        label_mask = self._mask_from_polygons(image, class_to_polygons)
-        # TODO get class mask for each class
-        # for cls_idx, cls in enumerate(self.classes):
-        #     poly = self._wkt_data[image_id][cls]
-        #     if poly is None:
-        #         continue
-        #     label_mask[cls_idx] = self._poly_to_mask(poly, image_id)
-
-        return label_mask
+        return self._mask_from_polygons(image, class_to_polygons)
 
     def _mask_from_polygons(self, image: np.ndarray,
-                           polygons_map: Dict[int, MultiPolygon]) -> np.ndarray:
+                            polygons_map: Dict[
+                                int, MultiPolygon]) -> np.ndarray:
         """ Return numpy mask for given polygons.
         polygons should already be converted to image coordinates.
         """
-        label_mask = np.full(image.shape, unknown_class_id, dtype=np.int32)
+        # The semantic segmentation map where each class id is an element of
+        # the mask.
+        label_mask = np.full(image.shape, unknown_class_id, dtype=np.float32)
         for class_id, polygons in polygons_map.items():
             if not polygons:
                 return label_mask
             int_coords = lambda x: np.array(x).round().astype(np.int32)
             exteriors = [int_coords(poly.exterior.coords) for poly in
-                        polygons.geoms]
+                         polygons.geoms]
             interiors = [int_coords(pi.coords) for poly in polygons.geoms
-                        for pi in poly.interiors]
+                         for pi in poly.interiors]
 
             # Cut out parts of current mask
-            extracted_values = extract_mask_values_using_polygons(image, interiors)
+            extracted_values = extract_mask_values_using_polygons(image,
+                                                                  interiors)
 
             # Fill pixels with the polygon exterior convex with the class id
             cv2.fillPoly(label_mask, exteriors, class_id)
 
             # Apply polygon interior holes with saved mask data, where 0 are non values
-            label_mask[extracted_values != -1] = extracted_values[extracted_values != -1]
-
+            label_mask[extracted_values != -1] = extracted_values[
+                extracted_values != -1]
 
         return label_mask
 
-    def _get_filename(self, img_id: str, file_type: str):
+    def _get_filename(self, img_id: str, band_id: int):
+        file_type, _ = self._get_file_type_and_band_index(band_id)
         return f"/{img_id}_{file_type}.tif"
 
     def _get_image_info(self, filename) -> Tuple[int, int, int]:
@@ -363,6 +358,13 @@ class DSTL(BaseDataLoader):
                  augment=False, val_split=None, return_id=False):
 
         # Scale the bands to be between 0 - 255
+        # Min Max for Type P: [[0, 2047]]
+        # Min Max for Type RGB: [[1, 2047], [157, 2047], [91, 2047]]
+        # Min Max for Type M: [[156, 2047], [115, 2047], [87, 2047], [55, 2047], [1, 2047], [84, 2047], [160, 2047], [111, 2047]]
+        # Min Max for Type A: [[671, 15562], [489, 16383], [434, 16383], [390, 16383], [1, 16383], [129, 16383], [186, 16383], [1, 16383]]
+        # P is 11bit, RGB is 11bit, M is 11bit, A is 14bit
+
+        # Preprocessed means and standard deviations for all 20 bands (P-1, RGB-3, M-8, A-8)
         self.MEAN = [
             503.58188970939926, 427.0634343071277, 464.8759277981281,
             329.2235720071117, 296.5393404081892,
@@ -381,21 +383,8 @@ class DSTL(BaseDataLoader):
                     1498.283301243493, 2033.058786394439, 1775.6160960734042,
                     1735.6225240596295, 1558.8727446060877, 1375.4157376742348,
                     1379.5742405109147, 1429.8340679224425]
-
-        # std = np.array([
-        #             62.00827863,  46.65453694,  24.7612776,   54.50255552,
-        #             13.48645938,  24.76103598,  46.52145521,  62.36207267,
-        #             61.54443128,  59.2848377,   85.72930307,  68.62678882,
-        #             448.43441827, 634.79572682, 567.21509273, 523.10079804,
-        #             530.42441592, 461.8304455,  486.95994727, 478.63768386],
-        #             dtype=np.float32)
-        #         mean = np.array([
-        #             413.62140162,  459.99189475,  325.6722122,   502.57730746,
-        #             294.6884949,   325.82117752,  460.0356966,   482.39001004,
-        #             413.79388678,  527.57681818,  678.22878001,  529.64198655,
-        #             4243.25847972, 4473.47956815, 4178.84648439, 3708.16482918,
-        #             2887.49330138, 2589.61786722, 2525.53347208, 2417.23798598],
-        #             dtype=np.float32)
+        # TODO construct the std and means only from the bands that are being
+        #  trained on.
 
         kwargs = {
             'root': data_dir,
@@ -428,19 +417,102 @@ class DSTL(BaseDataLoader):
         super(DSTL, self).__init__(self.dataset, batch_size, shuffle,
                                    num_workers, val_split)
 
-def extract_mask_values_using_polygons(mask: np.ndarray, polygons: MultiPolygon):
+
+def extract_mask_values_using_polygons(mask: np.ndarray,
+                                       polygons: MultiPolygon):
     """ Return numpy mask for given polygons.
         polygons should already be converted to image coordinates.
         non values are given -1.
     """
     # Mark the values to extract with a 1.
     mark_value = 1
-    marked_mask = np.zeros(mask.shape, dtype=np.int32)
+    marked_mask = np.zeros(mask.shape, dtype=np.int8)
     cv2.fillPoly(marked_mask, polygons, mark_value)
 
     # Extract the values from the main mask using the marked mask
-    extracted_values_mask = np.full(marked_mask.shape, -1, dtype=np.int32)
+    extracted_values_mask = np.full(marked_mask.shape, -1, dtype=np.float32)
     for index, element in np.ndenumerate(marked_mask):
         if element == mark_value:
             extracted_values_mask[index] = mask[index]
     return extracted_values_mask
+
+
+# TODO use this
+def load_image(im_id: str, rgb_only=False, align=True) -> np.ndarray:
+    im_rgb = tiff.imread(
+        dataset_path + 'three_band/{}.tif'.format(im_id)).transpose([1, 2, 0])
+    if rgb_only:
+        return im_rgb
+    im_p = np.expand_dims(tiff.imread(
+        dataset_path + 'sixteen_band/sixteen_band/{}_P.tif'.format(im_id)), 2)
+    im_m = tiff.imread(
+        dataset_path + 'sixteen_band/sixteen_band/{}_M.tif'.format(
+            im_id)).transpose([1, 2, 0])
+    im_a = tiff.imread(
+        dataset_path + 'sixteen_band/sixteen_band/{}_A.tif'.format(
+            im_id)).transpose([1, 2, 0])
+    w, h = im_rgb.shape[:2]
+    if align:
+        key = lambda x: '{}_{}'.format(im_id, x)
+        im_p, _ = _aligned(im_rgb, im_p, key=key('p'))
+        im_m, aligned = _aligned(im_rgb, im_m, im_m[:, :, :3], key=key('m'))
+        im_ref = im_m[:, :, -1] if aligned else im_rgb[:, :, 0]
+        im_a, _ = _aligned(im_ref, im_a, im_a[:, :, 0], key=key('a'))
+    if im_p.shape != im_rgb.shape[:2]:
+        im_p = cv2.resize(im_p, (h, w), interpolation=cv2.INTER_CUBIC)
+    im_p = np.expand_dims(im_p, 2)
+    im_m = cv2.resize(im_m, (h, w), interpolation=cv2.INTER_CUBIC)
+    im_a = cv2.resize(im_a, (h, w), interpolation=cv2.INTER_CUBIC)
+    return np.concatenate([im_rgb, im_p, im_m, im_a], axis=2)
+
+
+def _preprocess_for_alignment(im):
+    im = np.squeeze(im)
+    if len(im.shape) == 2:
+        im = scale_percentile(np.expand_dims(im, 2))
+    else:
+        assert im.shape[2] == 3, im.shape
+        im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+    return im.astype(np.float32)
+
+
+def _aligned(im_ref, im, im_to_align=None, key=None):
+    w, h = im.shape[:2]
+    im_ref = cv2.resize(im_ref, (h, w), interpolation=cv2.INTER_CUBIC)
+    im_ref = _preprocess_for_alignment(im_ref)
+    if im_to_align is None:
+        im_to_align = im
+    im_to_align = _preprocess_for_alignment(im_to_align)
+    assert im_ref.shape[:2] == im_to_align.shape[:2]
+    try:
+        cc, warp_matrix = _get_alignment(im_ref, im_to_align, key)
+    except cv2.error as e:
+        logger.info('Error getting alignment: {}'.format(e))
+        return im, False
+    else:
+        im = cv2.warpAffine(im, warp_matrix, (h, w),
+                            flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP)
+        im[im == 0] = np.mean(im)
+        return im, True
+
+
+def _get_alignment(im_ref, im_to_align, key):
+    if key is not None:
+        cached_path = Path(dataset_root_path + 'align_cache').joinpath(
+            '{}.alignment'.format(key))
+        if cached_path.exists():
+            with cached_path.open('rb') as f:
+                return pickle.load(f)
+    logger.info('Getting alignment for {}'.format(key))
+    warp_mode = cv2.MOTION_TRANSLATION
+    warp_matrix = np.eye(2, 3, dtype=np.float32)
+    criteria = (
+        cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 5000, 1e-8)
+    cc, warp_matrix = cv2.findTransformECC(
+        im_ref, im_to_align, warp_matrix, warp_mode, criteria)
+    if key is not None:
+        with cached_path.open('wb') as f:
+            pickle.dump((cc, warp_matrix), f)
+    logger.info('Got alignment for {} with cc {:.3f}: {}'
+                .format(key, cc, str(warp_matrix).replace('\n', '')))
+    return cc, warp_matrix
