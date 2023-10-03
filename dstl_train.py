@@ -97,19 +97,20 @@ def stratified_split(sorted_array, group_size):
 
 
 def write_metric(logger, writer, do_validation, val_per_epochs, stats,
-                 metric, func, class_name, metric_name):
-    m = stats[metric]
-    train_m1 = np.array(m['train'])
-    val_m1 = np.array(m['val'])
-    for epoch in range(train_m1.shape[1]):
-        metric_t = func(train_m1[:, epoch])
-        metrics = dict({ 'train': np.mean(metric_t) })
-        if do_validation and (epoch + 1) % val_per_epochs == 0:
-            val_epoch = epoch // val_per_epochs
-            metric_v = func(val_m1[:, val_epoch])
-            val = dict({ 'val': np.mean(metric_v) })
-            metrics.update(val)
-        writer.add_scalars(f'{class_name}/{metric_name}', metrics, (epoch + 1))
+                 func, class_name):
+    for key, m in stats.items():
+        metric_name = key.capitalize()
+        train_m1 = np.array(m['train'])
+        val_m1 = np.array(m['val']) if 'val' in else None
+        for epoch in range(train_m1.shape[1]):
+            metric_t = func(train_m1[:, epoch])
+            metrics = dict({ 'train': np.mean(metric_t) })
+            if do_validation and val_m1 is not None and (epoch + 1) % val_per_epochs == 0:
+                val_epoch = epoch // val_per_epochs
+                metric_v = func(val_m1[:, val_epoch])
+                val = dict({ 'val': np.mean(metric_v) })
+                metrics.update(val)
+            writer.add_scalars(f'{class_name}/{metric_name}', metrics, (epoch + 1))
 
 
 def write_metric_2_param(logger, writer, do_validation, val_per_epochs, stats,
@@ -158,9 +159,7 @@ def write_stats_to_tensorboard(logger, writer, do_validation, val_per_epochs,
     #             logger.debug(f"{stat}-{metric}-{key}: {class_stats[stat][metric][key]}")
 
     # LOSS
-    write_metric(logger, writer, do_validation, val_per_epochs, class_stats['all'], 'loss', np.mean, 'All', 'Loss')
-    write_metric(logger, writer, False, val_per_epochs, class_stats['all'], 'lr_0', np.mean, 'All', 'Learning_Rate_0')
-    write_metric(logger, writer, False, val_per_epochs, class_stats['all'], 'lr_1', np.mean, 'All', 'Learning_Rate_1')
+    write_metric(logger, writer, do_validation, val_per_epochs, class_stats['all'], np.mean, 'All')
 
     for class_name_indx, stats in class_stats.items():
         class_name = metric_indx[str(class_name_indx)]
