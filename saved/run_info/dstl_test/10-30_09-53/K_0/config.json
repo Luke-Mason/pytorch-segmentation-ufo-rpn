@@ -52,7 +52,7 @@
     "name": "dstl_test",
     "optimizer": {
         "args": {
-            "lr": 0.1,
+            "lr": 0.01,
             "weight_decay": 0.001
         },
         "differential_lr": true,

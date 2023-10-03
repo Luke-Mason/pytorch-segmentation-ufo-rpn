@@ -15,7 +15,7 @@
         "save_dir": "saved/",
         "save_period": 20,
         "monitor": "max Mean_IoU",
-        "early_stop": 2,
+        "early_stop": 4,
         "tensorboard": true,
         "log_dir": "saved/runs",
         "log_per_iter": 10,
@@ -70,7 +70,7 @@
         "type": "Adam",
         "differential_lr": true,
         "args": {
-            "lr": 0.1,
+            "lr": 0.01,
             "weight_decay": 1e-3
         }
     },
