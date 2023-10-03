@@ -159,7 +159,8 @@ class DSTLTrainer(BaseTrainer):
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
-            self.lr_scheduler.step(epoch=epoch - 1)
+            if self.config["lr_scheduler"]["args"]["stop_epoch"] <= epoch:
+                self.lr_scheduler.step()
 
             # measure elapsed time
             self.batch_time.update(time.time() - tic)

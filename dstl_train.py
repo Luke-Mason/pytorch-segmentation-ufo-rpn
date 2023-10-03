@@ -367,6 +367,12 @@ def main(config, resume):
             logger.info("Creating file weights..")
             train_patch_weights, val_patch_weights = preprocessor.get_file_weights()
 
+            # Check if train or val weights contains Inf or NaN
+            if np.any(np.isnan(train_patch_weights)) or np.any(np.isnan(val_patch_weights)):
+                logger.error("Train or val weights contains Inf")
+                bonus += 1
+                continue
+
             # Create train and valiation data loaders that only load the data
             # into batch by seleecting indexes from the list of indices we
             # give each loader.
@@ -417,13 +423,13 @@ def main(config, resume):
                 add_negative_class=add_negative_class,
             )
 
-            # try:
-            logger.info("Train..")
-            epochs_stats = trainer.train()
-            # except Exception as e:
-            #     logger.error(f"Error in fold {fold_indx + 1}: {e}")
-            #     bonus += 1
-            #     continue
+            try:
+                logger.info("Train..")
+                epochs_stats = trainer.train()
+            except Exception as e:
+                logger.error(f"Error in fold {fold_indx + 1}: {e}")
+                bonus += 1
+                continue
 
             # logger.debug(f"Fold stats BLALBLBLALSDLALSDLASLDLASD")
             # im lazy and dont want to refactor the code
