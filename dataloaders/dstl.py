@@ -782,7 +782,7 @@ class DSTL(BaseDataLoader):
             'blur': blur,
             'rotate': rotate,
             'return_id': return_id,
-            'val': val,
+            'val': False,
             'mean': self.MEAN,
             'std': self.STD
         }
@@ -791,11 +791,15 @@ class DSTL(BaseDataLoader):
         print("kwargs", kwargs)
         print("params", params)
 
-        self.dataset = DSTLDataset(data, training_band_groups, **params,
+        dataset = DSTLDataset(data, training_band_groups, **params,
                                    **kwargs)
         train_indxs, val_indxs = self.dataset.get_file_indexes()
         # Convert the image indexes into files indexes.
 
-        super(DSTL, self).__init__(self.dataset, batch_size, shuffle,
+        val_kwargs = kwargs.copy()
+        val_kwargs['val'] = True
+        val_dataset = DSTLDataset(data, training_band_groups, **params,
+                                   **val_kwargs)
+        super(DSTL, self).__init__(dataset, val_dataset, batch_size, shuffle,
                                    num_workers, train_indxs, val_indxs, val)
 
