@@ -41,7 +41,9 @@ def main(config, resume):
         config=config,
         train_loader=train_loader,
         val_loader=val_loader,
-        train_logger=train_logger)
+        train_logger=train_logger,
+        root=config['train_loader']['args']['data_dir'],
+    )
 
     trainer.train()
 

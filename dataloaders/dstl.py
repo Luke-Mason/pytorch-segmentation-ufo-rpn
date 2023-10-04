@@ -108,21 +108,12 @@ class DSTLDataset(BaseDataSet):
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
 
-        log_file_name = datetime.datetime.now().strftime(
-            '%Y-%m-%d_%H-%M-%S.log')
+        log_file_name = datetime.datetime.now().strftime('%Y-%m-%d_%H.log')
         handler = logging.FileHandler(os.path.join(log_dir, log_file_name))
         handler.setLevel(logging.DEBUG)
         handler.setFormatter(logging.Formatter(
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
         self.logger.addHandler(handler)
-
-        # Logs to screen
-        # handler = logging.StreamHandler()
-        # handler.setLevel(
-        #     logging.INFO)  # Set the desired logging level for this handler
-        # handler.setFormatter(logging.Formatter(
-        #     '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-        # self.logger.addHandler(handler)
 
     def _set_files(self):
         ids = list(self.class_label_stats.keys())
