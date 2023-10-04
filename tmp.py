@@ -1,7 +1,6 @@
 import os
 
 import numpy as np
-import pandas as pd
 import rasterio
 
 means = []
@@ -11,7 +10,7 @@ num_bands = 17
 # File to load metadata for the training data set
 # file_path = dataset_path + 'dstl_data.csv'
 root_path = '/opt/home/s3630120/dstl-satellite-imagery-feature-detection/'
-dataset_path = root_path + 'sixteen_band/sixteen_band/cached/'
+dataset_path = root_path + 'cached/'
 file_path = root_path + 'train_wkt_v4.csv/train_wkt_v4.csv'
 
 df = pd.read_csv(file_path)
