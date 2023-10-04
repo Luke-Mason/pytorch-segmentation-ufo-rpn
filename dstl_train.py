@@ -6,7 +6,7 @@ import torch
 
 import dataloaders
 import models
-from trainers import Trainer
+from trainers import DSTLTrainer
 from utils import Logger
 from utils import losses
 
@@ -34,7 +34,7 @@ def main(config, resume):
     loss = getattr(losses, config['loss'])(ignore_index=config['ignore_index'])
 
     # TRAINING
-    trainer = Trainer(
+    trainer = DSTLTrainer(
         model=model,
         loss=loss,
         resume=resume,

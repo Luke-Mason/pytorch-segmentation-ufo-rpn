@@ -56,6 +56,11 @@ class DSTLDataset(BaseDataSet):
         self.align_images = align_images
         self.interpolation_method = interpolation_method
 
+        # Reassign the mean to only the training bands that we are selecting
+        # to train on.
+        kwargs['mean'] = np.array(kwargs['mean'])[self.training_bands]
+        kwargs['std'] = np.array(kwargs['std'])[self.training_bands]
+
         # Setup directories and paths
         self.root = kwargs['root']
         self.image_dir = os.path.join(self.root, 'sixteen_band/sixteen_band')
@@ -512,10 +517,22 @@ class DSTLDataset(BaseDataSet):
 
 
 class DSTL(BaseDataLoader):
-    def __init__(self, data_dir, batch_size, split, crop_size=None,
+    def __init__(self, data_dir, batch_size, split, classes=[0],
+                    training_bands=[1], patch_size=512, overlap_percentage=10,
+                    align_images=False, interpolation_method=cv2.INTER_LANCZOS4,
+                 crop_size=None,
                  base_size=None, scale=True, num_workers=1, val=False,
                  shuffle=False, flip=False, rotate=False, blur=False,
                  augment=False, val_split=None, return_id=False):
+
+        params = {
+            "classes": classes,  # TODO Test with all classes
+            "training_bands": training_bands,  # TODO Test with all bands
+            "patch_size": patch_size,
+            "overlap_percentage": overlap_percentage,
+            "align_images": align_images,
+            "interpolation_method": interpolation_method,
+        }
 
         # Scale the bands to be between 0 - 255
         # Min Max for Type P: [[0, 2047]]
@@ -545,15 +562,25 @@ class DSTL(BaseDataLoader):
             0.15170338740612505
         ]
 
-        self.STD = [125.6897460373406, 185.7050473919206,
-                    143.04137788295327, 93.08276278131164,
-                    36.02164708172559, 93.00104122153027, 142.86657417238337,
-                    146.35837445638936, 184.8630489536806,
-                    119.47909534713612, 205.92902871666232,
-                    107.97644188228902,
-                    1498.283301243493, 2033.058786394439, 1775.6160960734042,
-                    1735.6225240596295, 1558.8727446060877, 1375.4157376742348,
-                    1379.5742405109147, 1429.8340679224425]
+        self.STD = [
+            0.061400450170792535,
+            0.017591812859739483,
+            0.04542633106105603,
+            0.06977914501857686,
+            0.0714756643002051,
+            0.0902916629649559,
+            0.05833905924418514,
+            0.10056660719458337,
+            0.05271423493731628,
+            0.09122930647511864,
+            0.12375694580765527,
+            0.1080633206739481,
+            0.10565459795743383,
+            0.09487097391893608,
+            0.08370823011510488,
+            0.08394230501189891,
+            0.08704212150257054,
+        ]
         # TODO construct the std and means only from the bands that are being
         #  trained on.
 
@@ -562,27 +589,20 @@ class DSTL(BaseDataLoader):
             'split': split,
             'mean': self.MEAN,
             'std': self.STD,
-            # 'augment': augment,
-            # 'crop_size': crop_size,
-            # 'base_size': base_size,
-            # 'scale': scale,
-            # 'flip': flip,
-            # 'blur': blur,
-            # 'rotate': rotate,
+            'augment': augment,
+            'crop_size': crop_size,
+            'base_size': base_size,
+            'scale': scale,
+            'flip': flip,
+            'blur': blur,
+            'rotate': rotate,
             'return_id': return_id,
             'val': val
         }
 
         print("kwargs", kwargs)
 
-        params = {
-            "classes": [1],  # TODO Test with all classes
-            "training_bands": [2, 3, 4],  # TODO Test with all bands
-            "patch_size": 512,
-            "overlap_percentage": 10,
-            "align_images": False,
-            "interpolation_method": cv2.INTER_LANCZOS4,
-        }
+
 
         if split in ["train", "trainval", "val", "test"]:
             self.dataset = DSTLDataset(**params, **kwargs)
