@@ -20,7 +20,6 @@ for bnd in range(num_bands):
     print(bnd)
     data_list = np.array([])
     for img_id in ids:
-        print(img_id)
         path = dataset_path + f'{img_id}_interp_4.tif'
         with rasterio.open(path) as src:
             data = src.read(bnd + 1)
