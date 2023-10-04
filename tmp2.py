@@ -16,16 +16,15 @@ file_path = root_path + 'train_wkt_v4.csv/train_wkt_v4.csv'
 df = pd.read_csv(file_path)
 ids = df['ImageId'].unique().tolist()
 
-data_list = dict({bnd: np.array([]) for bnd in range(num_bands)})
-for img_id in ids:
-    print(img_id)
-    path = dataset_path + f'{img_id}_interp_4.tif'
-    with rasterio.open(path) as src:
-        data = src.read()
-        data = data.reshape(src.count, src.width * src.height)
-        for bnd in range(num_bands):
-            data_list[bnd] = np.concatenate((data_list[bnd], data[bnd, :]),
-                                            axis=0)
-
 for bnd in range(num_bands):
-    print(f"Std for Band {bnd + 1}: {np.std(data_list[bnd])}")
+    print(bnd)
+    data_list = np.array([])
+    for img_id in ids:
+        print(img_id)
+        path = dataset_path + f'{img_id}_interp_4.tif'
+        with rasterio.open(path) as src:
+            data = src.read(bnd + 1)
+            data = data.reshape(src.width * src.height)
+            data_list = np.concatenate((data_list, data), axis=0)
+
+    print(f"Std for Band {bnd + 1}: {np.std(data_list)}")
