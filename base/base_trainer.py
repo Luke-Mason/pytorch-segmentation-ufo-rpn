@@ -182,7 +182,7 @@ class BaseTrainer:
 
             # CHECKING IF THIS IS THE BEST MODEL (ONLY FOR VAL)
             scheduler_args_ = self.config['lr_scheduler']["args"]
-            last_epoch_passed =  epoch > scheduler_args_['last_epoch'] if "last_epoch" in scheduler_args_
+            last_epoch_passed =  epoch > scheduler_args_['last_epoch'] if "last_epoch" in scheduler_args_ else True
             if last_epoch_passed and self.mnt_mode != 'off' and epoch % self.config['trainer']['val_per_epochs'] == 0:
                 try:
                     # TODO Seg metrics, check result here
