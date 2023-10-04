@@ -19,6 +19,8 @@ class DSTLTrainer(BaseTrainer):
                  val_loader=None, train_logger=None, prefetch=True, **kwargs):
         super(DSTLTrainer, self).__init__(model, loss, resume, config, train_loader,
                                       val_loader, train_logger, **kwargs)
+        self.root = kwargs['root']
+        self._setup_logging()
 
         self.wrt_mode, self.wrt_step = 'train_', 0
         self.log_step = config['trainer'].get('log_per_iter', int(np.sqrt(
@@ -51,6 +53,24 @@ class DSTLTrainer(BaseTrainer):
             self.val_loader = DataPrefetcher(val_loader, device=self.device)
 
         torch.backends.cudnn.benchmark = True
+
+    def _setup_logging(self):
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.DEBUG)
+
+        # Logs to file
+
+        # Check if log directory exist, if not create it
+        log_dir = os.path.join(self.root, 'logs')
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+
+        log_file_name = datetime.datetime.now().strftime('%Y-%m-%d_%H.log')
+        handler = logging.FileHandler(os.path.join(log_dir, log_file_name))
+        handler.setLevel(logging.DEBUG)
+        handler.setFormatter(logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        self.logger.addHandler(handler)
 
     def _train_epoch(self, epoch):
         self.logger.info('\n')
@@ -112,11 +132,11 @@ class DSTLTrainer(BaseTrainer):
             pixAcc, mIoU, _ = self._get_seg_metrics().values()
 
             # PRINT INFO
-            tbar.set_description(
-                'TRAIN ({}) | Loss: {:.3f} | Acc {:.2f} mIoU {:.2f} | B {:.2f} D {:.2f} |'.format(
-                    epoch, self.total_loss.average,
-                    pixAcc, mIoU,
-                    self.batch_time.average, self.data_time.average))
+            f__format = 'TRAIN ({}) | Loss: {:.3f} | Acc {:.2f} mIoU {:.2f} | B {:.2f} D {:.2f} |'.format(
+                epoch, self.total_loss.average, pixAcc, mIoU,
+                self.batch_time.average, self.data_time.average)
+            tbar.set_description(f__format)
+            self.logger.info(f__format)
 
         # METRICS TO TENSORBOARD
         seg_metrics = self._get_seg_metrics()
@@ -203,17 +223,10 @@ class DSTLTrainer(BaseTrainer):
             }
 
             # WRITE TO FILE
-            logFileLoc = os.path.join(self.checkpoint_dir, 'log.txt')
-            if os.path.isfile(logFileLoc):
-                logger = open(logFileLoc, 'a')
-            else:
-                logger = open(logFileLoc, 'w')
-            logger.write(description + '\n')
+            self.logger.info(description)
             seg_metrics_json = json.dumps(str(seg_metrics), indent=4,
                                           sort_keys=True)
-            logger.write(seg_metrics_json + '\n')
-            # json.dumps(seg_metrics, logger, indent=4, sort_keys=True)
-            logger.flush()
+            self.logger.info(seg_metrics_json)
 
         return log
 
