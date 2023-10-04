@@ -12,14 +12,14 @@ from tqdm import tqdm
 from utils import transforms as local_transforms
 from utils.helpers import colorize_mask
 from utils.metrics import eval_metrics, AverageMeter
-
+import logging
 
 class DSTLTrainer(BaseTrainer):
     def __init__(self, model, loss, resume, config, train_loader,
-                 val_loader=None, train_logger=None, prefetch=True, **kwargs):
+                 val_loader=None, train_logger=None, prefetch=True, root='.'):
         super(DSTLTrainer, self).__init__(model, loss, resume, config, train_loader,
-                                      val_loader, train_logger, **kwargs)
-        self.root = kwargs['root']
+                                      val_loader, train_logger)
+        self.root = root
         self._setup_logging()
 
         self.wrt_mode, self.wrt_step = 'train_', 0
