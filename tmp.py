@@ -19,7 +19,7 @@ df = pd.read_csv(file_path)
 ids = df['ImageId'].unique().tolist()
 
 mean_data_list = dict({bnd: (0, 0) for bnd in range(num_bands)})
-data_list = dict({bnd: np.array([]) for bnd in range(num_bands)})
+data_list = dict({bnd: [] for bnd in range(num_bands)})
 
 for img_id in ids:
     print(img_id)
@@ -30,7 +30,7 @@ for img_id in ids:
     with rasterio.open(path) as src:
         for bnd in range(num_bands):
             data = src.read(bnd + 1)
-            data_list[bnd] = np.concatenate((data_list[bnd], data.ravel()))
+            data_list[bnd].append(data.ravel())
 
             total, count = mean_data_list[bnd]
             mean_data_list[bnd] = (
@@ -41,4 +41,4 @@ for bnd in range(num_bands):
         f"Mean for Band {bnd + 1}: {mean_data_list[bnd][0] / mean_data_list[bnd][1]}")
 
 for bnd in range(num_bands):
-    print(f"Std for Band {bnd + 1}: {np.std(data_list[bnd])}")
+    print(f"Std for Band {bnd + 1}: {np.std(np.array(data_list[bnd]))}")
