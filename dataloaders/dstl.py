@@ -29,25 +29,40 @@ unknown_class_id = 10
 
 class DSTLDataset(BaseDataSet):
 
-    def __init__(self, classes: List[int], training_bands: List[int],
-                 merging_strategy: str, hold_imagery_in_memory: bool,
+    def __init__(self,
+                 classes: List[int],
+                 training_bands: List[int],
+                 patch_size: int,
+                 overlap_percentage: float,
+                 align_images: bool,
+                 interpolation_method: int,
                  **kwargs):
         """Constructor, initialiser.
 
         Args:
             classes (List[int]): The class labels to train on.
             training_bands (List[int]): The colour spectrum bands to train on.
-            merging_strategy (str): (optional) The merge strategy for the bands.
-            hold_imagery_in_memory (bool): hold the imagery in memory, cache different stages in memory.
+            align_images (bool): Align the images.
+            interpolation_method (int): The interpolation method to use.
         """
+        # Attributes
+        self.classes = classes
+        self.training_bands = training_bands
+        self.patch_size = patch_size
+        self.overlap_percentage = overlap_percentage
+        self.align_images = align_images
+        self.interpolation_method = interpolation_method
+
+        # Logging
         self._setup_logging()
 
-        self.training_bands = training_bands
-        self.hold_imagery_in_memory = hold_imagery_in_memory
-        self.classes = classes
+        # Setup directories and paths
         self.root = kwargs['root']
         self.image_dir = os.path.join(self.root, 'sixteen_bands/sixteen_bands')
-        self.images = {}  # type Dict[str, np.ndarray]
+        self.cache_dir = os.path.join(self.root, 'cached')
+
+        # Memeory Cache
+        self.images = dict()  # type Dict[str, np.ndarray]
         self.info = dict()  # type Dict[str, Dict[str, Any]]
 
         # The colour palette for the classes
@@ -72,6 +87,8 @@ class DSTLDataset(BaseDataSet):
     def _setup_logging(self):
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.DEBUG)
+
+        # Logs to file
         log_file_name = datetime.datetime.now().strftime(
             '%Y-%m-%d_%H-%M-%S.log')
         handler = logging.FileHandler(os.path.join('logs', log_file_name))
@@ -80,11 +97,30 @@ class DSTLDataset(BaseDataSet):
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
         self.logger.addHandler(handler)
 
+        # Logs to screen
+        handler = logging.StreamHandler()
+        handler.setLevel(
+            logging.DEBUG)  # Set the desired logging level for this handler
+        handler.setFormatter(logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        self.logger.addHandler(handler)
+
     def _set_files(self):
         ids = list(self.class_label_stats.keys())
-        largest_dims = self._get_file_dims(ids)
 
-        # TODO fix the edge case the the image is lower resolution than the patch size.
+        # Preprocess
+        self.logger.debug('Preprocessing images')
+        for image_id in ids:
+            preprocessed_filename = self.get_preprocessed_filename(image_id,
+                                                                   self.align_images)
+            preprocessed_file_path = os.path.join(self.cache_dir,
+                                                  preprocessed_filename)
+            if not os.path.exists(preprocessed_file_path):
+                self.logger.info("Preprocessing image: " + image_id)
+                self._preprocess_image(image_id, self.align_images,
+                                       preprocessed_file_path)
+                self.logger.info("Preprocessing image: " + image_id + " done.")
+        self.logger.debug('Preprocessing images done.')
         step_size = self.patch_size - (
                 self.overlap_percentage * self.patch_size)
         self.logger.debug(f'Step size: {step_size}')
@@ -96,14 +132,13 @@ class DSTLDataset(BaseDataSet):
         patches = []  # type: List[Tuple[str, Tuple[int, int, int]]]
         for img_id in ids:
             for band_id in self.training_bands:
-                # TODO scale the lower resolution bands to the largest band resolution for image.
+                file_name = self.get_preprocessed_filename(image_id,
+                                                           self.align_images)
 
-                file_name = self._get_filename(img_id, band_id)
-                image_path = os.path.join(self.image_dir, file_name)
+                image_path = os.path.join(self.cache_dir, file_name)
                 width, height = self._image_size(image_path)
 
                 # TODO merging or stacking strategy could change the amount of patches.
-                # TODO create a logger that logs all the details of the dataloader.
                 chunk_offsets = self._gen_chunk_offsets(width, height,
                                                         step_size)
                 self.logger.debug(
@@ -120,20 +155,19 @@ class DSTLDataset(BaseDataSet):
 
     def _load_data(self, index: int):
         image_id, chunk, band_id = self.files[index]
-        file_type, band_idx = self._get_file_type_and_band_index(band_id)
-        file_name = self._get_filename(image_id, band_id)
+        file_name = self.get_preprocessed_filename(image_id, self.align_images)
 
         # Caches - we store all imagery data and info loaded in RAM.
         info = self.info[file_name]
-        image_idx = f'{image_id}-{band_idx}'
+        image_idx = f'{image_id}-{band_id}'
         image = self.images[image_idx]
 
         # If not loaded before, load it and generate mask for it
         if image is None:
-            image_path = os.path.join(self.image_dir, file_name)
+            image_path = os.path.join(self.cache_dir, file_name)
             with rasterio.open(image_path) as src:
                 info = (src.width, src.height, src.count)
-                image = np.array(src.read(band_idx), dtype=np.float32)
+                image = np.array(src.read(band_id), dtype=np.float32)
                 label = self._gen_label_mask(image_id, src.height, src.width,
                                              image)
 
@@ -141,7 +175,6 @@ class DSTLDataset(BaseDataSet):
             self.images[image_idx] = image
             self.labels[image_idx] = label
 
-        # TODO scale each band data to 0 - 255
         # TODO merge how?
 
         # Cut out the patch of the image
@@ -156,59 +189,59 @@ class DSTLDataset(BaseDataSet):
 
         return image, label, image_id
 
-    def _get_file_dims(self, image_ids: List[str]):
-        if self.largest_dims is None:
-            self.largest_dims = dict()
-            for img_id in image_ids:
-                # Get the largest resolution available for the image that is needed according
-                # the the training bands because the image is split across 3 different files
-                # depending on the band spectrum desired in order to scale the lower res to be the higher res.
-                file_names = set(
-                    [self._get_filename(img_id, band_id) for band_id in
-                     self.training_bands])
-
-                # Get the largest resolution from the bands in files.
-                largest_image_psqr = 0
-                for file in file_names:
-                    image_path = os.path.join(self.image_dir, file)
-                    width, height = self._image_size(image_path)
-                    if width * height > largest_image_psqr:
-                        largest_image_psqr = width * height
-                        self.largest_dims[img_id] = (width, height)
-
-        return self.largest_dims
+    # def _get_file_dims(self, image_ids: List[str]):
+    #     if self.largest_dims is None:
+    #         self.largest_dims = dict()
+    #         for img_id in image_ids:
+    #             # Get the largest resolution available for the image that is needed according
+    #             # the the training bands because the image is split across 3 different files
+    #             # depending on the band spectrum desired in order to scale the lower res to be the higher res.
+    #             file_names = set(
+    #                 [self._get_filename(img_id, band_id) for band_id in
+    #                  self.training_bands])
+    #
+    #             # Get the largest resolution from the bands in files.
+    #             largest_image_psqr = 0
+    #             for file in file_names:
+    #                 image_path = os.path.join(self.image_dir, file)
+    #                 width, height = self._image_size(image_path)
+    #                 if width * height > largest_image_psqr:
+    #                     largest_image_psqr = width * height
+    #                     self.largest_dims[img_id] = (width, height)
+    #
+    #     return self.largest_dims
 
     def _image_size(self, path):
         stats = os.stat(path)
         return stats.st_size
 
-    def _get_file_type_and_band_index(self, band_id: int):
-        """
-        Returns the subdirectory that is responsible for images with that band id,
-        and also returns the index of the band within that image.
-        i.e band id 7 mught be band 1 in the images within the multispectral subdirectory.
-
-        Args:
-            band_id (int): The id of the band across all spectrums of a satellite image with
-            the panchromatic being the first band, and the highest band being 1 + 16 = 17th band.
-
-        Raises:
-            error: Error if the band id does not fall within the 1 - 17 range.
-
-        Returns:
-            _type_: Returns the subdirectory that is responsible for images with that band id,
-        and also returns the index of the band within that image.
-        """
-        if band_id == 1:
-            return 'P', band_id
-        elif band_id in range(2, 10):
-            return 'M', band_id - 1
-        elif band_id in range(10, 18):
-            return 'A', band_id - 9
-        else:
-            self.logger.critical(
-                f'WRONG BAND ID, must be inclusive of 1 - 17, recieved {band_id}')
-            return ''
+    # def _get_file_type_and_band_index(self, band_id: int):
+    #     """
+    #     Returns the subdirectory that is responsible for images with that band id,
+    #     and also returns the index of the band within that image.
+    #     i.e band id 7 mught be band 1 in the images within the multispectral subdirectory.
+    #
+    #     Args:
+    #         band_id (int): The id of the band across all spectrums of a satellite image with
+    #         the panchromatic being the first band, and the highest band being 1 + 16 = 17th band.
+    #
+    #     Raises:
+    #         error: Error if the band id does not fall within the 1 - 17 range.
+    #
+    #     Returns:
+    #         _type_: Returns the subdirectory that is responsible for images with that band id,
+    #     and also returns the index of the band within that image.
+    #     """
+    #     if band_id == 1:
+    #         return 'P', band_id
+    #     elif band_id in range(2, 10):
+    #         return 'M', band_id - 1
+    #     elif band_id in range(10, 18):
+    #         return 'A', band_id - 9
+    #     else:
+    #         self.logger.critical(
+    #             f'WRONG BAND ID, must be inclusive of 1 - 17, recieved {band_id}')
+    #         return ''
 
     def _gen_chunk_offsets(self, width: int, height: int, step_size: int) -> \
             List[Tuple[int, int]]:
@@ -350,6 +383,129 @@ class DSTLDataset(BaseDataSet):
                                      islice(csv.reader(f), 1, None)}
         return self._x_max_y_min[im_id]
 
+    def _scale_percentile(self, matrix: np.ndarray) -> np.ndarray:
+        """ Fixes the pixel value range to 2%-98% original distribution of values.
+        """
+        w, h, d = matrix.shape
+        matrix = matrix.reshape([w * h, d])
+        # Get 2nd and 98th percentile
+        mins = np.percentile(matrix, 1, axis=0)
+        maxs = np.percentile(matrix, 99, axis=0) - mins
+        matrix = (matrix - mins[None, :]) / maxs[None, :]
+        return matrix.reshape([w, h, d]).clip(0, 1)
+
+    def _preprocess_for_alignment(self, image: np.ndarray) -> np.ndarray:
+        # attempts to remove single-dimensional entries
+        image = np.squeeze(image)
+        # checks if the shape of the image is 2D, indicating a grayscale image (single channel).
+        if len(image.shape) == 2:
+            # If the image is grayscale, it expands the dimensions to make it a 3D array (assuming a single channel).
+            # This is done so that the image can be concatenated with the other bands.
+            image = self._scale_percentile(np.expand_dims(image, 2))
+        else:  # If the image is not grayscale (assumed to have 3 channels, indicating color), it converts it to grayscale.
+            assert image.shape[2] == 3, image.shape
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        return image.astype(np.float32)
+
+    def get_preprocessed_filename(self, image_id: str, align_images=True):
+        return f"{image_id}{'_aligned' if align_images else ''}_interp_{self.interpolation_method}.tif"
+
+    def preprocess_image(self, image_id: str, align_images: bool,
+                         file_path: str):
+        key = lambda x: f'{image_id}_{x}'
+
+        # Get paths
+        rgb_path = os.path.join(self.root, 'three_band/', f'{image_id}.tif')
+        p_path = os.path.join(self.image_dir, f"{key('P')}.tif")
+        m_path = os.path.join(self.image_dir, f"{key('M')}.tif")
+        a_path = os.path.join(self.image_dir, f"{key('A')}.tif")
+
+        # Open streams
+        im_rgb_src = rasterio.open(rgb_path, driver='GTiff', dtype=np.float64)
+        im_p_src = rasterio.open(p_path, driver='GTiff', dtype=np.float64)
+        im_m_src = rasterio.open(m_path, driver='GTiff', dtype=np.float64)
+        im_a_src = rasterio.open(a_path, driver='GTiff', dtype=np.float64)
+
+        # Load data from streams
+        im_rgb = im_rgb_src.read().transpose([1, 2, 0])
+        im_p = im_p_src.read().transpose([1, 2, 0])
+        im_m = im_m_src.read().transpose([1, 2, 0])
+        im_a = im_a_src.read().transpose([1, 2, 0])
+
+        w, h = im_rgb.shape[:2]
+        if align_images:
+            im_p, _ = self._aligned(im_rgb, im_p, key=key('P'))
+            im_m, aligned = self._aligned(im_rgb, im_m, im_m[:, :, :3],
+                                          key=key('M'))
+            im_ref = im_m[:, :, -1] if aligned else im_rgb[:, :, 0]
+            im_a, _ = self._aligned(im_ref, im_a, im_a[:, :, 0], key=key('A'))
+
+        # Resize the images to be the same size as RGB.
+        # Sometimes panchromatic is a couple of pixels different to RGB
+        if im_p.shape != im_rgb.shape[:2]:
+            im_p = cv2.resize(im_p, (h, w),
+                              interpolation=self.interpolation_method)
+        im_p = np.expand_dims(im_p, 2)
+        im_m = cv2.resize(im_m, (h, w), interpolation=self.interpolation_method)
+        im_a = cv2.resize(im_a, (h, w), interpolation=self.interpolation_method)
+
+        # Scale images between 0-1 based off their maximum and minimum bounds
+        # P and M images are 11bit integers, A is 14bit integers, scale values to be
+        # between 0-1 floats
+        im_p = im_p / 2047.0
+        im_m = im_m / 2047.0
+        im_a = im_a / 16383.0
+
+        # Save images
+        with rasterio.open(file_path, 'w', driver='GTiff') as dst:
+            self.logger.debug(f"Saving image to {file_path}")
+            image = np.concatenate(
+                [im_p.transpose([2, 0, 1]), im_m.transpose([2, 0, 1]),
+                 im_a.transpose([2, 0, 1])], axis=2)
+            dst.write(image)
+
+        # Close streams
+        im_rgb_src.close()
+        im_p_src.close()
+        im_m_src.close()
+        im_a_src.close()
+
+        del im_rgb, im_p, im_m, im_a, im_rgb_src, im_p_src, im_m_src, im_a_src, \
+            rgb_path, p_path, m_path, a_path
+
+    def _aligned(self, im_ref, im, im_to_align=None, key=None):
+        w, h = im.shape[:2]
+        im_ref = cv2.resize(im_ref, (h, w),
+                            interpolation=self.interpolation_method)
+        im_ref = _preprocess_for_alignment(im_ref)
+        if im_to_align is None:
+            im_to_align = im
+        im_to_align = _preprocess_for_alignment(im_to_align)
+        assert im_ref.shape[:2] == im_to_align.shape[:2]
+        try:
+            cc, warp_matrix = self._get_alignment(im_ref, im_to_align, key)
+        except cv2.error as e:
+            self.logger.info(f'Error getting alignment: {e}')
+            return im, False
+        else:
+            im = cv2.warpAffine(im, warp_matrix, (h, w),
+                                flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP)
+            im[im == 0] = np.mean(im)
+            return im, True
+
+    def _get_alignment(self, im_ref, im_to_align, key):
+        self.logger.info(f'Getting alignment for {key}')
+        warp_mode = cv2.MOTION_TRANSLATION
+        warp_matrix = np.eye(2, 3, dtype=np.float32)
+        criteria = (
+            cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 5000, 1e-8)
+        cc, warp_matrix = cv2.findTransformECC(
+            im_ref, im_to_align, warp_matrix, warp_mode, criteria)
+
+        self.logger.info(f'Got alignment for {key} with cc {cc:.3f}: '
+                         f"{str(warp_matrix).replace('\n', '')}")
+        return cc, warp_matrix
+
 
 class DSTL(BaseDataLoader):
     def __init__(self, data_dir, batch_size, split, crop_size=None,
@@ -404,9 +560,17 @@ class DSTL(BaseDataLoader):
 
         print("kwargs", kwargs)
 
+        params = {
+            classes: [1],  # TODO Test with all classes
+            training_bands: [2, 3, 4],  # TODO Test with all bands
+            patch_size: 512,
+            overlap_percentage: 10,
+            align_images: False,
+            interpolation_method: cv2.INTER_LANCZOS4,
+        }
+
         if split in ["train", "trainval", "val", "test"]:
-            self.dataset = DSTLDataset([1], [2, 3, 4], 'grey_scale', True,
-                                       **kwargs)
+            self.dataset = DSTLDataset(**params, **kwargs)
 
         # if split in ["train_rgb", "trainval_rgb", "val_rgb", "test_rgb"]:
         # self.dataset = DSTLDatasetRGB(**kwargs)
@@ -435,84 +599,3 @@ def extract_mask_values_using_polygons(mask: np.ndarray,
         if element == mark_value:
             extracted_values_mask[index] = mask[index]
     return extracted_values_mask
-
-
-# TODO use this
-def load_image(im_id: str, rgb_only=False, align=True) -> np.ndarray:
-    im_rgb = tiff.imread(
-        dataset_path + 'three_band/{}.tif'.format(im_id)).transpose([1, 2, 0])
-    if rgb_only:
-        return im_rgb
-    im_p = np.expand_dims(tiff.imread(
-        dataset_path + 'sixteen_band/sixteen_band/{}_P.tif'.format(im_id)), 2)
-    im_m = tiff.imread(
-        dataset_path + 'sixteen_band/sixteen_band/{}_M.tif'.format(
-            im_id)).transpose([1, 2, 0])
-    im_a = tiff.imread(
-        dataset_path + 'sixteen_band/sixteen_band/{}_A.tif'.format(
-            im_id)).transpose([1, 2, 0])
-    w, h = im_rgb.shape[:2]
-    if align:
-        key = lambda x: '{}_{}'.format(im_id, x)
-        im_p, _ = _aligned(im_rgb, im_p, key=key('p'))
-        im_m, aligned = _aligned(im_rgb, im_m, im_m[:, :, :3], key=key('m'))
-        im_ref = im_m[:, :, -1] if aligned else im_rgb[:, :, 0]
-        im_a, _ = _aligned(im_ref, im_a, im_a[:, :, 0], key=key('a'))
-    if im_p.shape != im_rgb.shape[:2]:
-        im_p = cv2.resize(im_p, (h, w), interpolation=cv2.INTER_CUBIC)
-    im_p = np.expand_dims(im_p, 2)
-    im_m = cv2.resize(im_m, (h, w), interpolation=cv2.INTER_CUBIC)
-    im_a = cv2.resize(im_a, (h, w), interpolation=cv2.INTER_CUBIC)
-    return np.concatenate([im_rgb, im_p, im_m, im_a], axis=2)
-
-
-def _preprocess_for_alignment(im):
-    im = np.squeeze(im)
-    if len(im.shape) == 2:
-        im = scale_percentile(np.expand_dims(im, 2))
-    else:
-        assert im.shape[2] == 3, im.shape
-        im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-    return im.astype(np.float32)
-
-
-def _aligned(im_ref, im, im_to_align=None, key=None):
-    w, h = im.shape[:2]
-    im_ref = cv2.resize(im_ref, (h, w), interpolation=cv2.INTER_CUBIC)
-    im_ref = _preprocess_for_alignment(im_ref)
-    if im_to_align is None:
-        im_to_align = im
-    im_to_align = _preprocess_for_alignment(im_to_align)
-    assert im_ref.shape[:2] == im_to_align.shape[:2]
-    try:
-        cc, warp_matrix = _get_alignment(im_ref, im_to_align, key)
-    except cv2.error as e:
-        logger.info('Error getting alignment: {}'.format(e))
-        return im, False
-    else:
-        im = cv2.warpAffine(im, warp_matrix, (h, w),
-                            flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP)
-        im[im == 0] = np.mean(im)
-        return im, True
-
-
-def _get_alignment(im_ref, im_to_align, key):
-    if key is not None:
-        cached_path = Path(dataset_root_path + 'align_cache').joinpath(
-            '{}.alignment'.format(key))
-        if cached_path.exists():
-            with cached_path.open('rb') as f:
-                return pickle.load(f)
-    logger.info('Getting alignment for {}'.format(key))
-    warp_mode = cv2.MOTION_TRANSLATION
-    warp_matrix = np.eye(2, 3, dtype=np.float32)
-    criteria = (
-        cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 5000, 1e-8)
-    cc, warp_matrix = cv2.findTransformECC(
-        im_ref, im_to_align, warp_matrix, warp_mode, criteria)
-    if key is not None:
-        with cached_path.open('wb') as f:
-            pickle.dump((cc, warp_matrix), f)
-    logger.info('Got alignment for {} with cc {:.3f}: {}'
-                .format(key, cc, str(warp_matrix).replace('\n', '')))
-    return cc, warp_matrix
