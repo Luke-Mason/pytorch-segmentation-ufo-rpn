@@ -266,9 +266,14 @@ class DSTLDataset(BaseDataSet):
         """
         self.logger.debug(f'Generating label mask for image: {image_id}')
         class_to_polygons = self._load_polygons(image_id, height, width)
-        polygons = self._mask_from_polygons(image, class_to_polygons)
+        mask = self._mask_from_polygons(image, class_to_polygons)
+
+        # save mask numpy to file TODO view mask
+        np.save(os.path.join(self.cache_dir, f'{image_id}_mask.npy'), mask)
+        np.save(os.path.join(self.cache_dir, f'{image_id}_image.npy'), image)
+
         self.logger.debug(f'Generated label mask for image: {image_id}')
-        return polygons
+        return mask
 
     def _mask_from_polygons(self, image: np.ndarray,
                             polygons_map: Dict[
@@ -278,7 +283,11 @@ class DSTLDataset(BaseDataSet):
         """
         # The semantic segmentation map where each class id is an element of
         # the mask.
-        label_mask = np.full(image.shape, unknown_class_id, dtype=np.float32)
+        label_mask = np.full(np.expand_dims(len(polygons_map.keys()), image,
+                                            axis=2).shape,
+                             unknown_class_id,
+                             dtype=np.float32)
+        self.logger.debug(f'Label mask shape: {label_mask.shape}')
         for class_id, polygons in polygons_map.items():
             if not polygons:
                 return label_mask
@@ -293,10 +302,14 @@ class DSTLDataset(BaseDataSet):
                                                                   interiors)
 
             # Fill pixels with the polygon exterior convex with the class id
-            cv2.fillPoly(label_mask, exteriors, class_id)
+            # cv2.fillPoly(label_mask, exteriors, class_id)
+            cv2.fillPoly(label_mask[class_id], exteriors, class_id)
 
             # Apply polygon interior holes with saved mask data, where 0 are non values
-            label_mask[extracted_values != -1] = extracted_values[
+            # label_mask[extracted_values != -1] = extracted_values[
+            #     extracted_values != -1]
+            label_mask[label_mask[class_id], extracted_values != -1] = (
+                extracted_values)[label_mask[class_id],
                 extracted_values != -1]
 
         return label_mask
