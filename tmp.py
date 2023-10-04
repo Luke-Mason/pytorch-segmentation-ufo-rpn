@@ -10,6 +10,7 @@ num_bands = 17
 
 # File to load metadata for the training data set
 # file_path = dataset_path + 'dstl_data.csv'
+# root_path = '/mnt/e/ML_DATA/DSTL/dstl-satellite-imagery-feature-detection/'
 root_path = '/opt/home/s3630120/dstl-satellite-imagery-feature-detection/'
 dataset_path = root_path + 'cached/'
 file_path = root_path + 'train_wkt_v4.csv/train_wkt_v4.csv'
@@ -29,7 +30,7 @@ for img_id in ids:
     with rasterio.open(path) as src:
         for bnd in range(num_bands):
             data = src.read(bnd + 1)
-            data_list[bnd] = np.append(data_list[bnd], data)
+            data_list[bnd] = np.concatenate((data_list[bnd], data.ravel()))
 
             total, count = mean_data_list[bnd]
             mean_data_list[bnd] = (
