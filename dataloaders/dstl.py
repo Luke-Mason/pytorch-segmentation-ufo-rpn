@@ -13,12 +13,14 @@ from pathlib import Path
 from typing import Dict, Tuple, List
 
 import cv2
+import math
 import numpy as np
 import pandas as pd
 import rasterio
 import shapely.affinity
 import shapely.geometry
 import shapely.wkt
+import torch
 from base import BaseDataSet, BaseDataLoader
 from shapely.geometry import MultiPolygon
 from utils import palette
@@ -47,32 +49,38 @@ class DSTLDataset(BaseDataSet):
         """
         # Attributes
         self.classes = classes
+        self.num_classes = len(classes)
         self.training_bands = training_bands
         self.patch_size = patch_size
         self.overlap_percentage = overlap_percentage
         self.align_images = align_images
         self.interpolation_method = interpolation_method
 
-        # Logging
-        self._setup_logging()
-
         # Setup directories and paths
         self.root = kwargs['root']
-        self.image_dir = os.path.join(self.root, 'sixteen_bands/sixteen_bands')
+        self.image_dir = os.path.join(self.root, 'sixteen_band/sixteen_band')
         self.cache_dir = os.path.join(self.root, 'cached')
+        if not os.path.exists(self.cache_dir):
+            os.makedirs(self.cache_dir)
 
         # Memeory Cache
         self.images = dict()  # type Dict[str, np.ndarray]
+        self.labels = dict()  # type Dict[str, np.ndarray]
         self.info = dict()  # type Dict[str, Dict[str, Any]]
+        self._wkt_data = None  # type List[Tuple[str, str]]
+        self._x_max_y_min = None  # type Dict[str, Tuple[int, int]]
+
+        # Logging
+        self._setup_logging()
 
         # The colour palette for the classes
         self.palette = palette.get_voc_palette(len(self.classes))
 
-        all_train_ids = list(self._get_wkt_data())
         self.class_label_stats = json.loads(Path(
             'dataloaders/labels/dstl-stats.json').resolve().read_text())
 
         # TODO split still and validation
+        all_train_ids = list(self._get_wkt_data())
         labeled_area = [
             (im_id,
              np.mean([self.class_label_stats[im_id][str(cls)]['area'] for cls in
@@ -89,21 +97,27 @@ class DSTLDataset(BaseDataSet):
         self.logger.setLevel(logging.DEBUG)
 
         # Logs to file
+
+        # Check if log directory exist, if not create it
+        log_dir = os.path.join(self.root, 'logs')
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+
         log_file_name = datetime.datetime.now().strftime(
             '%Y-%m-%d_%H-%M-%S.log')
-        handler = logging.FileHandler(os.path.join('logs', log_file_name))
+        handler = logging.FileHandler(os.path.join(log_dir, log_file_name))
         handler.setLevel(logging.DEBUG)
         handler.setFormatter(logging.Formatter(
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
         self.logger.addHandler(handler)
 
         # Logs to screen
-        handler = logging.StreamHandler()
-        handler.setLevel(
-            logging.DEBUG)  # Set the desired logging level for this handler
-        handler.setFormatter(logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-        self.logger.addHandler(handler)
+        # handler = logging.StreamHandler()
+        # handler.setLevel(
+        #     logging.INFO)  # Set the desired logging level for this handler
+        # handler.setFormatter(logging.Formatter(
+        #     '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        # self.logger.addHandler(handler)
 
     def _set_files(self):
         ids = list(self.class_label_stats.keys())
@@ -121,32 +135,38 @@ class DSTLDataset(BaseDataSet):
                                        preprocessed_file_path)
                 self.logger.info("Preprocessing image: " + image_id + " done.")
         self.logger.debug('Preprocessing images done.')
-        step_size = self.patch_size - (
-                self.overlap_percentage * self.patch_size)
+        step_size = self.patch_size - ((self.overlap_percentage / 100.0) *
+                                       self.patch_size)
+        step_size = math.ceil(step_size)
+
         self.logger.debug(f'Step size: {step_size}')
 
         # We want to know how many patches can be made out of all the images
         # in the dataset and then figure out the amount of patches that can
         # be created from it by returning the set of 'files' but really is a
         # set of patches in all files. Each patch is multipled by amount of bands
+        self.logger.info('Calculating patches and chunk offsets...')
         patches = []  # type: List[Tuple[str, Tuple[int, int, int]]]
         for img_id in ids:
-            for band_id in self.training_bands:
-                file_name = self.get_preprocessed_filename(image_id,
-                                                           self.align_images)
+            file_name = self.get_preprocessed_filename(image_id,
+                                                       self.align_images)
 
-                image_path = os.path.join(self.cache_dir, file_name)
-                width, height = self._image_size(image_path)
+            image_path = os.path.join(self.cache_dir, file_name)
+            width, height = self._image_size(image_path)
 
-                # TODO merging or stacking strategy could change the amount of patches.
-                chunk_offsets = self._gen_chunk_offsets(width, height,
-                                                        step_size)
-                self.logger.debug(
-                    f'Chunk offsets for {img_id}: {chunk_offsets}')
+            # TODO merging or stacking strategy could change the amount of patches.
+            chunk_offsets = self._gen_chunk_offsets(width, height,
+                                                    step_size)
+            self.logger.debug(
+                f'Chunk offsets for {img_id}: {chunk_offsets}')
 
-                patches.extend(
-                    [(img_id, chunk, band_id) for chunk in chunk_offsets])
+            # We want a patch to be a cutout of a band, so chunks * bands *
+            # images is our total amount of patches.
+            patches.extend(
+                [(img_id, chunk, band_id) for chunk in chunk_offsets for band_id
+                 in self.training_bands])
 
+        self.logger.info('Calculating patches and chunk offsets done.')
         self.logger.debug(f'Amount of images: {len(self.class_label_stats)}')
         self.logger.debug(f'Amount of bands: {len(self.training_bands)}')
         self.logger.debug(f'Amount of patches: {len(patches)}')
@@ -155,93 +175,64 @@ class DSTLDataset(BaseDataSet):
 
     def _load_data(self, index: int):
         image_id, chunk, band_id = self.files[index]
-        file_name = self.get_preprocessed_filename(image_id, self.align_images)
-
-        # Caches - we store all imagery data and info loaded in RAM.
-        info = self.info[file_name]
-        image_idx = f'{image_id}-{band_id}'
-        image = self.images[image_idx]
 
         # If not loaded before, load it and generate mask for it
-        if image is None:
+        if index not in self.images:
+            self.logger.debug(f'Loading image {image_id} band: {band_id}')
+            file_name = self.get_preprocessed_filename(image_id,
+                                                       self.align_images)
             image_path = os.path.join(self.cache_dir, file_name)
-            with rasterio.open(image_path) as src:
-                info = (src.width, src.height, src.count)
-                image = np.array(src.read(band_id), dtype=np.float32)
-                label = self._gen_label_mask(image_id, src.height, src.width,
-                                             image)
+            with rasterio.open(image_path, dtype=np.float32) as src:
+                self.images[index] = np.array(src.read(band_id),
+                                              dtype=np.float32)
+                self.logger.debug(f'Loaded image {image_id} band: {band_id}')
+                self.info[index] = (src.count, src.width, src.height)
+                self.logger.debug(f'Image info: {self.info[index]}')
+                self.labels[index] = self._gen_y_label_mask(image_id,
+                                                            src.height,
+                                                            src.width,
+                                                            self.images[index])
 
-            self.info[file_name] = info
-            self.images[image_idx] = image
-            self.labels[image_idx] = label
-
+        self.logger.debug(f'Using data for index: {index}')
+        info = self.info[index]
+        image_band = np.expand_dims(self.images[index], axis=2)
+        label_mask = np.expand_dims(self.labels[index], axis=2)
+        self.logger.debug(f'Image band shape: {image_band.shape}')
+        self.logger.debug(f'Label mask shape: {label_mask.shape}')
         # TODO merge how?
 
         # Cut out the patch of the image
         x, y = chunk
-        patch = np.copy(image[y:y + self.patch_size, x:x + self.patch_size, :])
+        self.logger.debug(f'Chunk: {chunk}')
 
-        # For each patch generate the label mask over the classes so
-        # that we can get the loss for each class for each patch. You need to
-        # find the polygons that are within the patch and then generate the
-        # mask. Maybe calculate the coordinate per pixel and then use the chunk
-        # offset to get the polygon coordinate to do an intersection with.
+        patch = np.copy(
+            image_band[y:y + self.patch_size, x:x + self.patch_size, :])
+        patch_y_mask = np.copy(
+            label_mask[y:y + self.patch_size, x:x + self.patch_size, :])
 
-        return image, label, image_id
+        self.logger.debug(f'Patch shape: {patch.shape}')
+        self.logger.debug(f'Patch mask shape: {patch_y_mask.shape}')
 
-    # def _get_file_dims(self, image_ids: List[str]):
-    #     if self.largest_dims is None:
-    #         self.largest_dims = dict()
-    #         for img_id in image_ids:
-    #             # Get the largest resolution available for the image that is needed according
-    #             # the the training bands because the image is split across 3 different files
-    #             # depending on the band spectrum desired in order to scale the lower res to be the higher res.
-    #             file_names = set(
-    #                 [self._get_filename(img_id, band_id) for band_id in
-    #                  self.training_bands])
-    #
-    #             # Get the largest resolution from the bands in files.
-    #             largest_image_psqr = 0
-    #             for file in file_names:
-    #                 image_path = os.path.join(self.image_dir, file)
-    #                 width, height = self._image_size(image_path)
-    #                 if width * height > largest_image_psqr:
-    #                     largest_image_psqr = width * height
-    #                     self.largest_dims[img_id] = (width, height)
-    #
-    #     return self.largest_dims
+        return patch, patch_y_mask, image_id
 
-    def _image_size(self, path):
-        stats = os.stat(path)
-        return stats.st_size
+    def __getitem__(self, index):
+        patch, patch_y_mask, image_id = self._load_data(index)
+        if self.val:
+            patch, patch_y_mask = self._val_augmentation(patch, patch_y_mask)
+        elif self.augment:
+            patch, patch_y_mask = self._augmentation(patch, patch_y_mask)
 
-    # def _get_file_type_and_band_index(self, band_id: int):
-    #     """
-    #     Returns the subdirectory that is responsible for images with that band id,
-    #     and also returns the index of the band within that image.
-    #     i.e band id 7 mught be band 1 in the images within the multispectral subdirectory.
-    #
-    #     Args:
-    #         band_id (int): The id of the band across all spectrums of a satellite image with
-    #         the panchromatic being the first band, and the highest band being 1 + 16 = 17th band.
-    #
-    #     Raises:
-    #         error: Error if the band id does not fall within the 1 - 17 range.
-    #
-    #     Returns:
-    #         _type_: Returns the subdirectory that is responsible for images with that band id,
-    #     and also returns the index of the band within that image.
-    #     """
-    #     if band_id == 1:
-    #         return 'P', band_id
-    #     elif band_id in range(2, 10):
-    #         return 'M', band_id - 1
-    #     elif band_id in range(10, 18):
-    #         return 'A', band_id - 9
-    #     else:
-    #         self.logger.critical(
-    #             f'WRONG BAND ID, must be inclusive of 1 - 17, recieved {band_id}')
-    #         return ''
+        patch_y_mask = torch.from_numpy(np.array(patch_y_mask,
+                                                 dtype=np.float32)).long()
+        # patch = Image.fromarray(np.float32(patch))
+        if self.return_id:
+            return self.normalize(
+                self.to_tensor(patch)), patch_y_mask, image_id
+        return self.normalize(self.to_tensor(patch)), patch_y_mask
+
+    def _image_size(self, path: str):
+        with rasterio.open(path) as src:
+            return src.width, src.height
 
     def _gen_chunk_offsets(self, width: int, height: int, step_size: int) -> \
             List[Tuple[int, int]]:
@@ -264,15 +255,23 @@ class DSTLDataset(BaseDataSet):
 
         return chunk_offsets
 
-    def _gen_label_mask(self, image_id: str, height: int, width: int,
-                        image: np.ndarray):
+    def _gen_y_label_mask(self, image_id: str, height: int, width: int,
+                          image: np.ndarray):
         """
-        Returns the mask for the entire image so that it can be chipped.
+            For each patch generate the label mask over the classes so
+        that we can get the loss for each class for each patch. You need to
+        find the polygons that are within the patch and then generate the
+        mask. Maybe calculate the coordinate per pixel and then use the chunk
+        offset to get the polygon coordinate to do an intersection with.
+            Returns the mask for the entire image so that it can be chipped.
         :param image: The image.
         :return: The label_mask for the image.
         """
+        self.logger.debug(f'Generating label mask for image: {image_id}')
         class_to_polygons = self._load_polygons(image_id, height, width)
-        return self._mask_from_polygons(image, class_to_polygons)
+        polygons = self._mask_from_polygons(image, class_to_polygons)
+        self.logger.debug(f'Generated label mask for image: {image_id}')
+        return polygons
 
     def _mask_from_polygons(self, image: np.ndarray,
                             polygons_map: Dict[
@@ -310,7 +309,7 @@ class DSTLDataset(BaseDataSet):
         return f"/{img_id}_{file_type}.tif"
 
     def _get_image_info(self, filename) -> Tuple[int, int, int]:
-        info = self.info.get(filename)
+        info = self.info[filename]
         if info is None:
             with rasterio.open(filename) as src:
                 info = (src.width, src.height, src.count)
@@ -324,7 +323,7 @@ class DSTLDataset(BaseDataSet):
 
             # Load the CSV into a DataFrame
             df = pd.read_csv(
-                os.path.join(self.root, '/train_wkt_v4.csv/train_wkt_v4.csv'))
+                os.path.join(self.root, 'train_wkt_v4.csv/train_wkt_v4.csv'))
 
             for index, row in df.iterrows():
                 im_id = row['ImageId']
@@ -343,16 +342,18 @@ class DSTLDataset(BaseDataSet):
         :param im_size: The image size.
         :return: A dictionary of class type to polygon.
         """
+        self.logger.debug(f'Loading polygons for image: {image_id}')
         x_max, y_min = self._get_x_max_y_min(image_id)
         x_scaler, y_scaler = self._get_scalers(height, width, x_max, y_min)
 
-        return {
+        items_ = {
             int(poly_type): shapely.affinity.scale(shapely.wkt.loads(poly),
                                                    xfact=x_scaler,
                                                    yfact=y_scaler,
-                                                   origin=(0, 0, 0))
-            for poly_type, poly in self._get_wkt_data()[image_id].items()
-        }
+                                                   origin=(0, 0, 0)) for
+            poly_type, poly in self._get_wkt_data()[image_id].items()}
+        self.logger.debug(f'Loaded polygons for image: {image_id}')
+        return items_
 
     def _get_scalers(self, h, w, x_max, y_min) -> Tuple[float,
     float]:
@@ -410,8 +411,8 @@ class DSTLDataset(BaseDataSet):
     def get_preprocessed_filename(self, image_id: str, align_images=True):
         return f"{image_id}{'_aligned' if align_images else ''}_interp_{self.interpolation_method}.tif"
 
-    def preprocess_image(self, image_id: str, align_images: bool,
-                         file_path: str):
+    def _preprocess_image(self, image_id: str, align_images: bool,
+                          file_path: str):
         key = lambda x: f'{image_id}_{x}'
 
         # Get paths
@@ -421,10 +422,10 @@ class DSTLDataset(BaseDataSet):
         a_path = os.path.join(self.image_dir, f"{key('A')}.tif")
 
         # Open streams
-        im_rgb_src = rasterio.open(rgb_path, driver='GTiff', dtype=np.float64)
-        im_p_src = rasterio.open(p_path, driver='GTiff', dtype=np.float64)
-        im_m_src = rasterio.open(m_path, driver='GTiff', dtype=np.float64)
-        im_a_src = rasterio.open(a_path, driver='GTiff', dtype=np.float64)
+        im_rgb_src = rasterio.open(rgb_path, driver='GTiff', dtype=np.float32)
+        im_p_src = rasterio.open(p_path, driver='GTiff', dtype=np.float32)
+        im_m_src = rasterio.open(m_path, driver='GTiff', dtype=np.float32)
+        im_a_src = rasterio.open(a_path, driver='GTiff', dtype=np.float32)
 
         # Load data from streams
         im_rgb = im_rgb_src.read().transpose([1, 2, 0])
@@ -455,14 +456,16 @@ class DSTLDataset(BaseDataSet):
         im_p = im_p / 2047.0
         im_m = im_m / 2047.0
         im_a = im_a / 16383.0
-
+        image = np.concatenate([im_p, im_m, im_a], axis=2).transpose([2, 0, 1])
+        self.logger.debug(f"Image shape: {image.shape}")
         # Save images
-        with rasterio.open(file_path, 'w', driver='GTiff') as dst:
+        with rasterio.open(file_path, 'w',
+                           count=image.shape[0],
+                           height=image.shape[1],
+                           width=image.shape[2],
+                           dtype=np.float32) as src:
             self.logger.debug(f"Saving image to {file_path}")
-            image = np.concatenate(
-                [im_p.transpose([2, 0, 1]), im_m.transpose([2, 0, 1]),
-                 im_a.transpose([2, 0, 1])], axis=2)
-            dst.write(image)
+            src.write(image)
 
         # Close streams
         im_rgb_src.close()
@@ -477,10 +480,10 @@ class DSTLDataset(BaseDataSet):
         w, h = im.shape[:2]
         im_ref = cv2.resize(im_ref, (h, w),
                             interpolation=self.interpolation_method)
-        im_ref = _preprocess_for_alignment(im_ref)
+        im_ref = self._preprocess_for_alignment(im_ref)
         if im_to_align is None:
             im_to_align = im
-        im_to_align = _preprocess_for_alignment(im_to_align)
+        im_to_align = self._preprocess_for_alignment(im_to_align)
         assert im_ref.shape[:2] == im_to_align.shape[:2]
         try:
             cc, warp_matrix = self._get_alignment(im_ref, im_to_align, key)
@@ -502,8 +505,9 @@ class DSTLDataset(BaseDataSet):
         cc, warp_matrix = cv2.findTransformECC(
             im_ref, im_to_align, warp_matrix, warp_mode, criteria)
 
-        self.logger.info(f'Got alignment for {key} with cc {cc:.3f}: '
-                         f"{str(warp_matrix).replace('\n', '')}")
+        matrix_str = str(warp_matrix).replace('\n', '')
+        self.logger.info(
+            f"Got alignment for {key} with cc {cc:.3f}: {matrix_str}")
         return cc, warp_matrix
 
 
@@ -561,12 +565,12 @@ class DSTL(BaseDataLoader):
         print("kwargs", kwargs)
 
         params = {
-            classes: [1],  # TODO Test with all classes
-            training_bands: [2, 3, 4],  # TODO Test with all bands
-            patch_size: 512,
-            overlap_percentage: 10,
-            align_images: False,
-            interpolation_method: cv2.INTER_LANCZOS4,
+            "classes": [1],  # TODO Test with all classes
+            "training_bands": [2, 3, 4],  # TODO Test with all bands
+            "patch_size": 512,
+            "overlap_percentage": 10,
+            "align_images": False,
+            "interpolation_method": cv2.INTER_LANCZOS4,
         }
 
         if split in ["train", "trainval", "val", "test"]:
