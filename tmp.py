@@ -1,14 +1,22 @@
 import os
 
 import numpy as np
+import pandas as pd
 import rasterio
 
 means = []
 stds = []
 num_bands = 17
 
-dataset_path = ('/opt/home/s3630120/dstl-satellite-imagery-feature-detection'
-                '/sixteen_band/sixteen_band/cached/')
+# File to load metadata for the training data set
+# file_path = dataset_path + 'dstl_data.csv'
+root_path = '/opt/home/s3630120/dstl-satellite-imagery-feature-detection/'
+dataset_path = root_path + 'sixteen_band/sixteen_band/cached/'
+file_path = root_path + 'train_wkt_v4.csv/train_wkt_v4.csv'
+
+df = pd.read_csv(file_path)
+ids = df['ImageId'].unique().tolist()
+
 mean_data_list = dict({bnd: (0, 0) for bnd in range(num_bands)})
 data_list = dict({bnd: np.array([]) for bnd in range(num_bands)})
 
