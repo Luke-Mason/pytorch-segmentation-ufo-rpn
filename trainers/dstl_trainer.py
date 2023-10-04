@@ -66,7 +66,7 @@ class DSTLTrainer(BaseTrainer):
             os.makedirs(log_dir)
 
         log_file_name = datetime.datetime.now().strftime('%Y-%m-%d_%H.log')
-        handler = logging.FileHandler(os.path.join(log_dir, log_file_name))
+        handler = logging.FileHandler(os.path.join(log_dir, log_file_name), mode='w+')
         handler.setLevel(logging.DEBUG)
         handler.setFormatter(logging.Formatter(
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
