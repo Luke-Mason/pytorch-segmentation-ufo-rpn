@@ -23,11 +23,8 @@ import shapely.wkt
 import torch
 from base import BaseDataSet, BaseDataLoader
 from shapely.geometry import MultiPolygon
-from utils.dstl import sliding_window_3d, SlidingWindowConfig
+from utils.dstl import sliding_window_3d, SlidingWindowConfig, mask_for_polygons
 from utils.palette import palette
-
-# 10 is the unknown class because 0 - 9 are class ids in the DSTL dataset.
-unknown_class_id = 10
 
 class BandGroup:
     def __init__(self,
@@ -67,7 +64,6 @@ class DSTLDataset(BaseDataSet):
         self.overlap_percentage = overlap_percentage
         self.align_images = align_images
         self.interpolation_method = interpolation_method
-        self.band_merge_strategy = band_merge_strategy
 
         # Colours TODO
         self.palette = palette.get_voc_palette(self.num_classes)
@@ -128,49 +124,53 @@ class DSTLDataset(BaseDataSet):
 
     def _set_files(self):
         ids = list(self.class_label_stats.keys())
+        step_size = math.ceil(self.patch_size - ((self.overlap_percentage / 100.0) *
+                                       self.patch_size))
+        self.files = []  # type: List[Tuple[np.ndarray, np.ndarray, str]]
 
-        # Preprocess
-        self.logger.debug('Preprocessing images')
+        # Preprocess Images
         for image_id in ids:
-            preprocessed_filename = self.get_preprocessed_filename(image_id)
-            preprocessed_file_path = os.path.join(self.cache_dir,
-                                                  preprocessed_filename)
-            if not os.path.exists(preprocessed_file_path):
-                self.logger.info("Preprocessing image: " + image_id)
-                self._preprocess_image(image_id, preprocessed_file_path)
-                self.logger.info("Preprocessing image: " + image_id + " done.")
-        self.logger.debug('Preprocessing images done.')
-        step_size = self.patch_size - ((self.overlap_percentage / 100.0) *
-                                       self.patch_size)
-        step_size = math.ceil(step_size)
+            filename = self.get_preprocessed_filename(image_id)
+            file_path = os.path.join(self.cache_dir, filename)
+            if not os.path.exists(file_path):
+                self._preprocess_image(image_id, file_path)
 
-        self.logger.debug(f'Step size: {step_size}')
-
-        # We want to know how many patches can be made out of all the images
-        # in the dataset and then figure out the amount of patches that can
-        # be created from it by returning the set of 'files' but really is a
-        # set of patches in all files. Each patch is multipled by amount of bands
-        self.logger.info('Calculating patches and chunk offsets...')
-        patches = []  # type: List[Tuple[str, Tuple[int, int, int]]]
-        for img_id in ids:
-            file_name = self.get_preprocessed_filename(image_id)
-
-            image_path = os.path.join(self.cache_dir, file_name)
-            width, height = self._image_size(image_path)
-
-            # TODO merging or stacking strategy could change the amount of patches.
+            width, height = self._image_size(file_path)
             chunk_offsets = self._gen_chunk_offsets(width, height, step_size)
 
-            # We want a patch to be a cutout of a band, so chunks * bands *
-            # images is our total amount of patches.
-            patches.extend([(img_id, chunk) for chunk in chunk_offsets])
+            with rasterio.open(file_path, dtype=np.float32) as src:
+                image = np.array(src.read(), dtype=np.float32)
+                mask_y = self._gen_y_label_mask(image_id, image)
 
-        self.logger.info('Calculating patches and chunk offsets done.')
+                for x, y in chunk_offsets:
+
+                    # Get the masks for the classes that we want to validate and train on.
+                    patch_mask_y = np.copy(mask_y[y:y + self.patch_size, x:x + self.patch_size, :])
+
+                    # Train for specified classes
+                    if len(self.training_classes) != 0:
+                        patch_y_mask = patch_y_mask[:, :, self.training_classes]
+
+                    self.logger.debug(
+                        f'Mask shape: {patch_y_mask.shape} Classes: {self.training_classes}')
+
+                    # Merging bands together with the strategies to produce
+                    # the input patch image.
+                    patch = [
+                        sliding_window_3d(
+                            # Select the bands from the patch and merge them into 1 band.
+                            data[y:y + self.patch_size,
+                            x:x + self.patch_size, group.training_bands],
+                            group.merge_strategy
+                        )
+                        for group in enumerate(self.training_band_groups)
+                    ]
+
+                    self.files.append((patch, patch_y_mask, image_id))
+
         self.logger.debug(f'Amount of images: {len(self.class_label_stats)}')
         self.logger.debug(f'Amount of bands: {len(self.training_band_groups)}')
         self.logger.debug(f'Amount of patches: {len(patches)}')
-
-        self.files = patches
 
     def _load_data(self, index: int):
         image_id, chunk = self.files[index]
@@ -182,48 +182,7 @@ class DSTLDataset(BaseDataSet):
         self.logger.debug(f'Loading image {image_id}')
         file_name = self.get_preprocessed_filename(image_id)
         image_path = os.path.join(self.cache_dir, file_name)
-        with rasterio.open(image_path, dtype=np.float32) as src:
-            data = np.array(src.read(), dtype=np.float32)
 
-            if self.training_band_groups is not None:
-                # Select all elements
-                patch = patch[:, :, self.training_band_groups]
-
-            self.images[index] = merged_img = sliding_window_
-
-            # different group of 3 bands
-            # next step, average good groups together, greyscale
-            # max values of 3, then max values of another band
-            self.logger.debug(f'Processing image {image_id}')
-            self.labels[index] = self._gen_y_label_mask(
-                image_id, src.height, src.width, self.images[index])
-
-            # Cut out the patch of the image
-            x, y = chunk
-
-            # Get the masks for the classes that we want to validate and train on.
-            patch_y_mask = np.copy(
-                self.labels[index][y:y + self.patch_size, x:x + self.patch_size, :])
-
-            if len(self.training_classes) != 0:
-                # Select specified indices
-                patch_y_mask = patch_y_mask[:, :, self.training_classes]
-
-            self.logger.debug(f'Mask shape: {patch_y_mask.shape} Classes: {self.training_classes}')
-
-            # Merging bands together with the strategies to produce the input image
-            patch = self.images[index][y:y + self.patch_size, x:x + self.patch_size, :]
-            input_bands = np.empty((len(self.training_band_groups),
-                                    self.patch_size, self.patch_size), dtype=np.float32)
-            for grp_idx, group in enumerate(self.training_band_groups):
-                # Select the bands from the patch and merge them into 1 band.
-                input_bands[grp_idx] = sliding_window_3d(patch[:, :, group], group.merge_strategy)
-
-            self.images[index] = input_bands
-
-            self.logger.debug(f'Chunk: {chunk}')
-
-            return patch, patch_y_mask, image_id
 
     def __getitem__(self, index):
         patch, patch_y_mask, image_id = self._load_data(index)
@@ -263,23 +222,18 @@ class DSTLDataset(BaseDataSet):
 
         return chunk_offsets
 
-    def _gen_y_label_mask(self, image_id: str, height: int, width: int,
-                          image: np.ndarray):
-        """
-            For each patch generate the label mask over the classes so
-        that we can get the loss for each class for each patch. You need to
-        find the polygons that are within the patch and then generate the
-        mask. Maybe calculate the coordinate per pixel and then use the chunk
-        offset to get the polygon coordinate to do an intersection with.
+    def _gen_y_label_mask(self, image_id: str, image: np.ndarray):
+        """ For each patch generate the label mask over the classes so
+            that we can get the loss for each class for each patch.
             Returns the mask for the entire image so that it can be chipped.
         :param image: The image.
         :return: The label_mask for the image.
         """
-        self.logger.debug(f'Generating label mask for image: {image_id}')
-        class_to_polygons = self._load_polygons(image_id, height, width)
+        h, w = image.shape[1:]
+        self.logger.debug(f'Generating mask for {image_id}')
+        class_to_polygons = self._load_polygons(image_id, h, w)
         mask = self._mask_from_polygons(image_id, image, class_to_polygons)
-        self.logger.debug(f'Generated label mask for image: {image_id}')
-
+        self.logger.debug(f'Finished mask for {image_id}')
         return mask
 
     def _mask_from_polygons(self, image_id: str, image: np.ndarray,
@@ -406,6 +360,8 @@ class DSTLDataset(BaseDataSet):
         return (f"{image_id}_interp_{self.interpolation_method}_scaled2{self.img_ref_scale}{'_aligned' if self.align_images else ''}.tif")
 
     def _preprocess_image(self, image_id: str, file_path: str):
+        self.logger.info("Preprocessing image: " + image_id)
+
         key = lambda x: f'{image_id}_{x}'
 
         # Get paths
