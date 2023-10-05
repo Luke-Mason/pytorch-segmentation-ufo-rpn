@@ -89,9 +89,6 @@ class UFONet(BaseModel):
         self.layers.append(nn.ConvTranspose2d(32, 16, 2, stride=2, padding=0, output_padding=0, bias=True))
         self.layers.append(Conv2d(16, 16))
 
-        # TODO make the label for the dataloader channels = num classes why a
-        #  array per class?
-
         self.output_conv = nn.ConvTranspose2d(16, num_classes, 2, stride=2, padding=0, output_padding=0, bias=True)
 
     def forward(self, input):
