@@ -8,7 +8,9 @@ from torchvision import transforms
 from scipy import ndimage
 
 class BaseDataSet(Dataset):
-    def __init__(self, root, split, mean, std, base_size=None, augment=True, val=False,
+    def __init__(self, root, split, mean=[], std=[], base_size=(None,
+                                                               augment)=True,
+                 val=False,
                 crop_size=321, scale=True, flip=True, rotate=False, blur=False, return_id=False):
         self.root = root
         self.split = split
@@ -26,7 +28,10 @@ class BaseDataSet(Dataset):
         self.files = []
         self._set_files()
         self.to_tensor = transforms.ToTensor()
-        self.normalize = transforms.Normalize(mean, std)
+
+        # Optionally normalize, does require dataset class to override __item__.
+        if len(mean) != 0 and len(std) != 0:
+            self.normalize = transforms.Normalize(mean, std)
         self.return_id = return_id
 
         cv2.setNumThreads(0)
@@ -80,7 +85,7 @@ class BaseDataSet(Dataset):
         h, w, _ = image.shape
         # Rotate the image with an angle between -10 and 10
         if self.rotate:
-            angle = random.randint(-10, 10)
+            angle = random.randint(-180, 180)
             center = (w / 2, h / 2)
             rot_matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
             image = cv2.warpAffine(image, rot_matrix, (w, h), flags=cv2.INTER_LINEAR)#, borderMode=cv2.BORDER_REFLECT)
