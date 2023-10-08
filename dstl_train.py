@@ -4,7 +4,7 @@ import os
 
 import torch
 
-import dataloaders
+from dataloaders import DSTL
 import models
 from trainers import DSTLTrainer
 from utils import Logger
@@ -14,12 +14,23 @@ torch.cuda.empty_cache()
 
 
 def get_instance(module, name, config, *args):
-    # GET THE CORRESPONDING CLASS / FCT 
-    return getattr(module, config[name]['type'])(*args, **config[name]['args'])
+    # TODO implement all params in config
+    # GET THE CORRESPONDING CLASS / FCT
+    return DSTL(*args, **config['shared_loader'], **config[name]['args'])
 
 
 def main(config, resume):
     train_logger = Logger()
+
+    # This was made an environment variable and not in config because when
+    # testing and running multiple config files on one machine is frustration
+    # to update the config file each time you want to run it on a different
+    # machine, like the gpu cluster that has a different file system or the
+    # data exists elsewhere from the development environment.
+    dstl_data_path = os.environ.get('DSTL_DATA_PATH')
+    if dstl_data_path is None:
+        raise EnvironmentError('DSTL_DATA_PATH environment variable is not set, '
+                               'it must be a path to your DSTL data directory.')
 
     # DATA LOADERS
     train_loader = get_instance(dataloaders, 'train_loader', config)
@@ -33,6 +44,7 @@ def main(config, resume):
     # LOSS
     loss = getattr(losses, config['loss'])(ignore_index=config['ignore_index'])
 
+
     # TRAINING
     trainer = DSTLTrainer(
         model=model,
@@ -42,7 +54,7 @@ def main(config, resume):
         train_loader=train_loader,
         val_loader=val_loader,
         train_logger=train_logger,
-        root=config['train_loader']['args']['data_dir'],
+        root=dstl_data_path,
     )
 
     trainer.train()

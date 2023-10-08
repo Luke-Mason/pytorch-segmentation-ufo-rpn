@@ -2,7 +2,7 @@ from typing import Dict, Tuple, List
 import numpy as np
 from shapely.geometry import MultiPolygon
 
-class SlidingWindowConfig:
+class SlidingWindowMergeConfig:
     def __init__(self, name: str, kernel_3d: Tuple[int, int, int], stride_3d: Tuple[int, int, int]):
         if name == 'max':
             self.strategy_fn = lambda x: np.max(x)
@@ -19,7 +19,7 @@ class SlidingWindowConfig:
         self.kernel_3d = kernel_3d
         self.stride_3d = stride_3d
 
-def sliding_window_3d(arr, config: SlidingWindowConfig):
+def array_3d_merge(arr, config: SlidingWindowMergeConfig):
     kernel_shape = config.kernel_3d
     stride = config.stride_3d
     func = config.strategy_fn
