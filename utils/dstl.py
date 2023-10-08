@@ -1,3 +1,6 @@
+from typing import Dict, Tuple, List
+import numpy as np
+from shapely.geometry import MultiPolygon
 
 class SlidingWindowConfig:
     def __init__(self, name: str, kernel_3d: Tuple[int, int, int], stride_3d: Tuple[int, int, int]):
