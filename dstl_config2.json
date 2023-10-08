@@ -10,10 +10,41 @@
             "freeze_backbone": false
         }
     },
+    "shared_loader": {
+        "img_ref_scale": 'RGB',
+        "patch_size": 116,
+        "overlap_percentage": 50,
+        "align_images": false,
+        "interpolation_method": 4,
+        "training_classes": [2],
+        "training_band_groups": [{
+                "bands": [1],
+                "merge_3d": {
+                    "name": "max",
+                    "kernel_3d": [3, 2, 2],
+                    "stride_3d": [3, 1, 1]
+                }
+            },
+            {
+                "bands": [1],
+                "merge_3d": {
+                    "name": "max",
+                    "kernel_3d": [3, 2, 2],
+                    "stride_3d": [3, 1, 1]
+                }
+            },
+            {
+                "bands": [1],
+                "merge_3d": {
+                    "name": "max",
+                    "kernel_3d": [3, 2, 2],
+                    "stride_3d": [3, 1, 1]
+                }
+            }
+        ]
+    },
     "train_loader": {
-        "type": "DSTL",
         "args": {
-            "data_dir": "/mnt/e/ML_Data/DSTL/dstl-satellite-imagery-feature-detection",
             "batch_size": 32,
             "base_size": 512,
             "crop_size": 512,
@@ -24,20 +55,16 @@
             "rotate": false,
             "blur": false,
             "split": "train",
-            "val_split": 0.8,
             "num_workers": 8
         }
     },
     "val_loader": {
-        "type": "DSTL",
         "args": {
-            "data_dir": "/mnt/e/ML_Data/DSTL/dstl-satellite-imagery-feature-detection/",
             "batch_size": 32,
             "augment": false,
             "crop_size": 512,
             "val": true,
             "split": "val",
-            "val_split": 0.8,
             "num_workers": 4
         }
     },

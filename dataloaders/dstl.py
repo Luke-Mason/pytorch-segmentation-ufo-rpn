@@ -23,14 +23,12 @@ import shapely.wkt
 import torch
 from base import BaseDataSet, BaseDataLoader
 from shapely.geometry import MultiPolygon
-from utils import sliding_window_3d, SlidingWindowConfig, mask_for_polygons, palette
+from utils import array_3d_merge, Array3dMergeConfig, mask_for_polygons, palette
 
 class BandGroup:
-    def __init__(self,
-                 training_bands: List[int],
-                 merge_strategy: SlidingWindowConfig):
-        self.training_bands = training_bands
-        self.merge_strategy = merge_strategy
+    def __init__(self, bands: List[int], merge_fn: Array3dMergeConfig):
+        self.bands = bands
+        self.merge_fn = merge_fn
 
 class DSTLDataset(BaseDataSet):
 
@@ -166,10 +164,10 @@ class DSTLDataset(BaseDataSet):
                     # Merging bands together with the strategies to produce
                     # the input patch image.
                     patch = [
-                        sliding_window_3d(
+                        array_3d_merge(
                             # Select the bands from the patch and merge them into 1 band.
                             image[y:y + self.patch_size,
-                            x:x + self.patch_size, group.training_bands],
+                            x:x + self.patch_size, group.bands],
                             group.merge_strategy
                         )
                         for group in enumerate(self.training_band_groups)
@@ -478,40 +476,11 @@ class DSTLDataset(BaseDataSet):
 
 
 class DSTL(BaseDataLoader):
-    def __init__(self, data_dir, batch_size, split,
-                 crop_size=None,
+    def __init__(self, batch_size, split, crop_size=None,
                  base_size=None, scale=True, num_workers=1, val=False,
                  shuffle=False, flip=False, rotate=False, blur=False,
                  augment=False, val_split=None, return_id=False):
 
-        training_classes = [2]
-        training_band_groups = [
-            [1], [2,3,4], [5,6,7]
-        ]
-        params = {
-            # The image band to scale other bands to as a reference size.
-            "img_ref_scale": 'RGB',
-            # A list of classes that are to be trained on as labels. empty = all.
-            "training_classes": training_classes,
-            # The list of band groups to use for training
-            "training_band_groups": training_band_groups,
-            # The merging strategy to use when merging bands together.
-            # The shape of image when merging is (num_bands, height, width)
-            # Stride is made across the band axis.
-            "band_merge_strategy": SlidingWindowConfig(
-                name="max", kernel_3d=(3, 2, 2), stride_3d=(3, 1, 1)),
-            # The size of the patches to be extracted from the images
-            "patch_size": 116,
-            # The overlap percetnage of the patches
-            "overlap_percentage": 50,
-            # Used for preprocessing im ages through a model that is trained on
-            # RGB used to align other bands according to it's detail as
-            # something the other bands captures from other sensors don't align
-            # the pixels up perfectly.
-            "align_images": False,
-            # Used for resizing images to be the same size as RGB.
-            "interpolation_method": cv2.INTER_LANCZOS4
-        }
 
         # Scale the bands to be between 0 - 255
         # Min Max for Type P: [[0, 2047]]
@@ -522,9 +491,9 @@ class DSTL(BaseDataLoader):
 
         # TODO construct the std and means only from the bands that are being
         #  trained on.
-
+        dstl_data_path = os.environ.get('DSTL_DATA_PATH')
         kwargs = {
-            'root': data_dir,
+            'root': dstl_data_path,
             'split': split,
             'augment': augment,
             'crop_size': crop_size,
