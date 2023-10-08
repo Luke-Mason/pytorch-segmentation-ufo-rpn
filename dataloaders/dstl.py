@@ -23,8 +23,7 @@ import shapely.wkt
 import torch
 from base import BaseDataSet, BaseDataLoader
 from shapely.geometry import MultiPolygon
-from utils.dstl import sliding_window_3d, SlidingWindowConfig, mask_for_polygons
-from utils.palette import palette
+from utils import sliding_window_3d, SlidingWindowConfig, mask_for_polygons, palette
 
 class BandGroup:
     def __init__(self,
@@ -128,24 +127,29 @@ class DSTLDataset(BaseDataSet):
                                        self.patch_size))
         self.files = []  # type: List[Tuple[np.ndarray, np.ndarray, str]]
 
-        # Preprocess Images
+        # Preprocess Images, only done once unless preprocessing params change.
         for image_id in ids:
             filename = self.get_preprocessed_filename(image_id)
             file_path = os.path.join(self.cache_dir, filename)
             if not os.path.exists(file_path):
                 self._preprocess_image(image_id, file_path)
 
+        # Load Images
+        for index, image_id in enumerate(ids):
+            filename = self.get_preprocessed_filename(image_id)
+            file_path = os.path.join(self.cache_dir, filename)
+
             width, height = self._image_size(file_path)
             chunk_offsets = self._gen_chunk_offsets(width, height, step_size)
-
+            self.logger.info(f"Loading Image {image_id}...")
             with rasterio.open(file_path, dtype=np.float32) as src:
                 image = np.array(src.read(), dtype=np.float32)
-                mask_y = self._gen_y_label_mask(image_id, image)
+                y_mask = self._gen_y_label_mask(image_id, image)
 
-                for x, y in chunk_offsets:
+                for c_index, (x, y) in enumerate(chunk_offsets):
 
                     # Get the masks for the classes that we want to validate and train on.
-                    patch_mask_y = np.copy(mask_y[y:y + self.patch_size, x:x + self.patch_size, :])
+                    patch_y_mask = np.copy(y_mask[y:y + self.patch_size, x:x + self.patch_size, :])
 
                     # Train for specified classes
                     if len(self.training_classes) != 0:
@@ -159,7 +163,7 @@ class DSTLDataset(BaseDataSet):
                     patch = [
                         sliding_window_3d(
                             # Select the bands from the patch and merge them into 1 band.
-                            data[y:y + self.patch_size,
+                            image[y:y + self.patch_size,
                             x:x + self.patch_size, group.training_bands],
                             group.merge_strategy
                         )
@@ -167,21 +171,14 @@ class DSTLDataset(BaseDataSet):
                     ]
 
                     self.files.append((patch, patch_y_mask, image_id))
+                    self.logger.info(f"Chunking Image {image_id}... {(100 / len(chunk_offsets)) * (c_index + 1)}%")
 
-        self.logger.debug(f'Amount of images: {len(self.class_label_stats)}')
-        self.logger.debug(f'Amount of bands: {len(self.training_band_groups)}')
-        self.logger.debug(f'Amount of patches: {len(patches)}')
+
+                self.logger.info(f"Total Data Loaded {(100 / len(ids)) * (index + 1)}% ...")
+
 
     def _load_data(self, index: int):
-        image_id, chunk = self.files[index]
-
-        # If not loaded before, load it and generate mask for it
-        if index in self.images and index in self.labels:
-            return self.images[index], self.labels[index], image_id
-
-        self.logger.debug(f'Loading image {image_id}')
-        file_name = self.get_preprocessed_filename(image_id)
-        image_path = os.path.join(self.cache_dir, file_name)
+        return self.files[index]
 
 
     def __getitem__(self, index):

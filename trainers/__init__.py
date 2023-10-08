@@ -1,11 +1,2 @@
-tasks:
--- Ensure the data preprocessing all happens in the set_files function
--- Cache the mask and patches in memory
--- Make the data loading and data saving happen through facade function that is controlled by a in_memory_cache: bool in whether or not the files are saves to disk are stored in memory.
--- Create a variety of configurations to start experimenting from
--- Create a script that runs configurations 1 - 10 that are made by me
--- Ensure the validation runs on 20% of the dataset and the training is done on the other 80%
--- Ensure the colours are applied to the masks at the end so the results can be visualised
--- Check that the masks are generated correctly according to each class, visualise the mask
--- Ensure that the loss functions run against the masks correctly - Record the loss values
--- Have performance be run on the model once it has been trained - Record the results in cell x or row run n
+from .trainer import *
+from .dstl_trainer import *

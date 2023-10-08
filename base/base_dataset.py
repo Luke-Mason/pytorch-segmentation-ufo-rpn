@@ -8,8 +8,7 @@ from torchvision import transforms
 from scipy import ndimage
 
 class BaseDataSet(Dataset):
-    def __init__(self, root, split, mean=[], std=[], base_size=(None,
-                                                               augment)=True,
+    def __init__(self, root, split, mean, std, base_size=None, augment=True,
                  val=False,
                 crop_size=321, scale=True, flip=True, rotate=False, blur=False, return_id=False):
         self.root = root
