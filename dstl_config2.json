@@ -11,7 +11,7 @@
         }
     },
     "shared_loader": {
-        "img_ref_scale": 'RGB',
+        "img_ref_scale": "RGB",
         "patch_size": 116,
         "overlap_percentage": 50,
         "align_images": false,
@@ -20,25 +20,23 @@
         "training_band_groups": [{
                 "bands": [1],
                 "merge_3d": {
-                    "name": "max",
-                    "kernel_3d": [3, 2, 2],
-                    "stride_3d": [3, 1, 1]
+                    "strategy": "max",
+                    "kernel": [2, 2, 1],
+                    "stride": [1, 1, 1]
                 }
-            },
-            {
-                "bands": [1],
+            }, {
+                "bands": [2,3,4,5],
                 "merge_3d": {
-                    "name": "max",
-                    "kernel_3d": [3, 2, 2],
-                    "stride_3d": [3, 1, 1]
+                    "strategy": "mean",
+                    "kernel": [2, 2, 4],
+                    "stride": [1, 1, 4]
                 }
-            },
-            {
-                "bands": [1],
+            }, {
+                "bands": [6,7,8,9],
                 "merge_3d": {
-                    "name": "max",
-                    "kernel_3d": [3, 2, 2],
-                    "stride_3d": [3, 1, 1]
+                    "strategy": "max",
+                    "kernel": [2, 2, 4],
+                    "stride": [1, 1, 4]
                 }
             }
         ]

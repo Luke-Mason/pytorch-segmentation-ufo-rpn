@@ -23,18 +23,17 @@ import shapely.wkt
 import torch
 from base import BaseDataSet, BaseDataLoader
 from shapely.geometry import MultiPolygon
-from utils import array_3d_merge, Array3dMergeConfig, mask_for_polygons, palette
+from utils import (array_3d_merge, Array3dMergeConfig, BandGroup,
+                   mask_for_polygons,
+                   palette)
 
-class BandGroup:
-    def __init__(self, bands: List[int], merge_fn: Array3dMergeConfig):
-        self.bands = bands
-        self.merge_fn = merge_fn
+
 
 class DSTLDataset(BaseDataSet):
 
     def __init__(self,
-                 training_classes: List[int],
                  training_band_groups: Tuple[BandGroup, BandGroup, BandGroup],
+                 training_classes: List[int],
                  img_ref_scale: str,
                  patch_size: int,
                  overlap_percentage: float,
@@ -77,7 +76,7 @@ class DSTLDataset(BaseDataSet):
         if not os.path.exists(self.cache_dir):
             os.makedirs(self.cache_dir)
 
-        # Memeory Cache
+        # Memory Cache
         self.images = dict()  # type Dict[str, np.ndarray]
         self.labels = dict()  # type Dict[str, np.ndarray]
         self._wkt_data = None  # type List[Tuple[str, str]]
@@ -148,7 +147,8 @@ class DSTLDataset(BaseDataSet):
             with rasterio.open(file_path, dtype=np.float32) as src:
                 image = np.array(src.read(), dtype=np.float32)
                 y_mask = self._gen_y_label_mask(image_id, image)
-
+                self.logger.debug(
+                    f'Image shape: {image.shape} Classes: {self.training_classes}')
                 for c_index, (x, y) in enumerate(chunk_offsets):
 
                     # Get the masks for the classes that we want to validate and train on.
@@ -160,6 +160,7 @@ class DSTLDataset(BaseDataSet):
 
                     self.logger.debug(
                         f'Mask shape: {patch_y_mask.shape} Classes: {self.training_classes}')
+                    print(self.training_band_groups)
 
                     # Merging bands together with the strategies to produce
                     # the input patch image.
@@ -167,10 +168,10 @@ class DSTLDataset(BaseDataSet):
                         array_3d_merge(
                             # Select the bands from the patch and merge them into 1 band.
                             image[y:y + self.patch_size,
-                            x:x + self.patch_size, group.bands],
-                            group.merge_strategy
+                            x:x + self.patch_size, group.bands - 1],
+                            group.merge_3d
                         )
-                        for group in enumerate(self.training_band_groups)
+                        for group in self.training_band_groups
                     ]
 
                     self.files.append((patch, patch_y_mask, image_id))
@@ -247,18 +248,17 @@ class DSTLDataset(BaseDataSet):
         mask_path = Path(os.path.join(self.cache_dir, f'{image_id}_mask.npy'))
 
         if mask_path.exists():
-            mask = np.load(str(mask_path))
+            mask = np.load(str(mask_path), allow_pickle=True)
         else:
             im_size = image.shape[1:]
             mask = np.array(
                 [mask_for_polygons(im_size, polygons_map[cls + 1])
-                 for cls in range(self.hps.total_classes)],
-                dtype=np.uint8)
+                 for cls in range(self.num_classes)])
             with mask_path.open('wb') as f:
-                np.save(f, mask)
+                np.save(f, mask, allow_pickle=True)
             # save mask numpy to file TODO view mask
             np.save(os.path.join(self.cache_dir, f'{image_id}_image.npy'),
-                    image[1,:,:])
+                    image[1,:,:], allow_pickle=True)
         return mask
 
     def _get_filename(self, img_id: str, band_id: int):
@@ -476,11 +476,10 @@ class DSTLDataset(BaseDataSet):
 
 
 class DSTL(BaseDataLoader):
-    def __init__(self, batch_size, split, crop_size=None,
+    def __init__(self, training_band_groups, batch_size, split,  crop_size=None,
                  base_size=None, scale=True, num_workers=1, val=False,
                  shuffle=False, flip=False, rotate=False, blur=False,
-                 augment=False, val_split=None, return_id=False):
-
+                 augment=False, val_split=None, return_id=False, **params):
 
         # Scale the bands to be between 0 - 255
         # Min Max for Type P: [[0, 2047]]
@@ -504,13 +503,15 @@ class DSTL(BaseDataLoader):
             'rotate': rotate,
             'return_id': return_id,
             'val': val,
-            "val_split": 0.8
+            'mean': [],
+            'std': [],
         }
 
         print("kwargs", kwargs)
+        print("params", params)
 
         if split in ["train", "trainval", "val", "test"]:
-            self.dataset = DSTLDataset(**params, **kwargs)
+            self.dataset = DSTLDataset(training_band_groups, **params, **kwargs)
 
         # if split in ["train_rgb", "trainval_rgb", "val_rgb", "test_rgb"]:
         # self.dataset = DSTLDatasetRGB(**kwargs)

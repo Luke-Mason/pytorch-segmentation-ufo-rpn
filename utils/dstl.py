@@ -2,27 +2,31 @@ from typing import Dict, Tuple, List
 import numpy as np
 from shapely.geometry import MultiPolygon
 
-class SlidingWindowMergeConfig:
-    def __init__(self, name: str, kernel_3d: Tuple[int, int, int], stride_3d: Tuple[int, int, int]):
-        if name == 'max':
-            self.strategy_fn = lambda x: np.max(x)
-        elif name == 'mean':
-            self.strategy_fn = lambda x: np.mean(x)
-        elif name == 'min':
-            self.strategy_fn = lambda x: np.min(x)
-        elif name == 'sum':
-            self.strategy_fn = lambda x: np.sum(x)
+class Array3dMergeConfig:
+    def __init__(self, strategy: str, kernel: Tuple[int, int, int], stride: Tuple[int, int, int]):
+        if strategy == 'max':
+            self.strategy = lambda x: np.max(x)
+        elif strategy == 'mean':
+            self.strategy = lambda x: np.mean(x)
+        elif strategy == 'min':
+            self.strategy = lambda x: np.min(x)
+        elif strategy == 'sum':
+            self.strategy = lambda x: np.sum(x)
         else:
             raise ValueError(f"Unknown merge strategy: {self.merge_strategy}")
 
-        self.name = name
-        self.kernel_3d = kernel_3d
-        self.stride_3d = stride_3d
+        self.kernel = kernel
+        self.stride = stride
 
-def array_3d_merge(arr, config: SlidingWindowMergeConfig):
-    kernel_shape = config.kernel_3d
-    stride = config.stride_3d
-    func = config.strategy_fn
+class BandGroup:
+    def __init__(self, bands: List[int], merge_3d: Array3dMergeConfig):
+        self.bands = np.array(bands)
+        self.merge_3d = merge_3d
+
+def array_3d_merge(arr, config: Array3dMergeConfig):
+    kernel_shape = config.kernel
+    stride = config.stride
+    func = config.strategy
 
     # Get array shape and kernel shape
     arr_shape = arr.shape
@@ -30,6 +34,7 @@ def array_3d_merge(arr, config: SlidingWindowMergeConfig):
     stride = np.array(stride)
 
     # Calculate output shape
+    print(f"arr_shape: {arr_shape}")
     output_shape = ((arr_shape - kernel_shape) // stride) + 1
 
     # Initialize an array to store the results
