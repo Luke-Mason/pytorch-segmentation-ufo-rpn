@@ -146,6 +146,13 @@ class DSTLDataset(BaseDataSet):
             self.logger.info(f"Loading Image {image_id}...")
             with rasterio.open(file_path, dtype=np.float32) as src:
                 image = np.array(src.read(), dtype=np.float32)
+                        # Select the bands from the patch and merge them into 1 band.
+                image = np.array([
+                    array_3d_merge(image[group.bands - 1, :, :], group.merge_3d)
+                    for group in self.training_band_groups
+                ])
+
+                image = image.transpose((1, 2, 0))
                 y_mask = self._gen_y_label_mask(image_id, image)
                 self.logger.debug(
                     f'Image shape: {image.shape} Classes: {self.training_classes}')
@@ -158,24 +165,14 @@ class DSTLDataset(BaseDataSet):
                     if len(self.training_classes) != 0:
                         patch_y_mask = patch_y_mask[:, :, self.training_classes]
 
-                    self.logger.debug(
-                        f'Mask shape: {patch_y_mask.shape} Classes: {self.training_classes}')
-                    print(self.training_band_groups)
-
                     # Merging bands together with the strategies to produce
                     # the input patch image.
-                    patch = [
-                        array_3d_merge(
-                            # Select the bands from the patch and merge them into 1 band.
-                            image[y:y + self.patch_size,
-                            x:x + self.patch_size, group.bands - 1],
-                            group.merge_3d
-                        )
-                        for group in self.training_band_groups
-                    ]
+                    patch = image[y:y + self.patch_size, x:x + self.patch_size, :]
 
                     self.files.append((patch, patch_y_mask, image_id))
-                    self.logger.info(f"Chunking Image {image_id}... {(100 / len(chunk_offsets)) * (c_index + 1)}%")
+                    self.logger.info(f"Chunking Image {image_id}... "
+                                     f"{c_index + 1}/{len(chunk_offsets)} | "
+                                     f"{((100 / len(chunk_offsets)) * (c_index + 1)):d2}%")
 
 
                 self.logger.info(f"Total Data Loaded {(100 / len(ids)) * (index + 1)}% ...")
