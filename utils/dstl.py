@@ -34,7 +34,6 @@ def array_3d_merge(arr, config: Array3dMergeConfig):
     stride = np.array(stride)
 
     # Calculate output shape
-    print(f"arr_shape: {arr_shape}")
     output_shape = ((arr_shape - kernel_shape) // stride) + 1
 
     # Initialize an array to store the results
