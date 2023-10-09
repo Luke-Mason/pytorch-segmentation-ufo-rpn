@@ -7,16 +7,25 @@ import torch
 from dataloaders import DSTL
 import models
 from trainers import DSTLTrainer
-from utils import Logger
-from utils import losses
+from utils import Logger, losses, Array3dMergeConfig, BandGroup
 
 torch.cuda.empty_cache()
 
 
-def get_instance(module, name, config, *args):
+def get_instance(name, config, *args):
     # TODO implement all params in config
+    training_band_groups = []
+    for group in config['shared_loader']['training_band_groups']:
+        cfg = Array3dMergeConfig(group['merge_3d']["strategy"],
+                                 group['merge_3d']["kernel"],
+                                 group['merge_3d']["stride"])
+        training_band_groups.append(BandGroup(group['bands'], cfg))
+
+    del config['shared_loader']['training_band_groups']
+
     # GET THE CORRESPONDING CLASS / FCT
-    return DSTL(*args, **config['shared_loader'], **config[name]['args'])
+    return (DSTL(training_band_groups, *args, **config['shared_loader'],
+                 **config[name]['args']))
 
 
 def main(config, resume):
@@ -33,8 +42,8 @@ def main(config, resume):
                                'it must be a path to your DSTL data directory.')
 
     # DATA LOADERS
-    train_loader = get_instance(dataloaders, 'train_loader', config)
-    val_loader = get_instance(dataloaders, 'val_loader', config)
+    train_loader = get_instance('train_loader', config)
+    val_loader = get_instance('val_loader', config)
 
     # MODELMODEL
     model = get_instance(models, 'arch', config,
