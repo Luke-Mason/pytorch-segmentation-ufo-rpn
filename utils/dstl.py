@@ -107,7 +107,7 @@ def mask_for_polygons(
     """ Return numpy mask for given polygons.
     polygons should already be converted to image coordinates.
     """
-    img_mask = np.zeros(im_size, dtype=np.bool_)
+    img_mask = np.zeros(im_size)
     if not polygons:
         return img_mask
     int_coords = lambda x: np.array(x).round().astype(np.int32)
