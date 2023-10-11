@@ -40,7 +40,6 @@ class AverageMeter(object):
         return np.round(self.avg, 5)
 
 def batch_pix_accuracy(predict, target, labeled):
-
     pixel_labeled = labeled.sum()
     pixel_correct = ((predict == target) * labeled).sum()
     assert pixel_correct <= pixel_labeled, "Correct area should be smaller than Labeled"
@@ -49,7 +48,6 @@ def batch_pix_accuracy(predict, target, labeled):
 def batch_intersection_union(predict, target, num_class, labeled):
     predict = predict * labeled.long()
     intersection = predict * (predict == target).long()
-
     area_inter = torch.histc(intersection.float(), bins=num_class, max=num_class, min=1)
     area_pred = torch.histc(predict.float(), bins=num_class, max=num_class, min=1)
     area_lab = torch.histc(target.float(), bins=num_class, max=num_class, min=1)
@@ -58,14 +56,22 @@ def batch_intersection_union(predict, target, num_class, labeled):
     return area_inter.cpu().numpy(), area_union.cpu().numpy()
 
 def eval_metrics(output, target, num_class):
+    print("eval shape: ", output.data.shape)
+    # Each channel is a class, so we need to find the max channel for each
+    # pixel to get the predicted class for that pixel. The actual class
+    # represented is mapped by the index in the training_classes list.
     _, predict = torch.max(output.data, 1)
-    predict = predict + 1
-    target = target + 1
+    _, target_predict = torch.max(target.data, 1)
+    print("predicted shape: ", predict.shape)
+    labeled = target_predict <= num_class
+    correct, num_labeled = batch_pix_accuracy(predict, target_predict, labeled)
+    inter, union = batch_intersection_union(predict, target_predict, num_class, labeled)
 
-    labeled = (target > 0) * (target <= num_class)
-    correct, num_labeled = batch_pix_accuracy(predict, target, labeled)
-    inter, union = batch_intersection_union(predict, target, num_class, labeled)
-    return [np.round(correct, 5), np.round(num_labeled, 5), np.round(inter, 5), np.round(union, 5)]
+    correct = np.round(correct, 5)
+    labeled = np.round(num_labeled, 5)
+    inter = np.round(inter, 5)
+    union = np.round(union, 5)
+    return [correct, labeled, inter, union]
 
 # def eval_metrics(output, target, num_class):
 #     correct, labeled = batch_pix_accuracy(output.data, target, num_class)

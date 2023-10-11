@@ -90,18 +90,18 @@ class DSTLTrainer(BaseTrainer):
             # data, target = data.to(self.device), target.to(self.device)
 
             # LOSS & OPTIMIZE
-
             output = self.model(data)
+            print("batch: ", output.shape, target.shape, data.shape)
             if self.config['arch']['type'][:3] == 'PSP':
-                assert output[0].size()[2:] == target.size()[1:]
+                assert output[0].size()[1:] == target.size()[1:]
                 assert output[0].size()[1] == self.num_classes
                 loss = self.loss(output[0], target)
                 loss += self.loss(output[1], target) * 0.4
                 output = output[0]
             else:
-                # print(output.size()[2:])
-                # print(target.size()[1:])
-                assert output.size()[2:] == target.size()[1:]
+                print(output.size()[1:])
+                print(target.size()[1:])
+                assert output.size()[1:] == target.size()[1:]
                 assert output.size()[1] == self.num_classes
                 loss = self.loss(output, target)
 
