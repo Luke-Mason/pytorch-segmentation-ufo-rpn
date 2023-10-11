@@ -141,7 +141,7 @@ class DSTLDataset(BaseDataSet):
         self.logger.addHandler(handler)
 
     def _set_files(self):
-        ids = list(self.class_label_stats.keys())[:1]
+        ids = list(self.class_label_stats.keys())
         step_size = math.ceil(self.patch_size - ((self.overlap_percentage / 100.0) *
                                        self.patch_size))
         self.files = []  # type: List[Tuple[np.ndarray, np.ndarray, str]]
