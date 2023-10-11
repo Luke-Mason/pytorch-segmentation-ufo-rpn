@@ -1,9 +1,24 @@
 from typing import Dict, Tuple, List
 import numpy as np
 from shapely.geometry import MultiPolygon
+import json
+import hashlib
+import cv2
+
+def generate_unique_config_hash(config):
+
+    # Convert to json
+    config_json = json.dumps(config, sort_keys=True)
+
+    # Compute the SHA-256 hash of the JSON string
+    hash_object = hashlib.sha256(config_json.encode())
+    unique_filename = hash_object.hexdigest()
+
+    return unique_filename
 
 class Array3dMergeConfig:
     def __init__(self, strategy: str, kernel: Tuple[int, int, int], stride: Tuple[int, int, int]):
+        self.strategy_name = strategy  # Store strategy name for serialization
         if strategy == 'max':
             self.strategy = lambda x: np.max(x)
         elif strategy == 'mean':
@@ -13,15 +28,29 @@ class Array3dMergeConfig:
         elif strategy == 'sum':
             self.strategy = lambda x: np.sum(x)
         else:
-            raise ValueError(f"Unknown merge strategy: {self.merge_strategy}")
+            raise ValueError(f"Unknown merge strategy: {strategy}")
 
         self.kernel = kernel
         self.stride = stride
 
+    def to_dict(self):
+        return {
+            "strategy": self.strategy_name,
+            "kernel": self.kernel,
+            "stride": self.stride
+        }
+
 class BandGroup:
-    def __init__(self, bands: List[int], merge_3d: Array3dMergeConfig):
+    def __init__(self, bands: List[int], merge_3d: Array3dMergeConfig or None = None):
         self.bands = np.array(bands)
         self.merge_3d = merge_3d
+
+    def to_dict(self):
+        merge_3d_dict = self.merge_3d.to_dict() if self.merge_3d else None
+        return {
+            "bands": self.bands.tolist(),  # Convert numpy array to list
+            "merge_3d": merge_3d_dict
+        }
 
 def array_3d_merge(arr, config: Array3dMergeConfig):
     kernel_shape = config.kernel
@@ -41,8 +70,11 @@ def array_3d_merge(arr, config: Array3dMergeConfig):
 
     # Iterate over the array with the specified stride
     for i in range(0, arr_shape[0] - kernel_shape[0] + 1, stride[0]):
+        print(f"i: {i}")
         for j in range(0, arr_shape[1] - kernel_shape[1] + 1, stride[1]):
+            print(f"j: {j}")
             for k in range(0, arr_shape[2] - kernel_shape[2] + 1, stride[2]):
+                print(f"k: {k}")
                 # Extract the subarray within the sliding window
                 subarray = arr[i:i+kernel_shape[0], j:j+kernel_shape[1], k:k+kernel_shape[2]]
 

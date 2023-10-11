@@ -10,34 +10,19 @@
             "freeze_backbone": false
         }
     },
-    "shared_loader": {
-        "overlap_percentage": 50,
+    "preprocessing": {
         "patch_size": 116,
         "align_images": false,
-        "training_classes": [2],
         "img_ref_scale": "RGB",
+        "overlap_percentage": 50,
         "interpolation_method": 4,
+        "training_classes": [2],
         "training_band_groups": [{
-                "bands": [1],
-                "merge_3d": {
-                    "strategy": "max",
-                    "kernel": [2, 2, 1],
-                    "stride": [1, 1, 1]
-                }
+                "bands": [1]
             }, {
-                "bands": [2,3,4,5],
-                "merge_3d": {
-                    "strategy": "mean",
-                    "kernel": [2, 2, 4],
-                    "stride": [1, 1, 4]
-                }
+                "bands": [2]
             }, {
-                "bands": [6,7,8,9],
-                "merge_3d": {
-                    "strategy": "max",
-                    "kernel": [2, 2, 4],
-                    "stride": [1, 1, 4]
-                }
+                "bands": [3]
             }
         ]
     },

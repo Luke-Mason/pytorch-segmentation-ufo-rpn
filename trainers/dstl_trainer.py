@@ -40,8 +40,6 @@ class DSTLTrainer(BaseTrainer):
 
         # TRANSORMS FOR VISUALIZATION
         self.restore_transform = transforms.Compose([
-            local_transforms.DeNormalize(self.train_loader.MEAN,
-                                         self.train_loader.STD),
             transforms.ToPILImage()])
         self.viz_transform = transforms.Compose([
             transforms.Resize((400, 400)),

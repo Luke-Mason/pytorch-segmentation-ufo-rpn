@@ -25,7 +25,7 @@ from base import BaseDataSet, BaseDataLoader
 from shapely.geometry import MultiPolygon
 from utils import (array_3d_merge, Array3dMergeConfig, BandGroup,
                    mask_for_polygons,
-                   palette)
+                   palette, generate_unique_config_hash)
 
 
 
@@ -55,6 +55,11 @@ class DSTLDataset(BaseDataSet):
         if len(training_band_groups) != 3:
             raise ValueError("Band groups must be 3")
 
+        for group in training_band_groups:
+            if group.merge_3d is None and len(group.bands) != 1:
+                raise ValueError("Number of bands in a group must be 1 if "
+                                 "there is no merge strategy for the group")
+
         self.num_classes = 10 if len(training_classes) == 0 else len(training_classes)
 
         # Attributes
@@ -75,6 +80,18 @@ class DSTLDataset(BaseDataSet):
         self.cache_dir = os.path.join(self.root, 'cached')
         if not os.path.exists(self.cache_dir):
             os.makedirs(self.cache_dir)
+
+        stage_1_dir = os.path.join(self.cache_dir, 'stage_1')
+        if not os.path.exists(stage_1_dir):
+            os.makedirs(stage_1_dir)
+
+        stage_2_dir = os.path.join(self.cache_dir, 'stage_2')
+        if not os.path.exists(stage_2_dir):
+            os.makedirs(stage_2_dir)
+
+        masks_dir = os.path.join(self.cache_dir, 'masks')
+        if not os.path.exists(masks_dir):
+            os.makedirs(masks_dir)
 
         # Memory Cache
         self.images = dict()  # type Dict[str, np.ndarray]
@@ -124,63 +141,100 @@ class DSTLDataset(BaseDataSet):
         self.logger.addHandler(handler)
 
     def _set_files(self):
-        ids = list(self.class_label_stats.keys())
+        ids = list(self.class_label_stats.keys())[:1]
         step_size = math.ceil(self.patch_size - ((self.overlap_percentage / 100.0) *
                                        self.patch_size))
         self.files = []  # type: List[Tuple[np.ndarray, np.ndarray, str]]
 
-        # Preprocess Images, only done once unless preprocessing params change.
+        # Preprocess Images, ensure their existences.
         for image_id in ids:
-            filename = self.get_preprocessed_filename(image_id)
-            file_path = os.path.join(self.cache_dir, filename)
-            if not os.path.exists(file_path):
-                self._preprocess_image(image_id, file_path)
+            stage_1_file_path = self.get_stage_1_file_path(image_id)
+            if not os.path.exists(stage_1_file_path + ".data.npy"):
+                self._preprocess_image_stage_1(image_id, stage_1_file_path)
+
+            # Save mask for image
+            mask_path = self.get_mask_file_path(image_id)
+            if not os.path.exists(mask_path + ".mask.npy"):
+                self._save_mask(image_id, stage_1_file_path, mask_path)
+
+            stage_2_file_path = self.get_stage_2_file_path(image_id)
+            if not os.path.exists(stage_2_file_path + ".data.npy"):
+                self._preprocess_image_stage_2(image_id, stage_1_file_path,
+                                               stage_2_file_path)
 
         # Load Images
         for index, image_id in enumerate(ids):
-            filename = self.get_preprocessed_filename(image_id)
-            file_path = os.path.join(self.cache_dir, filename)
+            image = np.load(Path(self.get_stage_2_file_path(image_id) + ".data.npy"), "r")
+            image = image.transpose((1, 2, 0))
+            self.logger.debug(f'Image shape: {image.shape}')
 
-            width, height = self._image_size(file_path)
+            height, width = image.shape[0], image.shape[1]
             chunk_offsets = self._gen_chunk_offsets(width, height, step_size)
-            self.logger.info(f"Loading Image {image_id}...")
-            with rasterio.open(file_path, dtype=np.float32) as src:
-                image = np.array(src.read(), dtype=np.float32)
-                        # Select the bands from the patch and merge them into 1 band.
-                image = np.array([
-                    array_3d_merge(image[group.bands - 1, :, :], group.merge_3d)
-                    for group in self.training_band_groups
-                ])
 
-                image = image.transpose((1, 2, 0))
-                y_mask = self._gen_y_label_mask(image_id, image)
-                self.logger.debug(
-                    f'Image shape: {image.shape} Classes: {self.training_classes}')
-                for c_index, (x, y) in enumerate(chunk_offsets):
+            mask = np.load(Path(self.get_mask_file_path(image_id) +
+                                ".mask.npy"), allow_pickle=True)
+            mask = mask.transpose((1, 2, 0))
+            self.logger.debug(f'Mask shape: {mask.shape}')
 
-                    # Get the masks for the classes that we want to validate and train on.
-                    patch_y_mask = np.copy(y_mask[y:y + self.patch_size, x:x + self.patch_size, :])
+            for c_index, (x, y) in enumerate(chunk_offsets):
 
-                    # Train for specified classes
-                    if len(self.training_classes) != 0:
-                        patch_y_mask = patch_y_mask[:, :, self.training_classes]
+                # Get the masks for the classes that we want to validate and train on.
+                patch_y_mask = mask[y:y + self.patch_size,
+                               x:x + self.patch_size, :]
 
-                    # Merging bands together with the strategies to produce
-                    # the input patch image.
-                    patch = image[y:y + self.patch_size, x:x + self.patch_size, :]
+                # Merging bands together with the strategies to produce
+                # the input patch image.
+                patch = image[y:y + self.patch_size, x:x + self.patch_size, :]
 
-                    self.files.append((patch, patch_y_mask, image_id))
-                    self.logger.info(f"Chunking Image {image_id}... "
-                                     f"{c_index + 1}/{len(chunk_offsets)} | "
-                                     f"{((100 / len(chunk_offsets)) * (c_index + 1)):d2}%")
+                self.files.append((patch, patch_y_mask, image_id))
+                self.logger.info(f"Chunking Image {image_id}... "
+                                 f"{c_index + 1}/{len(chunk_offsets)} | "
+                                 f"{((100 / len(chunk_offsets)) * (c_index + 1)):.2f}%")
 
+            self.logger.info(f"Total Data Loaded {(100 / len(ids)) * (index + 1)}% ...")
 
-                self.logger.info(f"Total Data Loaded {(100 / len(ids)) * (index + 1)}% ...")
+    def get_mask_file_path(self, image_id: str) -> str:
+        transformative_config = {
+            "img_ref_scale": self.img_ref_scale,
+            "classes": self.training_classes,
+        }
+        hash_id = generate_unique_config_hash(transformative_config)
+        filename = f"{image_id}_{hash_id}"
+        return os.path.join(self.cache_dir, "masks", image_id)
 
+    def get_stage_1_file_path(self, image_id):
+        transformative_config = {
+            "img_ref_scale": self.img_ref_scale,
+            "align_images": self.align_images,
+            "interpolation_method": self.interpolation_method,
+        }
+        hash_id = generate_unique_config_hash(transformative_config)
+        filename = f"{image_id}_{hash_id}"
+        return os.path.join(self.cache_dir, "stage_1", filename)
+
+    def get_stage_2_file_path(self, image_id):
+        transformative_config = {
+            "img_ref_scale": self.img_ref_scale,
+            "align_images": self.align_images,
+            "interpolation_method": self.interpolation_method,
+            "training_band_groups": [group.to_dict()
+                                     for group in self.training_band_groups]
+        }
+        hash_id = generate_unique_config_hash(transformative_config)
+        filename = f"{image_id}_{hash_id}"
+        return os.path.join(self.cache_dir, "stage_2", filename)
+
+    def _save_mask(self, image_id, file_path, mask_path):
+        image = np.load(Path(file_path + ".data.npy"), 'r')
+        im_size = image.shape[1:]
+        class_to_polygons = self._load_polygons(image_id, im_size)
+        mask = np.array(
+            [mask_for_polygons(im_size, class_to_polygons.get(str(cls + 1)))
+             for cls in range(self.num_classes)])
+        np.save(Path(mask_path + ".mask.npy"), mask, allow_pickle=True)
 
     def _load_data(self, index: int):
         return self.files[index]
-
 
     def __getitem__(self, index):
         patch, patch_y_mask, image_id = self._load_data(index)
@@ -189,8 +243,9 @@ class DSTLDataset(BaseDataSet):
         elif self.augment:
             patch, patch_y_mask = self._augmentation(patch, patch_y_mask)
 
-        patch_y_mask = torch.from_numpy(patch_y_mask).long()
-        patch = torch.from_numpy(patch).long()
+        patch_y_mask = torch.from_numpy(patch_y_mask.astype(np.bool_)).long()
+        patch = torch.from_numpy(patch.astype(np.float32)).long()
+        print("blabla", patch.shape)
         if self.return_id:
             return patch, patch_y_mask, image_id
         return patch, patch_y_mask
@@ -220,48 +275,6 @@ class DSTLDataset(BaseDataSet):
 
         return chunk_offsets
 
-    def _gen_y_label_mask(self, image_id: str, image: np.ndarray):
-        """ For each patch generate the label mask over the classes so
-            that we can get the loss for each class for each patch.
-            Returns the mask for the entire image so that it can be chipped.
-        :param image: The image.
-        :return: The label_mask for the image.
-        """
-        h, w = image.shape[1:]
-        self.logger.debug(f'Generating mask for {image_id}')
-        class_to_polygons = self._load_polygons(image_id, h, w)
-        mask = self._mask_from_polygons(image_id, image, class_to_polygons)
-        self.logger.debug(f'Finished mask for {image_id}')
-        return mask
-
-    def _mask_from_polygons(self, image_id: str, image: np.ndarray,
-                            polygons_map: Dict[
-                                int, MultiPolygon]) -> np.ndarray:
-        """ Return numpy mask for given polygons.
-        polygons should already be converted to image coordinates.
-        """
-        # The semantic segmentation map where each class id is an element of
-        # the mask.
-        mask_path = Path(os.path.join(self.cache_dir, f'{image_id}_mask.npy'))
-
-        if mask_path.exists():
-            mask = np.load(str(mask_path), allow_pickle=True)
-        else:
-            im_size = image.shape[1:]
-            mask = np.array(
-                [mask_for_polygons(im_size, polygons_map[cls + 1])
-                 for cls in range(self.num_classes)])
-            with mask_path.open('wb') as f:
-                np.save(f, mask, allow_pickle=True)
-            # save mask numpy to file TODO view mask
-            np.save(os.path.join(self.cache_dir, f'{image_id}_image.npy'),
-                    image[1,:,:], allow_pickle=True)
-        return mask
-
-    def _get_filename(self, img_id: str, band_id: int):
-        file_type, _ = self._get_file_type_and_band_index(band_id)
-        return f"/{img_id}_{file_type}.tif"
-
     def _get_wkt_data(self) -> Dict[str, Dict[int, str]]:
         if self._wkt_data is None:
             self._wkt_data = {}
@@ -279,20 +292,21 @@ class DSTLDataset(BaseDataSet):
 
         return self._wkt_data
 
-    def _load_polygons(self, image_id: str, height: int, width: int) \
-            -> Dict[int, MultiPolygon]:
+    def _load_polygons(self, image_id: str, im_size: Tuple[int, int]) \
+            -> Dict[str, MultiPolygon]:
         """
         Load the polygons for the image id and scale them to the image size.
         :param im_id: The image id.
         :param im_size: The image size.
         :return: A dictionary of class type to polygon.
         """
+        height, width = im_size
         self.logger.debug(f'Loading polygons for image: {image_id}')
         x_max, y_min = self._get_x_max_y_min(image_id)
         x_scaler, y_scaler = self._get_scalers(height, width, x_max, y_min)
 
         items_ = {
-            int(poly_type): shapely.affinity.scale(shapely.wkt.loads(poly),
+            str(poly_type): shapely.affinity.scale(shapely.wkt.loads(poly),
                                                    xfact=x_scaler,
                                                    yfact=y_scaler,
                                                    origin=(0, 0, 0)) for
@@ -353,11 +367,7 @@ class DSTLDataset(BaseDataSet):
             image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         return image.astype(np.float32)
 
-    def get_preprocessed_filename(self, image_id: str):
-        return (f"{image_id}_interp_{self.interpolation_method}_scaled2{self.img_ref_scale}{'_aligned' if self.align_images else ''}.tif")
-
-    def _preprocess_image(self, image_id: str, file_path: str):
-        self.logger.info("Preprocessing image: " + image_id)
+    def _preprocess_image_stage_1(self, image_id: str, file_path: str):
 
         key = lambda x: f'{image_id}_{x}'
 
@@ -419,14 +429,10 @@ class DSTLDataset(BaseDataSet):
         im_a = im_a / 16383.0
         image = np.concatenate([im_p, im_m, im_a], axis=2).transpose([2, 0, 1])
         self.logger.debug(f"Image shape: {image.shape}")
+
         # Save images
-        with rasterio.open(file_path, 'w',
-                           count=image.shape[0],
-                           height=image.shape[1],
-                           width=image.shape[2],
-                           dtype=np.float32) as src:
-            self.logger.debug(f"Saving image to {file_path}")
-            src.write(image)
+        np.save(Path(file_path + ".data"), image)
+        self.logger.debug(f"Saving image to {file_path}.data.npy")
 
         # Close streams
         im_rgb_src.close()
@@ -436,6 +442,20 @@ class DSTLDataset(BaseDataSet):
 
         del im_rgb, im_p, im_m, im_a, im_rgb_src, im_p_src, im_m_src, im_a_src, \
             rgb_path, p_path, m_path, a_path
+
+        return image
+
+    def _preprocess_image_stage_2(self, image_id: str, src_path: str, dst_path: str):
+        image = np.load(src_path + ".data.npy", allow_pickle=True)
+        image = np.array([
+            image[group.bands - 1, :, :].squeeze() if group.merge_3d is None else
+            array_3d_merge(image[group.bands - 1, :, :].squeeze(), group.merge_3d)
+            for group in self.training_band_groups
+        ], dtype=np.float32)
+
+        # Save images
+        self.logger.debug(f"Saving image to {dst_path}.data.npy")
+        np.save(Path(dst_path + ".data"), image, allow_pickle=True)
 
     def _aligned(self, im_ref, im, im_to_align=None, key=None):
         w, h = im.shape[:2]
