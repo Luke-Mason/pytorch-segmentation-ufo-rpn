@@ -10,10 +10,39 @@
             "freeze_backbone": false
         }
     },
+    "shared_loader": {
+        "overlap_percentage": 50,
+        "patch_size": 116,
+        "align_images": false,
+        "training_classes": [2],
+        "img_ref_scale": "RGB",
+        "interpolation_method": 4,
+        "training_band_groups": [{
+                "bands": [1],
+                "merge_3d": {
+                    "strategy": "max",
+                    "kernel": [2, 2, 1],
+                    "stride": [1, 1, 1]
+                }
+            }, {
+                "bands": [2,3,4,5],
+                "merge_3d": {
+                    "strategy": "mean",
+                    "kernel": [2, 2, 4],
+                    "stride": [1, 1, 4]
+                }
+            }, {
+                "bands": [6,7,8,9],
+                "merge_3d": {
+                    "strategy": "max",
+                    "kernel": [2, 2, 4],
+                    "stride": [1, 1, 4]
+                }
+            }
+        ]
+    },
     "train_loader": {
-        "type": "DSTL",
         "args": {
-            "data_dir": "/mnt/e/ML_Data/DSTL/dstl-satellite-imagery-feature-detection",
             "batch_size": 32,
             "base_size": 512,
             "crop_size": 512,
@@ -24,30 +53,16 @@
             "rotate": false,
             "blur": false,
             "split": "train",
-            "val_split": 0.8,
-            "num_workers": 8,
-            "classes": [
-                0
-            ],
-            "training_bands": [
-                1
-            ],
-            "patch_size": 512,
-            "overlap_percentage": 10,
-            "align_images": false,
-            "interpolation_method": 4
+            "num_workers": 8
         }
     },
     "val_loader": {
-        "type": "DSTL",
         "args": {
-            "data_dir": "/mnt/e/ML_Data/DSTL/dstl-satellite-imagery-feature-detection/",
             "batch_size": 32,
             "augment": false,
             "crop_size": 512,
             "val": true,
             "split": "val",
-            "val_split": 0.8,
             "num_workers": 4
         }
     },

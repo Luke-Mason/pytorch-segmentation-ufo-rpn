@@ -1,5 +1,5 @@
 {
-    "name": "dstl_128",
+    "name": "dstl_512",
     "n_gpu": 1,
     "use_synch_bn": false,
     "arch": {
@@ -10,38 +10,39 @@
             "freeze_backbone": false
         }
     },
+    "preprocessing": {
+        "patch_size": 256,
+        "align_images": false,
+        "img_ref_scale": "RGB",
+        "overlap_percentage": 25,
+        "interpolation_method": 4,
+        "training_classes": [2],
+        "training_band_groups": [{
+                "bands": [1]
+            }, {
+                "bands": [2]
+            }, {
+                "bands": [3]
+            }
+        ]
+    },
     "train_loader": {
-        "type": "DSTL",
         "args": {
-            "data_dir": "/opt/home/s3630120/dstl-satellite-imagery-feature-detection",
             "batch_size": 128,
-            "crop_size": 512,
             "augment": false,
+            "base_size": 512,
+            "crop_size": 512,
             "shuffle": false,
             "scale": false,
             "flip": false,
             "rotate": false,
             "blur": false,
             "split": "train",
-         
-            "num_workers": 8,
-            "classes": [
-                0
-            ],
-            "training_bands": [
-                1
-            ],
-            "patch_size": 256,
-            "overlap_percentage": 25,
-            "align_images": false,
-            "interpolation_method": 4,
             "num_workers": 8
         }
     },
     "val_loader": {
-        "type": "DSTL",
         "args": {
-            "data_dir": "/opt/home/s3630120/dstl-satellite-imagery-feature-detection",
             "batch_size": 128,
             "augment": false,
             "crop_size": 512,
@@ -51,29 +52,30 @@
         }
     },
     "optimizer": {
-        "type": "Adam",
+        "type": "SGD",
         "differential_lr": true,
         "args": {
-            "lr": 0.0001,
-            "weight_decay": 1e-4
+            "lr": 0.05,
+            "weight_decay": 1e-4,
+            "momentum": 0.9
         }
     },
-    "loss": "MeanAveragePrecision",
+    "loss": "DiceLoss",
     "ignore_index": 10,
     "lr_scheduler": {
         "type": "Poly",
         "args": {}
     },
     "trainer": {
-        "epochs": 5,
+        "epochs": 1,
         "save_dir": "saved/",
-        "save_period": 1,
+        "save_period": 5,
         "monitor": "max Mean_IoU",
         "early_stop": 10000,
         "tensorboard": true,
         "log_dir": "saved/runs",
         "log_per_iter": 10,
         "val": true,
-        "val_per_epochs": 1
+        "val_per_epochs": 5
     }
 }

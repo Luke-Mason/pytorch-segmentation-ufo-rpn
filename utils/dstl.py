@@ -1,0 +1,119 @@
+from typing import Dict, Tuple, List
+import numpy as np
+from shapely.geometry import MultiPolygon
+import json
+import hashlib
+import cv2
+
+def generate_unique_config_hash(config):
+
+    # Convert to json
+    config_json = json.dumps(config, sort_keys=True)
+
+    # Compute the SHA-256 hash of the JSON string
+    hash_object = hashlib.sha256(config_json.encode())
+    unique_filename = hash_object.hexdigest()
+
+    return unique_filename
+
+class Array3dMergeConfig:
+    def __init__(self, strategy: str, kernel: Tuple[int, int, int], stride: Tuple[int, int, int]):
+        self.strategy_name = strategy  # Store strategy name for serialization
+        if strategy == 'max':
+            self.strategy = lambda x: np.max(x)
+        elif strategy == 'mean':
+            self.strategy = lambda x: np.mean(x)
+        elif strategy == 'min':
+            self.strategy = lambda x: np.min(x)
+        elif strategy == 'sum':
+            self.strategy = lambda x: np.sum(x)
+        else:
+            raise ValueError(f"Unknown merge strategy: {strategy}")
+
+        self.kernel = kernel
+        self.stride = stride
+
+    def to_dict(self):
+        return {
+            "strategy": self.strategy_name,
+            "kernel": self.kernel,
+            "stride": self.stride
+        }
+
+class BandGroup:
+    def __init__(self, bands: List[int], merge_3d: Array3dMergeConfig or None = None):
+        self.bands = np.array(bands)
+        self.merge_3d = merge_3d
+
+    def to_dict(self):
+        merge_3d_dict = self.merge_3d.to_dict() if self.merge_3d else None
+        return {
+            "bands": self.bands.tolist(),  # Convert numpy array to list
+            "merge_3d": merge_3d_dict
+        }
+
+def array_3d_merge(arr, config: Array3dMergeConfig):
+    kernel_shape = config.kernel
+    stride = config.stride
+    func = config.strategy
+
+    # Get array shape and kernel shape
+    arr_shape = arr.shape
+    kernel_shape = np.array(kernel_shape)
+    stride = np.array(stride)
+
+    # Calculate output shape
+    output_shape = ((arr_shape - kernel_shape) // stride) + 1
+
+    # Initialize an array to store the results
+    results = np.zeros(output_shape)
+
+    # Iterate over the array with the specified stride
+    for i in range(0, arr_shape[0] - kernel_shape[0] + 1, stride[0]):
+        print(f"i: {i}")
+        for j in range(0, arr_shape[1] - kernel_shape[1] + 1, stride[1]):
+            print(f"j: {j}")
+            for k in range(0, arr_shape[2] - kernel_shape[2] + 1, stride[2]):
+                print(f"k: {k}")
+                # Extract the subarray within the sliding window
+                subarray = arr[i:i+kernel_shape[0], j:j+kernel_shape[1], k:k+kernel_shape[2]]
+
+                # Apply the lambda function to the subarray and store the result
+                results[i//stride[0], j//stride[1], k//stride[2]] = func(subarray)
+
+    return results
+
+
+def extract_mask_values_using_polygons(mask: np.ndarray,
+                                       polygons: MultiPolygon):
+    """ Return numpy mask for given polygons.
+        polygons should already be converted to image coordinates.
+        non values are given -1.
+    """
+    # Mark the values to extract with a 1.
+    mark_value = 1
+    marked_mask = np.zeros(mask.shape, dtype=np.int8)
+    cv2.fillPoly(marked_mask, polygons, mark_value)
+
+    # Extract the values from the main mask using the marked mask
+    extracted_values_mask = np.full(marked_mask.shape, -1, dtype=np.float32)
+    for index, element in np.ndenumerate(marked_mask):
+        if element == mark_value:
+            extracted_values_mask[index] = mask[index]
+    return extracted_values_mask
+
+def mask_for_polygons(
+        im_size: Tuple[int, int], polygons: MultiPolygon) -> np.ndarray:
+    """ Return numpy mask for given polygons.
+    polygons should already be converted to image coordinates.
+    """
+    img_mask = np.full(im_size, np.uint8)
+    if not polygons:
+        return img_mask
+    int_coords = lambda x: np.array(x).round().astype(np.int32)
+    exteriors = [int_coords(poly.exterior.coords) for poly in polygons.geoms]
+    interiors = [int_coords(pi.coords) for poly in polygons.geoms
+                 for pi in poly.interiors]
+    cv2.fillPoly(img_mask, exteriors, 1)
+    cv2.fillPoly(img_mask, interiors, 0)
+    return img_mask

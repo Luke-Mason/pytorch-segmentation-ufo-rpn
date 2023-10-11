@@ -1,0 +1,68 @@
+{
+    "arch": {
+        "args": {
+            "backbone": "resnet50",
+            "freeze_backbone": false,
+            "freeze_bn": false
+        },
+        "type": "UFONet"
+    },
+    "ignore_index": 255,
+    "loss": "CrossEntropyLoss2d",
+    "lr_scheduler": {
+        "args": {},
+        "type": "Poly"
+    },
+    "n_gpu": 1,
+    "name": "cat_512_batch32",
+    "optimizer": {
+        "args": {
+            "lr": 0.05,
+            "momentum": 0.9,
+            "weight_decay": 0.0001
+        },
+        "differential_lr": true,
+        "type": "SGD"
+    },
+    "train_loader": {
+        "args": {
+            "augment": true,
+            "base_size": 512,
+            "batch_size": 32,
+            "blur": false,
+            "crop_size": 512,
+            "data_dir": "/opt/home/s3630120/dstl-satellite-imagery-feature-detection",
+            "flip": false,
+            "num_workers": 8,
+            "rotate": false,
+            "scale": false,
+            "shuffle": false,
+            "split": "train"
+        },
+        "type": "DSTL"
+    },
+    "trainer": {
+        "early_stop": 10000,
+        "epochs": 300,
+        "log_dir": "saved/runs",
+        "log_per_iter": 10,
+        "monitor": "max Mean_IoU",
+        "save_dir": "saved/",
+        "save_period": 5,
+        "tensorboard": true,
+        "val": true,
+        "val_per_epochs": 5
+    },
+    "use_synch_bn": false,
+    "val_loader": {
+        "args": {
+            "batch_size": 32,
+            "crop_size": 512,
+            "data_dir": "/opt/home/s3630120/dstl-satellite-imagery-feature-detection",
+            "num_workers": 4,
+            "split": "val",
+            "val": true
+        },
+        "type": "DSTL"
+    }
+}
