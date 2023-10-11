@@ -132,7 +132,7 @@ class BaseDataSet(Dataset):
 
     def __getitem__(self, index):
         image, label, image_id = self._load_data(index)
-        if self.val:
+        if self.val and self.augment:
             image, label = self._val_augmentation(image, label)
         elif self.augment:
             image, label = self._augmentation(image, label)
