@@ -180,6 +180,7 @@ def main():
     if not os.path.exists('outputs'):
         os.makedirs('outputs')
 
+    print("INFERENCE!!!")
     image_files = sorted(glob(os.path.join(args.images, f'*.{args.extension}')))
     label_files = sorted(glob(os.path.join(args.labels, f'*.{label_ext}')))
     with torch.no_grad():

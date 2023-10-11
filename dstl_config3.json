@@ -11,10 +11,10 @@
         }
     },
     "preprocessing": {
-        "patch_size": 116,
+        "patch_size": 256,
         "align_images": false,
         "img_ref_scale": "RGB",
-        "overlap_percentage": 50,
+        "overlap_percentage": 25,
         "interpolation_method": 4,
         "training_classes": [2],
         "training_band_groups": [{
@@ -28,10 +28,10 @@
     },
     "train_loader": {
         "args": {
-            "batch_size": 32,
+            "batch_size": 128,
+            "augment": false,
             "base_size": 512,
             "crop_size": 512,
-            "augment": false,
             "shuffle": false,
             "scale": false,
             "flip": false,
@@ -43,7 +43,7 @@
     },
     "val_loader": {
         "args": {
-            "batch_size": 32,
+            "batch_size": 128,
             "augment": false,
             "crop_size": 512,
             "val": true,
@@ -60,14 +60,14 @@
             "momentum": 0.9
         }
     },
-    "loss": "MeanAveragePrecision",
+    "loss": "DiceLoss",
     "ignore_index": 10,
     "lr_scheduler": {
         "type": "Poly",
         "args": {}
     },
     "trainer": {
-        "epochs": 70,
+        "epochs": 1,
         "save_dir": "saved/",
         "save_period": 5,
         "monitor": "max Mean_IoU",

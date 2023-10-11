@@ -3,9 +3,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from utils.lovasz_losses import lovasz_softmax
+from sklearn.metrics import average_precision_score
 
 
 def make_one_hot(labels, classes):
+    print("one hot - ", labels.size(), classes)
     one_hot = torch.FloatTensor(labels.size()[0], classes, labels.size()[2],
                                 labels.size()[3]).zero_().to(labels.device)
     target = one_hot.scatter_(1, labels.data, 1)
@@ -45,7 +47,7 @@ class DiceLoss(nn.Module):
         if self.ignore_index not in range(target.min(), target.max()):
             if (target == self.ignore_index).sum() > 0:
                 target[target == self.ignore_index] = target.min()
-        target = make_one_hot(target.unsqueeze(dim=1), classes=output.size()[1])
+        target = make_one_hot(target, classes=output.size()[1])
         output = F.softmax(output, dim=1)
         output_flat = output.contiguous().view(-1)
         target_flat = target.contiguous().view(-1)
@@ -110,7 +112,7 @@ class JaccardCoefficient(nn.Module):
     def forward(self, output, target):
         eps = 1e-10  # Small epsilon to avoid division by zero
         output = F.softmax(output, dim=1)
-        target = make_one_hot(target.unsqueeze(dim=1), classes=output.size()[1])
+        target = make_one_hot(target, classes=output.size()[1])
 
         intersection = (output * target).sum(dim=(2, 3))
         union = (output + target).sum(dim=(2, 3)) - intersection
@@ -126,7 +128,7 @@ class Recall(nn.Module):
 
     def forward(self, output, target):
         output = F.softmax(output, dim=1)
-        target = make_one_hot(target.unsqueeze(dim=1), classes=output.size()[1])
+        target = make_one_hot(target, classes=output.size()[1])
 
         true_positive = (output * target).sum(dim=(2, 3))
         actual_positive = target.sum(dim=(2, 3))
@@ -143,7 +145,7 @@ class Precision(nn.Module):
 
     def forward(self, output, target):
         output = F.softmax(output, dim=1)
-        target = make_one_hot(target.unsqueeze(dim=1), classes=output.size()[1])
+        target = make_one_hot(target, classes=output.size()[1])
 
         true_positive = (output * target).sum(dim=(2, 3))
         predicted_positive = output.sum(dim=(2, 3))
@@ -169,21 +171,21 @@ class F1Score(nn.Module):
         return f1.mean()
 
 
-class MeanAveragePrecision(nn.Module):
-    def __init__(self, ignore_index=255):
-        super(MeanAveragePrecision, self).__init__()
-
-    def forward(self, output, target):
-        output = F.softmax(output, dim=1)
-        target = make_one_hot(target.unsqueeze(dim=1), classes=output.size()[1])
-
-        output_flat = output.contiguous().view(-1)
-        target_flat = target.contiguous().view(-1)
-
-        ap = average_precision_score(target_flat.cpu().numpy(),
-                                     output_flat.cpu().numpy())
-
-        return torch.tensor(ap).to(output.device)
+# class MeanAveragePrecision(nn.Module):
+#     def __init__(self, ignore_index=255):
+#         super(MeanAveragePrecision, self).__init__()
+#
+#     def forward(self, output, target):
+#         output = F.softmax(output, dim=1)
+#         target = make_one_hot(target, classes=output.size()[1])
+#
+#         output_flat = output.contiguous().view(-1)
+#         target_flat = target.contiguous().view(-1)
+#
+#         ap = average_precision_score(target_flat.cpu().numpy(),
+#                                      output_flat.cpu().numpy())
+#
+#         return torch.tensor(ap).to(output.device)
 
 
 class BCELoss(nn.Module):
@@ -259,18 +261,18 @@ class BCE_F1Loss(nn.Module):
         return bce_loss + f1_loss
 
 
-class BCE_MeanAveragePrecisionLoss(nn.Module):
-    def __init__(self, smooth=1, reduction='mean', ignore_index=255,
-                 weight=None):
-        super(BCE_MeanAveragePrecisionLoss, self).__init__()
-        self.smooth = smooth
-        self.map = MeanAveragePrecision()
-        self.bce = BCELoss()
-
-    def forward(self, output, target):
-        bce_loss = self.bce(output, target)
-        map_loss = self.map(output, target)
-        return bce_loss + map_loss
+# class BCE_MeanAveragePrecisionLoss(nn.Module):
+#     def __init__(self, smooth=1, reduction='mean', ignore_index=255,
+#                  weight=None):
+#         super(BCE_MeanAveragePrecisionLoss, self).__init__()
+#         self.smooth = smooth
+#         self.map = MeanAveragePrecision()
+#         self.bce = BCELoss()
+#
+#     def forward(self, output, target):
+#         bce_loss = self.bce(output, target)
+#         map_loss = self.map(output, target)
+#         return bce_loss + map_loss
 
 
 class Dice_JaccardLoss(nn.Module):
@@ -301,18 +303,18 @@ class Dice_F1Loss(nn.Module):
         return dice_loss + f1_loss
 
 
-class Dice_MeanAveragePrecisionLoss(nn.Module):
-    def __init__(self, smooth=1, reduction='mean', ignore_index=255,
-                 weight=None):
-        super(Dice_MeanAveragePrecisionLoss, self).__init__()
-        self.smooth = smooth
-        self.map = MeanAveragePrecision()
-        self.dice = DiceLoss()
-
-    def forward(self, output, target):
-        dice_loss = self.dice(output, target)
-        map_loss = self.map(output, target)
-        return dice_loss + map_loss
+# class Dice_MeanAveragePrecisionLoss(nn.Module):
+#     def __init__(self, smooth=1, reduction='mean', ignore_index=255,
+#                  weight=None):
+#         super(Dice_MeanAveragePrecisionLoss, self).__init__()
+#         self.smooth = smooth
+#         self.map = MeanAveragePrecision()
+#         self.dice = DiceLoss()
+#
+#     def forward(self, output, target):
+#         dice_loss = self.dice(output, target)
+#         map_loss = self.map(output, target)
+#         return dice_loss + map_loss
 
 
 class Jaccard_F1Loss(nn.Module):
@@ -329,32 +331,32 @@ class Jaccard_F1Loss(nn.Module):
         return jaccard_loss + f1_loss
 
 
-class Jaccard_MeanAveragePrecisionLoss(nn.Module):
-    def __init__(self, smooth=1, reduction='mean', ignore_index=255,
-                 weight=None):
-        super(Jaccard_MeanAveragePrecisionLoss, self).__init__()
-        self.smooth = smooth
-        self.map = MeanAveragePrecision()
-        self.jaccard = JaccardCoefficient()
+# class Jaccard_MeanAveragePrecisionLoss(nn.Module):
+#     def __init__(self, smooth=1, reduction='mean', ignore_index=255,
+#                  weight=None):
+#         super(Jaccard_MeanAveragePrecisionLoss, self).__init__()
+#         self.smooth = smooth
+#         self.map = MeanAveragePrecision()
+#         self.jaccard = JaccardCoefficient()
+#
+#     def forward(self, output, target):
+#         jaccard_loss = self.jaccard(output, target)
+#         map_loss = self.map(output, target)
+#         return jaccard_loss + map_loss
 
-    def forward(self, output, target):
-        jaccard_loss = self.jaccard(output, target)
-        map_loss = self.map(output, target)
-        return jaccard_loss + map_loss
 
-
-class F1_MeanAveragePrecisionLoss(nn.Module):
-    def __init__(self, smooth=1, reduction='mean', ignore_index=255,
-                 weight=None):
-        super(F1_MeanAveragePrecisionLoss, self).__init__()
-        self.smooth = smooth
-        self.map = MeanAveragePrecision()
-        self.f1 = F1Score()
-
-    def forward(self, output, target):
-        f1_loss = self.f1(output, target)
-        map_loss = self.map(output, target)
-        return f1_loss + map_loss
+# class F1_MeanAveragePrecisionLoss(nn.Module):
+#     def __init__(self, smooth=1, reduction='mean', ignore_index=255,
+#                  weight=None):
+#         super(F1_MeanAveragePrecisionLoss, self).__init__()
+#         self.smooth = smooth
+#         self.map = MeanAveragePrecision()
+#         self.f1 = F1Score()
+#
+#     def forward(self, output, target):
+#         f1_loss = self.f1(output, target)
+#         map_loss = self.map(output, target)
+#         return f1_loss + map_loss
 
 
 class BCE_Dice_JaccardLoss(nn.Module):
@@ -389,20 +391,20 @@ class BCE_Dice_F1Loss(nn.Module):
         return bce_loss + dice_loss + f1_loss
 
 
-class BCE_Dice_MeanAveragePrecisionLoss(nn.Module):
-    def __init__(self, smooth=1, reduction='mean', ignore_index=255,
-                 weight=None):
-        super(BCE_Dice_MeanAveragePrecisionLoss, self).__init__()
-        self.smooth = smooth
-        self.map = MeanAveragePrecision()
-        self.dice = DiceLoss()
-        self.bce = BCELoss()
-
-    def forward(self, output, target):
-        bce_loss = self.bce(output, target)
-        dice_loss = self.dice(output, target)
-        map_loss = self.map(output, target)
-        return bce_loss + dice_loss + map_loss
+# class BCE_Dice_MeanAveragePrecisionLoss(nn.Module):
+#     def __init__(self, smooth=1, reduction='mean', ignore_index=255,
+#                  weight=None):
+#         super(BCE_Dice_MeanAveragePrecisionLoss, self).__init__()
+#         self.smooth = smooth
+#         self.map = MeanAveragePrecision()
+#         self.dice = DiceLoss()
+#         self.bce = BCELoss()
+#
+#     def forward(self, output, target):
+#         bce_loss = self.bce(output, target)
+#         dice_loss = self.dice(output, target)
+#         map_loss = self.map(output, target)
+#         return bce_loss + dice_loss + map_loss
 
 
 class BCE_Jaccard_F1Loss(nn.Module):

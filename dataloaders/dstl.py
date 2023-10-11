@@ -11,7 +11,7 @@ import os
 from itertools import islice
 from pathlib import Path
 from typing import Dict, Tuple, List
-
+import sys
 import cv2
 import math
 import numpy as np
@@ -60,7 +60,7 @@ class DSTLDataset(BaseDataSet):
                 raise ValueError("Number of bands in a group must be 1 if "
                                  "there is no merge strategy for the group")
 
-        self.num_classes = 10 if len(training_classes) == 0 else len(training_classes)
+        self.num_classes = 10 if len(training_classes) == 0 else len(training_classes) + 1
 
         # Attributes
         self.img_ref_scale = img_ref_scale
@@ -164,34 +164,42 @@ class DSTLDataset(BaseDataSet):
 
         # Load Images
         for index, image_id in enumerate(ids):
-            image = np.load(Path(self.get_stage_2_file_path(image_id) + ".data.npy"), "r")
-            image = image.transpose((1, 2, 0))
+            image = np.load(Path(self.get_stage_2_file_path(image_id) +
+                                 ".data.npy"),  allow_pickle=True)
             self.logger.debug(f'Image shape: {image.shape}')
 
-            height, width = image.shape[0], image.shape[1]
+            height, width = image.shape[1], image.shape[2]
             chunk_offsets = self._gen_chunk_offsets(width, height, step_size)
-
-            mask = np.load(Path(self.get_mask_file_path(image_id) +
-                                ".mask.npy"), allow_pickle=True)
-            mask = mask.transpose((1, 2, 0))
+            mask = np.load(Path(self.get_mask_file_path(image_id) + ".mask.npy"),  allow_pickle=True)
             self.logger.debug(f'Mask shape: {mask.shape}')
 
             for c_index, (x, y) in enumerate(chunk_offsets):
 
                 # Get the masks for the classes that we want to validate and train on.
-                patch_y_mask = mask[y:y + self.patch_size,
-                               x:x + self.patch_size, :]
+                patch_y_mask = mask[:, y:y + self.patch_size,
+                               x:x + self.patch_size]
 
                 # Merging bands together with the strategies to produce
                 # the input patch image.
-                patch = image[y:y + self.patch_size, x:x + self.patch_size, :]
+                patch = image[:, y:y + self.patch_size, x:x + self.patch_size]
 
                 self.files.append((patch, patch_y_mask, image_id))
-                self.logger.info(f"Chunking Image {image_id}... "
-                                 f"{c_index + 1}/{len(chunk_offsets)} | "
-                                 f"{((100 / len(chunk_offsets)) * (c_index + 1)):.2f}%")
+                self.print_progress_bar(c_index + 1, len(chunk_offsets),
+                                      prefix=f"Chunking Image {image_id}...",
+                                      suffix=f"{((100 / len(chunk_offsets)) * (c_index + 1)):.2f}%")
 
             self.logger.info(f"Total Data Loaded {(100 / len(ids)) * (index + 1)}% ...")
+
+    def print_progress_bar(self, iteration, total, prefix='', suffix='',
+                           length=50,
+                           fill='█'):
+        percent = ("{:.1f}").format(100 * (iteration / float(total)))
+        filled_length = int(length * iteration // total)
+        bar = fill * filled_length + '-' * (length - filled_length)
+
+        sys.stdout.write(
+            '\r{} |{}| {}% {}'.format(prefix, bar, percent, suffix))
+        sys.stdout.flush()
 
     def get_mask_file_path(self, image_id: str) -> str:
         transformative_config = {
@@ -225,12 +233,17 @@ class DSTLDataset(BaseDataSet):
         return os.path.join(self.cache_dir, "stage_2", filename)
 
     def _save_mask(self, image_id, file_path, mask_path):
-        image = np.load(Path(file_path + ".data.npy"), 'r')
+        image = np.load(Path(file_path + ".data.npy"),  allow_pickle=True)
         im_size = image.shape[1:]
         class_to_polygons = self._load_polygons(image_id, im_size)
         mask = np.array(
             [mask_for_polygons(im_size, class_to_polygons.get(str(cls + 1)))
-             for cls in range(self.num_classes)])
+             for cls in self.training_classes])
+
+        # Add the mask for all where there is no mask
+        mask = np.concatenate((mask, np.expand_dims(
+            np.logical_not(np.any(mask, axis=0)), axis=0)), axis=0)
+
         np.save(Path(mask_path + ".mask.npy"), mask, allow_pickle=True)
 
     def _load_data(self, index: int):
@@ -244,15 +257,11 @@ class DSTLDataset(BaseDataSet):
             patch, patch_y_mask = self._augmentation(patch, patch_y_mask)
 
         patch_y_mask = torch.from_numpy(patch_y_mask.astype(np.bool_)).long()
-        patch = torch.from_numpy(patch.astype(np.float32)).long()
-        print("blabla", patch.shape)
+        # patch = Image.fromarray(np.uint8(patch))
+
         if self.return_id:
             return patch, patch_y_mask, image_id
         return patch, patch_y_mask
-
-    def _image_size(self, path: str):
-        with rasterio.open(path) as src:
-            return src.width, src.height
 
     def _gen_chunk_offsets(self, width: int, height: int, step_size: int) -> \
             List[Tuple[int, int]]:
@@ -269,8 +278,16 @@ class DSTLDataset(BaseDataSet):
         y_offsets = list(range(0, height - step_size + 1, step_size))
         if width % step_size != 0:
             x_offsets.append(width - step_size)
-        if height % step_size != 0:
+        if height % step_size != 0 or height:
             y_offsets.append(height - step_size)
+
+        # Erase the end offsets that are greater than the image size minus
+        # the patch size.
+        upper_limit = width - self.patch_size
+        x_offsets = [x for x in x_offsets if x <= upper_limit]
+        upper_limit = height - self.patch_size
+        y_offsets = [y for y in y_offsets if y <= upper_limit]
+
         chunk_offsets = [(x, y) for x in x_offsets for y in y_offsets]
 
         return chunk_offsets
@@ -424,9 +441,9 @@ class DSTLDataset(BaseDataSet):
         # Scale images between 0-1 based off their maximum and minimum bounds
         # P and M images are 11bit integers, A is 14bit integers, scale values to be
         # between 0-1 floats
-        im_p = im_p / 2047.0
-        im_m = im_m / 2047.0
-        im_a = im_a / 16383.0
+        im_p = (im_p / 2047.0) * 255.0
+        im_m = (im_m / 2047.0) * 255.0
+        im_a = (im_a / 16383.0) * 255.0
         image = np.concatenate([im_p, im_m, im_a], axis=2).transpose([2, 0, 1])
         self.logger.debug(f"Image shape: {image.shape}")
 
@@ -446,7 +463,7 @@ class DSTLDataset(BaseDataSet):
         return image
 
     def _preprocess_image_stage_2(self, image_id: str, src_path: str, dst_path: str):
-        image = np.load(src_path + ".data.npy", allow_pickle=True)
+        image = np.load(src_path + ".data.npy",  allow_pickle=True)
         image = np.array([
             image[group.bands - 1, :, :].squeeze() if group.merge_3d is None else
             array_3d_merge(image[group.bands - 1, :, :].squeeze(), group.merge_3d)
