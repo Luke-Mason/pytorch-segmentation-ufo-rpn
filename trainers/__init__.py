@@ -1,2 +1,2 @@
-from .dstl_trainer import DSTLTrainer
-from .trainer import Trainer
+from .trainer import *
+from .dstl_trainer import *
