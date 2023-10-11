@@ -76,6 +76,6 @@
         "log_dir": "saved/runs",
         "log_per_iter": 10,
         "val": true,
-        "val_per_epochs": 5
+        "val_per_epochs": 1
     }
 }
