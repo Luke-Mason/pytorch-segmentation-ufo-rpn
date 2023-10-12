@@ -32,6 +32,7 @@ from utils import (array_3d_merge, Array3dMergeConfig, BandGroup,
 class DSTLDataset(BaseDataSet):
 
     def __init__(self,
+                 data,
                  training_band_groups: Tuple[BandGroup, BandGroup, BandGroup],
                  training_classes: List[int],
                  img_ref_scale: str,
@@ -96,7 +97,7 @@ class DSTLDataset(BaseDataSet):
         # Memory Cache
         self.images = dict()  # type Dict[str, np.ndarray]
         self.labels = dict()  # type Dict[str, np.ndarray]
-        self._wkt_data = None  # type List[Tuple[str, str]]
+        self._wkt_data = data  # type Dict[str, Dict[int, str]]
         self._x_max_y_min = None  # type Dict[str, Tuple[int, int]]
 
         # Logging
@@ -105,21 +106,7 @@ class DSTLDataset(BaseDataSet):
         # The colour palette for the classes
         self.palette = palette.get_voc_palette(len(self.training_classes))
 
-        self.class_label_stats = json.loads(Path(
-            'dataloaders/labels/dstl-stats.json').resolve().read_text())
-
-        # TODO split still and validation
-        # all_train_ids = list(self._get_wkt_data())
-        # labeled_area = [
-        #     (im_id,
-        #      np.mean([self.class_label_stats[im_id][str(cls)]['area'] for cls in
-        #               self.training_classes]))
-        #     for im_id in all_train_ids
-        # ]
-        #
-        # print('Labelled area: ', labeled_area)
-
-        super(DSTLDataset, self).__init__(**kwargs)
+        super(DSTLDataset, self).__init__(dataset=, **kwargs)
 
     def _setup_logging(self):
         self.logger = logging.getLogger(__name__)
@@ -141,7 +128,9 @@ class DSTLDataset(BaseDataSet):
         self.logger.addHandler(handler)
 
     def _set_files(self):
-        ids = list(self.class_label_stats.keys())
+        # TODO use seed to split, and depending on if self.val is true or not
+        #  get the left of slice or right of slice
+        ids = list(self._wkt_data.keys())
         step_size = math.ceil(self.patch_size - ((self.overlap_percentage / 100.0) *
                                        self.patch_size))
         self.files = []  # type: List[Tuple[np.ndarray, np.ndarray, str]]
@@ -292,23 +281,6 @@ class DSTLDataset(BaseDataSet):
 
         return chunk_offsets
 
-    def _get_wkt_data(self) -> Dict[str, Dict[int, str]]:
-        if self._wkt_data is None:
-            self._wkt_data = {}
-
-            # Load the CSV into a DataFrame
-            df = pd.read_csv(
-                os.path.join(self.root, 'train_wkt_v4.csv/train_wkt_v4.csv'))
-
-            for index, row in df.iterrows():
-                im_id = row['ImageId']
-                class_type = row['ClassType']
-                poly = row['MultipolygonWKT']
-                # Add the polygon to the dictionary
-                self._wkt_data.setdefault(im_id, {})[int(class_type)] = poly
-
-        return self._wkt_data
-
     def _load_polygons(self, image_id: str, im_size: Tuple[int, int]) \
             -> Dict[str, MultiPolygon]:
         """
@@ -327,7 +299,7 @@ class DSTLDataset(BaseDataSet):
                                                    xfact=x_scaler,
                                                    yfact=y_scaler,
                                                    origin=(0, 0, 0)) for
-            poly_type, poly in self._get_wkt_data()[image_id].items()}
+            poly_type, poly in self._wkt_data[image_id].items()}
         self.logger.debug(f'Loaded polygons for image: {image_id}')
         return items_
 
@@ -510,10 +482,10 @@ class DSTLDataset(BaseDataSet):
 
 
 class DSTL(BaseDataLoader):
-    def __init__(self, training_band_groups, batch_size, split,  crop_size=None,
-                 base_size=None, scale=True, num_workers=1, val=False,
-                 shuffle=False, flip=False, rotate=False, blur=False,
-                 augment=False, val_split=None, return_id=False, **params):
+    def __init__(self, training_band_groups, batch_size,
+                 num_workers=1, val=False, shuffle=False, flip=False,
+                 rotate=False, blur=False, augment=False, return_id=False,
+                 **params):
 
         # Scale the bands to be between 0 - 255
         # Min Max for Type P: [[0, 2047]]
@@ -527,7 +499,6 @@ class DSTL(BaseDataLoader):
         dstl_data_path = os.environ.get('DSTL_DATA_PATH')
         kwargs = {
             'root': dstl_data_path,
-            'split': split,
             'augment': augment,
             'crop_size': crop_size,
             'base_size': base_size,
@@ -544,9 +515,25 @@ class DSTL(BaseDataLoader):
         print("kwargs", kwargs)
         print("params", params)
 
-        if split in ["train", "trainval", "val", "test"]:
-            self.dataset = DSTLDataset(training_band_groups, **params, **kwargs)
 
+
+        # Load the CSV into a DataFrame
+        df = pd.read_csv(
+            os.path.join(dstl_data_path, 'train_wkt_v4.csv/train_wkt_v4.csv'))
+
+        # Get the data metadata list.
+        _wkt_data = {}
+        for index, row in df.iterrows():
+            im_id = row['ImageId']
+            class_type = row['ClassType']
+            poly = row['MultipolygonWKT']
+
+            # Add the polygon to the dictionary
+            _wkt_data.setdefault(im_id, {})[int(class_type)] = poly
+
+        self.dataset = DSTLDataset(_wkt_data, training_band_groups, **params, **kwargs)
+
+        print("LENGTH: ", len(self.dataset))
         # if split in ["train_rgb", "trainval_rgb", "val_rgb", "test_rgb"]:
         # self.dataset = DSTLDatasetRGB(**kwargs)
         # elif split in ["train", "trainval", "val", "test"]:
@@ -554,5 +541,5 @@ class DSTL(BaseDataLoader):
         else:
             raise ValueError(f"Invalid split name {split}")
         super(DSTL, self).__init__(self.dataset, batch_size, shuffle,
-                                   num_workers, val_split)
+                                   num_workers, train_indxs, val_indxs)
 

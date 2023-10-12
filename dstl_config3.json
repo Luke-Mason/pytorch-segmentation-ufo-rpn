@@ -1,5 +1,5 @@
 {
-    "name": "dstl_256p_128b",
+    "name": "dstl",
     "n_gpu": 1,
     "use_synch_bn": false,
     "arch": {
@@ -10,45 +10,46 @@
             "freeze_backbone": false
         }
     },
-    "preprocessing": {
-        "patch_size": 256,
-        "align_images": false,
-        "img_ref_scale": "RGB",
-        "overlap_percentage": 25,
-        "interpolation_method": 4,
-        "training_classes": [2],
-        "training_band_groups": [{
+    "trainer": {
+        "epochs": 10,
+        "save_dir": "saved/",
+        "save_period": 20,
+        "monitor": "max Mean_IoU",
+        "early_stop": 10000,
+        "tensorboard": true,
+        "log_dir": "saved/runs",
+        "log_per_iter": 10,
+        "val": true,
+        "val_per_epochs": 1,
+        "k_split": 5,
+        "shuffle": false
+    },
+    "train_loader": {
+        "preprocessing": {
+            "patch_size": 256,
+            "align_images": false,
+            "img_ref_scale": "RGB",
+            "overlap_percentage": 25,
+            "interpolation_method": 4,
+            "training_classes": [2],
+            "training_band_groups": [{
                 "bands": [1]
             }, {
                 "bands": [2]
             }, {
                 "bands": [3]
-            }
-        ]
-    },
-    "train_loader": {
+            }]
+        },
         "args": {
             "batch_size": 128,
             "augment": false,
             "base_size": 512,
             "crop_size": 512,
             "shuffle": false,
-            "scale": false,
             "flip": false,
             "rotate": false,
             "blur": false,
-            "split": "train",
             "num_workers": 8
-        }
-    },
-    "val_loader": {
-        "args": {
-            "batch_size": 128,
-            "augment": false,
-            "crop_size": 512,
-            "val": true,
-            "split": "val",
-            "num_workers": 4
         }
     },
     "optimizer": {
@@ -65,17 +66,5 @@
     "lr_scheduler": {
         "type": "Poly",
         "args": {}
-    },
-    "trainer": {
-        "epochs": 10,
-        "save_dir": "saved/",
-        "save_period": 5,
-        "monitor": "max Mean_IoU",
-        "early_stop": 10000,
-        "tensorboard": true,
-        "log_dir": "saved/runs",
-        "log_per_iter": 10,
-        "val": true,
-        "val_per_epochs": 1
     }
 }
