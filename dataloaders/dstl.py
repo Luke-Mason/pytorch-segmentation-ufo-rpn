@@ -119,7 +119,7 @@ class DSTLDataset(BaseDataSet):
         #
         # print('Labelled area: ', labeled_area)
 
-        super(DSTLDataset, self).__init__(**kwargs)
+        super(DSTLDataset, self).__init__(dataset=, **kwargs)
 
     def _setup_logging(self):
         self.logger = logging.getLogger(__name__)
@@ -141,6 +141,8 @@ class DSTLDataset(BaseDataSet):
         self.logger.addHandler(handler)
 
     def _set_files(self):
+        # TODO use seed to split, and depending on if self.val is true or not
+        #  get the left of slice or right of slice
         ids = list(self.class_label_stats.keys())
         step_size = math.ceil(self.patch_size - ((self.overlap_percentage / 100.0) *
                                        self.patch_size))
@@ -510,10 +512,10 @@ class DSTLDataset(BaseDataSet):
 
 
 class DSTL(BaseDataLoader):
-    def __init__(self, training_band_groups, batch_size, split,  crop_size=None,
-                 base_size=None, scale=True, num_workers=1, val=False,
+    def __init__(self, training_band_groups, batch_size,
+                 num_workers=1, val=False, train_indxs=None, val_indxs=None,
                  shuffle=False, flip=False, rotate=False, blur=False,
-                 augment=False, val_split=None, return_id=False, **params):
+                 augment=False, return_id=False, **params):
 
         # Scale the bands to be between 0 - 255
         # Min Max for Type P: [[0, 2047]]
@@ -527,7 +529,6 @@ class DSTL(BaseDataLoader):
         dstl_data_path = os.environ.get('DSTL_DATA_PATH')
         kwargs = {
             'root': dstl_data_path,
-            'split': split,
             'augment': augment,
             'crop_size': crop_size,
             'base_size': base_size,
@@ -544,9 +545,9 @@ class DSTL(BaseDataLoader):
         print("kwargs", kwargs)
         print("params", params)
 
-        if split in ["train", "trainval", "val", "test"]:
-            self.dataset = DSTLDataset(training_band_groups, **params, **kwargs)
+        self.dataset = DSTLDataset(training_band_groups, **params, **kwargs)
 
+        print("LENGTH: ", len(self.dataset))
         # if split in ["train_rgb", "trainval_rgb", "val_rgb", "test_rgb"]:
         # self.dataset = DSTLDatasetRGB(**kwargs)
         # elif split in ["train", "trainval", "val", "test"]:
@@ -554,5 +555,5 @@ class DSTL(BaseDataLoader):
         else:
             raise ValueError(f"Invalid split name {split}")
         super(DSTL, self).__init__(self.dataset, batch_size, shuffle,
-                                   num_workers, val_split)
+                                   num_workers, train_indxs, val_indxs)
 
