@@ -23,7 +23,8 @@
         "val_per_epochs": 1,
         "k_stop": 1,
         "k_split": 5,
-        "shuffle": false
+        "shuffle": false,
+        "random_state": 42
     },
     "train_loader": {
         "preprocessing": {
@@ -46,10 +47,10 @@
             "augment": false,
             "base_size": 512,
             "crop_size": 512,
-            "shuffle": false,
-            "flip": false,
-            "rotate": false,
-            "blur": false,
+            "shuffle": true,
+            "flip": true,
+            "rotate": true,
+            "blur": true,
             "num_workers": 8
         }
     },

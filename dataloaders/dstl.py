@@ -15,7 +15,6 @@ import sys
 import cv2
 import math
 import numpy as np
-import pandas as pd
 import rasterio
 import shapely.affinity
 import shapely.geometry
@@ -106,7 +105,7 @@ class DSTLDataset(BaseDataSet):
         # The colour palette for the classes
         self.palette = palette.get_voc_palette(len(self.training_classes))
 
-        super(DSTLDataset, self).__init__(dataset=, **kwargs)
+        super(DSTLDataset, self).__init__(**kwargs)
 
     def _setup_logging(self):
         self.logger = logging.getLogger(__name__)
@@ -246,7 +245,6 @@ class DSTLDataset(BaseDataSet):
             patch, patch_y_mask = self._augmentation(patch, patch_y_mask)
 
         patch_y_mask = torch.from_numpy(patch_y_mask.astype(np.bool_)).long()
-        # patch = Image.fromarray(np.uint8(patch))
 
         if self.return_id:
             return patch, patch_y_mask, image_id
@@ -414,9 +412,10 @@ class DSTLDataset(BaseDataSet):
         # P and M images are 11bit integers, A is 14bit integers, scale values to be
         # between 0-1 floats
         im_p = (im_p / 2047.0) * 255.0
+        im_rgb = (im_rgb / 2047.0) * 255.0
         im_m = (im_m / 2047.0) * 255.0
         im_a = (im_a / 16383.0) * 255.0
-        image = np.concatenate([im_p, im_m, im_a], axis=2).transpose([2, 0, 1])
+        image = (np.concatenate([im_p, im_rgb, im_m, im_a], axis=2).transpose([2, 0, 1]))
         self.logger.debug(f"Image shape: {image.shape}")
 
         # Save images
@@ -482,7 +481,8 @@ class DSTLDataset(BaseDataSet):
 
 
 class DSTL(BaseDataLoader):
-    def __init__(self, training_band_groups, batch_size,
+    def __init__(self, data, training_band_groups, batch_size,
+                 train_indxs=None, val_indxs=None,
                  num_workers=1, val=False, shuffle=False, flip=False,
                  rotate=False, blur=False, augment=False, return_id=False,
                  **params):
@@ -500,9 +500,6 @@ class DSTL(BaseDataLoader):
         kwargs = {
             'root': dstl_data_path,
             'augment': augment,
-            'crop_size': crop_size,
-            'base_size': base_size,
-            'scale': scale,
             'flip': flip,
             'blur': blur,
             'rotate': rotate,
@@ -515,31 +512,9 @@ class DSTL(BaseDataLoader):
         print("kwargs", kwargs)
         print("params", params)
 
-
-
-        # Load the CSV into a DataFrame
-        df = pd.read_csv(
-            os.path.join(dstl_data_path, 'train_wkt_v4.csv/train_wkt_v4.csv'))
-
-        # Get the data metadata list.
-        _wkt_data = {}
-        for index, row in df.iterrows():
-            im_id = row['ImageId']
-            class_type = row['ClassType']
-            poly = row['MultipolygonWKT']
-
-            # Add the polygon to the dictionary
-            _wkt_data.setdefault(im_id, {})[int(class_type)] = poly
-
-        self.dataset = DSTLDataset(_wkt_data, training_band_groups, **params, **kwargs)
+        self.dataset = DSTLDataset(data, training_band_groups, **params, **kwargs)
 
         print("LENGTH: ", len(self.dataset))
-        # if split in ["train_rgb", "trainval_rgb", "val_rgb", "test_rgb"]:
-        # self.dataset = DSTLDatasetRGB(**kwargs)
-        # elif split in ["train", "trainval", "val", "test"]:
-        #     self.dataset = VOCDataset(**kwargs)
-        else:
-            raise ValueError(f"Invalid split name {split}")
         super(DSTL, self).__init__(self.dataset, batch_size, shuffle,
                                    num_workers, train_indxs, val_indxs)
 
