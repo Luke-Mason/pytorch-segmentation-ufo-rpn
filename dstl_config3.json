@@ -21,6 +21,7 @@
         "log_per_iter": 10,
         "val": true,
         "val_per_epochs": 1,
+        "k_stop": 1,
         "k_split": 5,
         "shuffle": false
     },

@@ -82,7 +82,11 @@ def main(config, resume):
             )
 
             trainer.train()
+
             train_logger.add_entry(f'Finished Fold {fold + 1}:')
+            if config["trainer"]["k_stop"] is not None and  config["trainer"][\
+                    "k_stop"] == fold + 1:
+                break
 
     else:
         # DATA LOADERS
