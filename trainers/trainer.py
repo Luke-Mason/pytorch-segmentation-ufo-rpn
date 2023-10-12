@@ -13,7 +13,8 @@ import os
 import json
 
 class Trainer(BaseTrainer):
-    def __init__(self, model, loss, resume, config, train_loader, val_loader=None, train_logger=None, prefetch=True):
+    def __init__(self, model, loss, resume, config, train_loader,
+                 val_loader=None, train_logger=None, prefetch=False):
         super(Trainer, self).__init__(model, loss, resume, config, train_loader, val_loader, train_logger)
         
         self.wrt_mode, self.wrt_step = 'train_', 0
