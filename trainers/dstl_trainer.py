@@ -16,7 +16,7 @@ import logging
 
 class DSTLTrainer(BaseTrainer):
     def __init__(self, model, loss, resume, config, train_loader, k_fold = None,
-                 val_loader=None, train_logger=None, prefetch=True, root='.'):
+                 val_loader=None, train_logger=None, prefetch=False, root='.'):
         super(DSTLTrainer, self).__init__(model, loss, resume, config,
                                           train_loader, k_fold,
                                       val_loader, train_logger)
