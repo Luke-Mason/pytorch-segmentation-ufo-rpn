@@ -56,26 +56,45 @@ def main(config, resume):
     # LOSS
     loss = getattr(losses, config['loss'])(ignore_index=config['ignore_index'])
 
-    # Split the data into K folds
-    kfold = KFold(n_splits=K, shuffle=True,
-                  random_state=42)  # K is the number of folds
+    if config["trainer"]["val"]:
+        # Split the data into K folds
+        kfold = KFold(n_splits=K, shuffle=True,
+                      random_state=42)  # K is the number of folds
 
-    # Iterate over the K folds
-    for fold, (train_indices, val_indices) in enumerate(kfold.split(data)):
-        print(f'Fold {fold + 1}:')
+        # Iterate over the K folds
+        for fold, (train_indices, val_indices) in enumerate(kfold.split(data)):
+            train_logger.add_entry(f'Starting Fold {fold + 1}:')
 
+            # DATA LOADERS
+            train_loader = get_loader_instance('train_loader', config, train_indices, val_indices)
+
+            # TRAINING
+            trainer = DSTLTrainer(
+                k_fold=fold,
+                model=model,
+                loss=loss,
+                resume=resume,
+                config=config,
+                train_loader=train_loader,
+                val_loader=train_loader.get_val_loader(),
+                train_logger=train_logger,
+                root=dstl_data_path,
+            )
+
+            trainer.train()
+            train_logger.add_entry(f'Finished Fold {fold + 1}:')
+
+    else:
         # DATA LOADERS
-        train_loader = get_loader_instance('train_loader', config, train_indices, val_indices)
+        train_loader = get_loader_instance('train_loader', config)
 
         # TRAINING
         trainer = DSTLTrainer(
-            k_fold=fold,
             model=model,
             loss=loss,
             resume=resume,
             config=config,
             train_loader=train_loader,
-            val_loader=train_loader.get_val_loader(),
             train_logger=train_logger,
             root=dstl_data_path,
         )

@@ -24,16 +24,6 @@ class BaseDataLoader(DataLoader):
         super(BaseDataLoader, self).__init__(sampler=self.train_sampler, **self.init_kwargs)
 
     def _split_sampler(self, train_indxs, val_indxs):
-        # self.shuffle = False
-        #
-        # split_indx = int(self.nbr_examples * split)
-        # np.random.seed(0)
-        #
-        # indxs = np.arange(self.nbr_examples)
-        # np.random.shuffle(indxs)
-        # train_indxs = indxs[split_indx:]
-        # val_indxs = indxs[:split_indx]
-
         self.nbr_examples = len(train_indxs)
         train_sampler = SubsetRandomSampler(train_indxs)
         val_sampler = SubsetRandomSampler(val_indxs)
