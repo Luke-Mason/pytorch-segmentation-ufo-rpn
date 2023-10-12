@@ -86,8 +86,7 @@ class BaseTrainer:
         with open(config_save_path, 'w') as handle:
             json.dump(self.config, handle, indent=4, sort_keys=True)
 
-        writer_dir = os.path.join(cfg_trainer['log_dir'],
-                                  f"{self.config['name']}_K_{k_fold}", start_time)
+        writer_dir = os.path.join(cfg_trainer['log_dir'], run_name, start_time)
         self.writer = tensorboard.SummaryWriter(writer_dir)
 
         if resume: self._resume_checkpoint(resume)

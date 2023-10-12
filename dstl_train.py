@@ -1,8 +1,10 @@
 import argparse
 import json
 import os
+from sklearn.model_selection import KFold
 
 import torch
+import pandas as pd
 
 from dataloaders import DSTL
 import models
@@ -13,7 +15,7 @@ import copy
 torch.cuda.empty_cache()
 
 
-def get_loader_instance(name, config, *args):
+def get_loader_instance(name, _wkt_data, config, *args):
     # TODO implement all params in config
     training_band_groups = []
     for group in config["train_loader"]['preprocessing']['training_band_groups']:
@@ -26,7 +28,10 @@ def get_loader_instance(name, config, *args):
     del preproccessing_config['training_band_groups']
 
     # GET THE CORRESPONDING CLASS / FCT
-    return (DSTL(training_band_groups, *args, **preproccessing_config,
+    batch_size_ = config[name]['args']['batch_size']
+    del config[name]['args']['batch_size']
+    return (DSTL(_wkt_data, training_band_groups,
+                 batch_size_, *args, **preproccessing_config,
                  **config[name]['args']))
 
 def get_instance(module, name, config, *args):
@@ -46,28 +51,42 @@ def main(config, resume):
         raise EnvironmentError('DSTL_DATA_PATH environment variable is not set, '
                                'it must be a path to your DSTL data directory.')
 
+    # Load the CSV into a DataFrame
+    df = pd.read_csv(
+        os.path.join(dstl_data_path, 'train_wkt_v4.csv/train_wkt_v4.csv'))
 
+    # Get the data metadata list.
+    _wkt_data = {}
+    for index, row in df.iterrows():
+        im_id = row['ImageId']
+        class_type = row['ClassType']
+        poly = row['MultipolygonWKT']
 
-    # MODELMODEL
-    model = get_instance(models, 'arch', config,
-                                train_loader.dataset.num_classes)
-    # print(f'\n{model}\n')
+        # Add the polygon to the dictionary
+        _wkt_data.setdefault(im_id, {})[int(class_type)] = poly
 
     # LOSS
     loss = getattr(losses, config['loss'])(ignore_index=config['ignore_index'])
 
     if config["trainer"]["val"]:
         # Split the data into K folds
-        kfold = KFold(n_splits=K, shuffle=True,
-                      random_state=42)  # K is the number of folds
-
+        shuffle_ = config["trainer"]["shuffle"]
+        random_state_ = config["trainer"]["random_state"] if shuffle_ else None
+        kfold = KFold(n_splits=config["trainer"]["k_split"],
+                      shuffle=shuffle_, random_state=random_state_)
         # Iterate over the K folds
-        for fold, (train_indices, val_indices) in enumerate(kfold.split(data)):
+        for fold, (train_indices, val_indices) in enumerate(kfold.split(
+                list(_wkt_data.keys()))):
             train_logger.add_entry(f'Starting Fold {fold + 1}:')
 
             # DATA LOADERS
-            train_loader = get_loader_instance('train_loader', config, train_indices, val_indices)
+            train_loader = get_loader_instance('train_loader', _wkt_data,
+                                               config,
+                                               train_indices, val_indices)
 
+            # MODELMODEL
+            model = get_instance(models, 'arch', config,
+                                 train_loader.dataset.num_classes)
             # TRAINING
             trainer = DSTLTrainer(
                 k_fold=fold,
@@ -90,7 +109,11 @@ def main(config, resume):
 
     else:
         # DATA LOADERS
-        train_loader = get_loader_instance('train_loader', config)
+        train_loader = get_loader_instance('train_loader', _wkt_data, config)
+
+        # MODELMODEL
+        model = get_instance(models, 'arch', config,
+                             train_loader.dataset.num_classes)
 
         # TRAINING
         trainer = DSTLTrainer(
