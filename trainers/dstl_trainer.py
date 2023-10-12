@@ -201,6 +201,9 @@ class DSTLTrainer(BaseTrainer):
                 print("visual shapes:", d.shape, t.shape, o.shape)
                 d = self.restore_transform(d)
                 print("palette:", palette)
+                t = t.transpose(1,2,0)
+                print("t shapes:", t.shape)
+
                 t, o = colorize_mask(t, palette), colorize_mask(o, palette)
                 d, t, o = d.convert('RGB'), t.convert('RGB'), o.convert('RGB')
                 [d, t, o] = [self.viz_transform(x) for x in [d, t, o]]
