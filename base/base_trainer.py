@@ -16,7 +16,7 @@ def get_instance(module, name, config, *args):
     return getattr(module, config[name]['type'])(*args, **config[name]['args'])
 
 class BaseTrainer:
-    def __init__(self, k_fold: int, model, loss, resume, config, train_loader,
+    def __init__(self, model, loss, resume, config, train_loader, k_fold = None,
                  val_loader=None, train_logger=None):
         self.model = model
         self.loss = loss
@@ -71,14 +71,15 @@ class BaseTrainer:
 
         # CHECKPOINTS & TENSOBOARD
         start_time = datetime.datetime.now().strftime('%m-%d_%H-%M')
+        run_name = (f"{self.config['name']}_"
+                    f"{'K_' + str(k_fold) if k_fold is not None else 'run'}")
+
         self.checkpoint_dir = os.path.join(cfg_trainer['save_dir'],
-                                           "checkpoints",
-                                           f"{self.config['name']}_K_{k_fold}", start_time)
+                                           "checkpoints", run_name, start_time)
         helpers.dir_exists(self.checkpoint_dir)
 
         self.config_dir = os.path.join(cfg_trainer['save_dir'],
-                                           "config",
-                                           f"{self.config['name']}_K_{k_fold}", start_time)
+                                       "config", run_name, start_time)
         helpers.dir_exists(self.config_dir)
 
         config_save_path = os.path.join(self.config_dir, 'config.json')

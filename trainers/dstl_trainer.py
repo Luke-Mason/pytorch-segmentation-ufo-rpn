@@ -15,10 +15,10 @@ from utils.metrics import eval_metrics, AverageMeter
 import logging
 
 class DSTLTrainer(BaseTrainer):
-    def __init__(self, k_fold: int, model, loss, resume, config, train_loader,
+    def __init__(self, model, loss, resume, config, train_loader, k_fold = None,
                  val_loader=None, train_logger=None, prefetch=True, root='.'):
-        super(DSTLTrainer, self).__init__(k_fold, model, loss, resume, config,
-                                          train_loader,
+        super(DSTLTrainer, self).__init__(model, loss, resume, config,
+                                          train_loader, k_fold,
                                       val_loader, train_logger)
         self.root = root
         self._setup_logging()
