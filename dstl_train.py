@@ -16,15 +16,13 @@ torch.cuda.empty_cache()
 def get_loader_instance(name, config, *args):
     # TODO implement all params in config
     training_band_groups = []
-    for group in config['preprocessing']['training_band_groups']:
-        cfg = Array3dMergeConfig(group[\
-                'merge_3d']["strategy"],
+    for group in config["train_loader"]['preprocessing']['training_band_groups']:
+        cfg = Array3dMergeConfig(group['merge_3d']["strategy"],
                                  group['merge_3d']["kernel"],
-                                 group['merge_3d']["stride"]) if ("merge_3d"
-                                                                  in group)  else None
+                                 group['merge_3d']["stride"]) if ("merge_3d" in group) else None
         training_band_groups.append(BandGroup(group['bands'], cfg))
 
-    preproccessing_config = copy.deepcopy(config['preprocessing'])
+    preproccessing_config = copy.deepcopy(config["train_loader"]['preprocessing'])
     del preproccessing_config['training_band_groups']
 
     # GET THE CORRESPONDING CLASS / FCT
@@ -48,9 +46,7 @@ def main(config, resume):
         raise EnvironmentError('DSTL_DATA_PATH environment variable is not set, '
                                'it must be a path to your DSTL data directory.')
 
-    # DATA LOADERS
-    train_loader = get_loader_instance('train_loader', config)
-    val_loader = get_loader_instance('val_loader', config)
+
 
     # MODELMODEL
     model = get_instance(models, 'arch', config,
@@ -60,20 +56,31 @@ def main(config, resume):
     # LOSS
     loss = getattr(losses, config['loss'])(ignore_index=config['ignore_index'])
 
+    # Split the data into K folds
+    kfold = KFold(n_splits=K, shuffle=True,
+                  random_state=42)  # K is the number of folds
 
-    # TRAINING
-    trainer = DSTLTrainer(
-        model=model,
-        loss=loss,
-        resume=resume,
-        config=config,
-        train_loader=train_loader,
-        val_loader=val_loader,
-        train_logger=train_logger,
-        root=dstl_data_path,
-    )
+    # Iterate over the K folds
+    for fold, (train_indices, val_indices) in enumerate(kfold.split(data)):
+        print(f'Fold {fold + 1}:')
 
-    trainer.train()
+        # DATA LOADERS
+        train_loader = get_loader_instance('train_loader', config, train_indices, val_indices)
+
+        # TRAINING
+        trainer = DSTLTrainer(
+            k_fold=fold,
+            model=model,
+            loss=loss,
+            resume=resume,
+            config=config,
+            train_loader=train_loader,
+            val_loader=train_loader.get_val_loader(),
+            train_logger=train_logger,
+            root=dstl_data_path,
+        )
+
+        trainer.train()
 
 
 if __name__ == '__main__':
