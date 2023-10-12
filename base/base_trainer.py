@@ -16,7 +16,8 @@ def get_instance(module, name, config, *args):
     return getattr(module, config[name]['type'])(*args, **config[name]['args'])
 
 class BaseTrainer:
-    def __init__(self, model, loss, resume, config, train_loader, val_loader=None, train_logger=None):
+    def __init__(self, model, loss, resume, config, train_loader, k_fold = None,
+                 val_loader=None, train_logger=None):
         self.model = model
         self.loss = loss
         self.config = config
@@ -70,13 +71,23 @@ class BaseTrainer:
 
         # CHECKPOINTS & TENSOBOARD
         start_time = datetime.datetime.now().strftime('%m-%d_%H-%M')
-        self.checkpoint_dir = os.path.join(cfg_trainer['save_dir'], self.config['name'], start_time)
+        run_name = (f"{self.config['name']}_"
+                    f"{'K_' + str(k_fold) if k_fold is not None else 'run'}")
+
+        self.checkpoint_dir = os.path.join(cfg_trainer['save_dir'],
+                                           "checkpoints", run_name, start_time)
         helpers.dir_exists(self.checkpoint_dir)
-        config_save_path = os.path.join(self.checkpoint_dir, 'config.json')
+
+        self.config_dir = os.path.join(cfg_trainer['save_dir'],
+                                       "config", run_name, start_time)
+        helpers.dir_exists(self.config_dir)
+
+        config_save_path = os.path.join(self.config_dir, 'config.json')
         with open(config_save_path, 'w') as handle:
             json.dump(self.config, handle, indent=4, sort_keys=True)
 
-        writer_dir = os.path.join(cfg_trainer['log_dir'], self.config['name'], start_time)
+        writer_dir = os.path.join(cfg_trainer['log_dir'],
+                                  f"{self.config['name']}_K_{k_fold}", start_time)
         self.writer = tensorboard.SummaryWriter(writer_dir)
 
         if resume: self._resume_checkpoint(resume)

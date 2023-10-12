@@ -15,9 +15,10 @@ from utils.metrics import eval_metrics, AverageMeter
 import logging
 
 class DSTLTrainer(BaseTrainer):
-    def __init__(self, model, loss, resume, config, train_loader,
+    def __init__(self, model, loss, resume, config, train_loader, k_fold = None,
                  val_loader=None, train_logger=None, prefetch=True, root='.'):
-        super(DSTLTrainer, self).__init__(model, loss, resume, config, train_loader,
+        super(DSTLTrainer, self).__init__(model, loss, resume, config,
+                                          train_loader, k_fold,
                                       val_loader, train_logger)
         self.root = root
         self._setup_logging()
@@ -27,14 +28,6 @@ class DSTLTrainer(BaseTrainer):
             self.train_loader.batch_size)))
         if config['trainer']['log_per_iter']: self.log_step = int(
             self.log_step / self.train_loader.batch_size) + 1
-
-        # WRITE TO FILE
-        start_time = datetime.datetime.now().strftime('%m-%d_%H-%M')
-        cfg_trainer = self.config['trainer']
-        self.checkpoint_dir = os.path.join(cfg_trainer['save_dir'],
-                                           self.config['name'], start_time)
-        if not os.path.exists(self.checkpoint_dir):
-            os.makedirs(self.checkpoint_dir)
 
         self.num_classes = self.train_loader.dataset.num_classes
 
@@ -91,7 +84,6 @@ class DSTLTrainer(BaseTrainer):
 
             # LOSS & OPTIMIZE
             output = self.model(data)
-            print("batch: ", output.shape, target.shape, data.shape)
             if self.config['arch']['type'][:3] == 'PSP':
                 assert output[0].size()[1:] == target.size()[1:]
                 assert output[0].size()[1] == self.num_classes

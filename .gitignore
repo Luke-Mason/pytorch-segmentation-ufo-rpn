@@ -103,7 +103,7 @@ ENV/
 # input data, saved log, checkpoints and pretrained models
 data/
 input/
-#saved/
+saved/checkpoints/
 outputs/
 datasets/
 pretrained/
