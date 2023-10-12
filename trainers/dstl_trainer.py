@@ -198,7 +198,10 @@ class DSTLTrainer(BaseTrainer):
             val_img = []
             palette = self.train_loader.dataset.palette
             for d, t, o in val_visual:
+                print("visual shapes:", d.shape, t.shape, o.shape)
                 d = self.restore_transform(d)
+                print("d shape:", d.shape)
+                print("palette:", palette)
                 t, o = colorize_mask(t, palette), colorize_mask(o, palette)
                 d, t, o = d.convert('RGB'), t.convert('RGB'), o.convert('RGB')
                 [d, t, o] = [self.viz_transform(x) for x in [d, t, o]]
