@@ -88,6 +88,10 @@ def main(config, resume):
             # MODELMODEL
             model = get_instance(models, 'arch', config,
                                  train_loader.dataset.num_classes)
+
+            print(train_loader.get_val_loader())
+
+            return
             # TRAINING
             trainer = DSTLTrainer(
                 k_fold=fold,
