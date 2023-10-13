@@ -228,7 +228,7 @@ class DSTLTrainer(BaseTrainer):
         print('mIoU: ', mIoU)
 
         return {
-            "pixAcc": np.round(pixAcc, 3),
-            "mIoU": np.round(mIoU, 3),
-            "cIoU": dict(zip(range(self.num_classes), np.round(IoU, 3)))
+            "Pixel_Accuracy": np.round(pixAcc, 3),
+            "Mean_IoU": np.round(mIoU, 3),
+            "Class_IoU": dict(zip(range(self.num_classes), np.round(IoU, 3)))
         }

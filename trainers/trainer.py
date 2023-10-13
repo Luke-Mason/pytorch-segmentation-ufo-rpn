@@ -158,8 +158,7 @@ class Trainer(BaseTrainer):
 
                 # PRINT INFO
                 pixAcc, mIoU, _ = self._get_seg_metrics().values()
-                description = ('EVAL ({}) | Loss: {:.3f}, PixelAcc: {:.3f}, '
-                               'Mean IoU: {:.3f} |').format( epoch,
+                description = 'EVAL ({}) | Loss: {:.3f}, PixelAcc: {:.2f}, Mean IoU: {:.2f} |'.format( epoch,
                                                 self.total_loss.average,
                                                 pixAcc, mIoU)
                 tbar.set_description(description)
@@ -219,10 +218,12 @@ class Trainer(BaseTrainer):
     def _get_seg_metrics(self):
         pixAcc = 1.0 * self.total_correct / (np.spacing(1) + self.total_label)
         IoU = 1.0 * self.total_inter / (np.spacing(1) + self.total_union)
+        print('IoU: ', IoU)
         mIoU = IoU.mean()
+        print('mIoU: ', mIoU)
 
         return {
-            "pixAcc": np.round(pixAcc, 3),
-            "mIoU": np.round(mIoU, 3),
-            "cIoU": dict(zip(range(self.num_classes), np.round(IoU, 3)))
+            "Pixel_Accuracy": np.round(pixAcc, 3),
+            "Mean_IoU": np.round(mIoU, 3),
+            "Class_IoU": dict(zip(range(self.num_classes), np.round(IoU, 3)))
         }
