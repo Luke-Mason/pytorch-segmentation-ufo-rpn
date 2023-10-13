@@ -100,14 +100,14 @@ class DSTLTrainer(BaseTrainer):
             # FOR EVAL
             seg_metrics = eval_metrics(output, target, self.num_classes)
             self._update_seg_metrics(*seg_metrics)
-            pixAcc, mIoU, _ = self._get_seg_metrics().values()
-
             # PRINT INFO
-            f__format = ('TRAIN EPOCH {} | Loss: {:.3f} | Acc {:.2f} mIoU {'
-                         ':.2f} B {:.2f} D {:.2f} |').format(
-                epoch, self.total_loss.average, pixAcc, mIoU,
-                self.batch_time.average, self.data_time.average)
-            tbar.set_description(f__format)
+            pixAcc, mIoU, _ = self._get_seg_metrics().values()
+            description = (f'TRAIN EPOCH {epoch} | Batch: {batch_idx + 1} | '
+                           f'Loss: {
+            self.total_loss.average:.3f}, '
+                           f'PixelAcc: {pixAcc:.2f}, '
+                          f'Mean IoU: {mIoU:.2f} |')
+            tbar.set_description(description)
             self.logger.info(f__format)
 
         # METRICS TO TENSORBOARD
@@ -164,8 +164,8 @@ class DSTLTrainer(BaseTrainer):
 
                 # PRINT INFO
                 pixAcc, mIoU, _ = self._get_seg_metrics().values()
-                print(f'pixAcc: {pixAcc:.2f}, mIoU: {mIoU:.2f}')
-                description = (f'EVAL EPOCH {epoch} | Loss: {self.total_loss.average:.3f}, '
+                description = (f'EVAL EPOCH {epoch} | Batch: {batch_idx + 1} | Loss:'
+                               f' {self.total_loss.average:.3f}, '
                                f'PixelAcc: {pixAcc:.2f}, '
                               f'Mean IoU: {mIoU:.2f} |')
                 tbar.set_description(description)
@@ -223,9 +223,7 @@ class DSTLTrainer(BaseTrainer):
     def _get_seg_metrics(self):
         pixAcc = 1.0 * self.total_correct / (np.spacing(1) + self.total_label)
         IoU = 1.0 * self.total_inter / (np.spacing(1) + self.total_union)
-        print('IoU: ', IoU)
         mIoU = IoU.mean()
-        print('mIoU: ', mIoU)
 
         return {
             "Pixel_Accuracy": np.round(pixAcc, 3),
