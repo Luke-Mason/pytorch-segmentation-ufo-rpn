@@ -28,11 +28,12 @@ def get_loader_instance(name, _wkt_data, config, *args):
     del preproccessing_config['training_band_groups']
 
     # GET THE CORRESPONDING CLASS / FCT
-    batch_size_ = config[name]['args']['batch_size']
-    del config[name]['args']['batch_size']
+    loader_args = copy.deepcopy(config[name]['args'])
+    batch_size_ = loader_args['batch_size']
+    del loader_args['batch_size']
     return (DSTL(_wkt_data, training_band_groups,
                  batch_size_, *args, **preproccessing_config,
-                 **config[name]['args']))
+                 **loader_args))
 
 def get_instance(module, name, config, *args):
     # GET THE CORRESPONDING CLASS / FCT
