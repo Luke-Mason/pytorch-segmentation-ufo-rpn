@@ -34,9 +34,13 @@ def get_loader_instance(name, _wkt_data, config, train_indxs=None,
     del loader_args['batch_size']
 
     return DSTL(_wkt_data, training_band_groups,
-                 batch_size_, train_indxs, config["trainer"]["val"], val_indxs,
+                 batch_size_,
                  **loader_args,
-                 **preproccessing_config)
+                 **preproccessing_config,
+                train_indxs=train_indxs,
+                val_indxs=val_indxs,
+                val=config["trainer"]["val"],
+                )
 
 def get_instance(module, name, config, *args):
     # GET THE CORRESPONDING CLASS / FCT
