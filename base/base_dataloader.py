@@ -22,6 +22,11 @@ class BaseDataLoader(DataLoader):
             'num_workers': num_workers,
             'pin_memory': True
         }
+
+        # Shuffle is mutually exclusive with sampler
+        if self.train_sampler is not None:
+            del self.init_kwargs['shuffle']
+
         super(BaseDataLoader, self).__init__(sampler=self.train_sampler, **self.init_kwargs)
 
     def _split_sampler(self, train_indxs, val_indxs):
