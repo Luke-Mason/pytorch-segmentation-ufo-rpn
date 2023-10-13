@@ -79,6 +79,9 @@ class DSTLTrainer(BaseTrainer):
         self._reset_metrics()
         tbar = tqdm(self.train_loader, ncols=130)
         for batch_idx, (data, target) in enumerate(tbar):
+            data = data.to(self.device)
+            target = target.to(self.device)
+
             self.data_time.update(time.time() - tic)
             # data, target = data.to(self.device), target.to(self.device)
 
