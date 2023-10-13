@@ -76,15 +76,15 @@ def main(config, resume):
         kfold = KFold(n_splits=config["trainer"]["k_split"],
                       shuffle=shuffle_, random_state=random_state_)
         # Iterate over the K folds
-        for fold, (train_indices, val_indices) in enumerate(kfold.split(
+        for fold, (train_indxs, val_indxs) in enumerate(kfold.split(
                 list(_wkt_data.keys()))):
             train_logger.add_entry(f'Starting Fold {fold + 1}:')
 
             # DATA LOADERS
             train_loader = get_loader_instance('train_loader', _wkt_data,
                                                config,
-                                               train_indxs=train_indices,
-                                               val_indxs=val_indices)
+                                               train_indxs,
+                                               val_indxs)
 
             # MODEL
             model = get_instance(models, 'arch', config,
