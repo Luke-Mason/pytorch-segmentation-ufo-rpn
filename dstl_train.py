@@ -17,7 +17,6 @@ torch.cuda.empty_cache()
 
 def get_loader_instance(name, _wkt_data, config, train_indxs=None,
                         val_indxs=None):
-    # TODO implement all params in config
     training_band_groups = []
     for group in config["train_loader"]['preprocessing']['training_band_groups']:
         cfg = Array3dMergeConfig(group['merge_3d']["strategy"],
@@ -25,16 +24,19 @@ def get_loader_instance(name, _wkt_data, config, train_indxs=None,
                                  group['merge_3d']["stride"]) if ("merge_3d" in group) else None
         training_band_groups.append(BandGroup(group['bands'], cfg))
 
+    # Preprocessing config
     preproccessing_config = copy.deepcopy(config["train_loader"]['preprocessing'])
     del preproccessing_config['training_band_groups']
 
-    # GET THE CORRESPONDING CLASS / FCT
+    # Loader args
     loader_args = copy.deepcopy(config[name]['args'])
     batch_size_ = loader_args['batch_size']
     del loader_args['batch_size']
-    return (DSTL(_wkt_data, training_band_groups,
-                 batch_size_, train_indxs, val_indxs, **preproccessing_config,
-                 **loader_args))
+
+    return DSTL(_wkt_data, training_band_groups,
+                 batch_size_, train_indxs, config["trainer"]["val"], val_indxs,
+                 **loader_args,
+                 **preproccessing_config)
 
 def get_instance(module, name, config, *args):
     # GET THE CORRESPONDING CLASS / FCT
@@ -72,8 +74,8 @@ def main(config, resume):
 
     if config["trainer"]["val"]:
         # Split the data into K folds
-        shuffle_ = config["trainer"]["shuffle"]
-        random_state_ = config["trainer"]["random_state"] if shuffle_ else None
+        shuffle_ = config["trainer"]["k_shuffle"]
+        random_state_ = config["trainer"]["k_random_state"] if shuffle_ else None
         kfold = KFold(n_splits=config["trainer"]["k_split"],
                       shuffle=shuffle_, random_state=random_state_)
         # Iterate over the K folds
