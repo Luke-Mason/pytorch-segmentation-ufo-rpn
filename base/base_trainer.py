@@ -16,15 +16,17 @@ def get_instance(module, name, config, *args):
     return getattr(module, config[name]['type'])(*args, **config[name]['args'])
 
 class BaseTrainer:
+
     def __init__(self, model, loss, resume, config, train_loader, k_fold = None,
-                 val_loader=None, train_logger=None):
+                 val_loader=None, train_logger=None, root='.'):
+        self.root = root
         self.model = model
         self.loss = loss
         self.config = config
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.train_logger = train_logger
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self._setup_logging()
         self.do_validation = self.config['trainer']['val']
         self.start_epoch = 1
         self.improved = False
@@ -92,6 +94,25 @@ class BaseTrainer:
 
         if resume: self._resume_checkpoint(resume)
 
+    def _setup_logging(self):
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.DEBUG)
+
+        # Logs to file
+
+        # Check if log directory exist, if not create it
+        log_dir = os.path.join(self.root, 'logs')
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+
+        log_file_name = datetime.datetime.now().strftime('%Y-%m-%d_%H.log')
+        handler = logging.FileHandler(os.path.join(log_dir, log_file_name),
+                                      mode='a')
+        handler.setLevel(logging.DEBUG)
+        handler.setFormatter(logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        self.logger.addHandler(handler)
+
     def _get_available_devices(self, n_gpu):
         sys_gpu = torch.cuda.device_count()
         print('Cuda is available?: ', torch.cuda.is_available())
@@ -143,7 +164,7 @@ class BaseTrainer:
 
                 if self.not_improved_count > self.early_stoping:
                     self.logger.info(f'\nPerformance didn\'t improve for {self.early_stoping} epochs')
-                    self.logger.warning('Training Stoped')
+                    self.logger.warning('Training Stopped')
                     break
 
             # SAVE CHECKPOINT
