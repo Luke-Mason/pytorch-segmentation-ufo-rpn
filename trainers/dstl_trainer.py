@@ -160,7 +160,7 @@ class DSTLTrainer(BaseTrainer):
         with torch.no_grad():
             val_visual = []
             for batch_idx, (data, target) in enumerate(tbar):
-                # data, target = data.to(self.device), target.to(self.device)
+                data, target = data.to(self.device), target.to(self.device)
                 # LOSS
                 output = self.model(data)
                 loss = self.loss(output, target)

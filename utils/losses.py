@@ -51,6 +51,8 @@ class DiceLoss(nn.Module):
         output = F.softmax(output, dim=1)
         output_flat = output.contiguous().view(-1)
         target_flat = target.contiguous().view(-1)
+
+        # Both tensors must be on the same device
         intersection = (output_flat * target_flat).sum()
         loss = 1 - ((2. * intersection + self.smooth) /
                     (output_flat.sum() + target_flat.sum() + self.smooth))
