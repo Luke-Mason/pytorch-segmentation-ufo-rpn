@@ -154,12 +154,10 @@ class DSTLDataset(BaseDataSet):
         for index, image_id in enumerate(ids):
             image = np.load(Path(self.get_stage_2_file_path(image_id) +
                                  ".data.npy"),  allow_pickle=True)
-            self.logger.debug(f'Image shape: {image.shape}')
 
             height, width = image.shape[1], image.shape[2]
             chunk_offsets = self._gen_chunk_offsets(width, height, step_size)
             mask = np.load(Path(self.get_mask_file_path(image_id) + ".mask.npy"),  allow_pickle=True)
-            self.logger.debug(f'Mask shape: {mask.shape}')
 
             for c_index, (x, y) in enumerate(chunk_offsets):
 
@@ -174,9 +172,10 @@ class DSTLDataset(BaseDataSet):
                 self.files.append((patch, patch_y_mask, image_id))
                 self.print_progress_bar(c_index + 1, len(chunk_offsets),
                                       prefix=f"Chunking Image {image_id}...",
-                                      suffix=f"{((100 / len(chunk_offsets)) * (c_index + 1)):.2f}%")
+                                      suffix=f"{((100 / len(chunk_offsets)) * (c_index + 1)):.2f}%\n")
 
-            self.logger.info(f"Total Data Loaded {(100 / len(ids)) * (index + 1)}% ...")
+            self.logger.info(f"\nTotal Data Loaded"
+                             f" {(100 / len(ids)) * (index + 1)}% ...\n")
 
     def print_progress_bar(self, iteration, total, prefix='', suffix='',
                            length=50,
