@@ -45,8 +45,6 @@
         "args": {
             "batch_size": 128,
             "augment": false,
-            "base_size": 512,
-            "crop_size": 512,
             "shuffle": true,
             "flip": true,
             "rotate": true,
