@@ -515,5 +515,5 @@ class DSTL(BaseDataLoader):
 
         print("LENGTH: ", len(self.dataset))
         super(DSTL, self).__init__(self.dataset, batch_size, shuffle,
-                                   num_workers, train_indxs, val_indxs)
+                                   num_workers, train_indxs, val_indxs, val)
 
