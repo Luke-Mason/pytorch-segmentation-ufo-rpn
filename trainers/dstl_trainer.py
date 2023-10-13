@@ -103,10 +103,9 @@ class DSTLTrainer(BaseTrainer):
             # PRINT INFO
             pixAcc, mIoU, _ = self._get_seg_metrics().values()
             description = (f'TRAIN EPOCH {epoch} | Batch: {batch_idx + 1} | '
-                           f'Loss: {
-            self.total_loss.average:.3f}, '
+                           f'Loss: {self.total_loss.average:.3f}, '
                            f'PixelAcc: {pixAcc:.2f}, '
-                          f'Mean IoU: {mIoU:.2f} |')
+                           f'Mean IoU: {mIoU:.2f} |')
             tbar.set_description(description)
             self.logger.info(f__format)
 
@@ -164,10 +163,10 @@ class DSTLTrainer(BaseTrainer):
 
                 # PRINT INFO
                 pixAcc, mIoU, _ = self._get_seg_metrics().values()
-                description = (f'EVAL EPOCH {epoch} | Batch: {batch_idx + 1} | Loss:'
-                               f' {self.total_loss.average:.3f}, '
+                description = (f'EVAL EPOCH {epoch} | Batch: {batch_idx + 1} | '
+                               f'Loss: {self.total_loss.average:.3f}, '
                                f'PixelAcc: {pixAcc:.2f}, '
-                              f'Mean IoU: {mIoU:.2f} |')
+                               f'Mean IoU: {mIoU:.2f} |')
                 tbar.set_description(description)
 
             # WRTING & VISUALIZING THE MASKS
