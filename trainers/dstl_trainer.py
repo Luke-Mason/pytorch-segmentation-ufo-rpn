@@ -79,14 +79,18 @@ class DSTLTrainer(BaseTrainer):
         self._reset_metrics()
         tbar = tqdm(self.train_loader, ncols=130)
         for batch_idx, (data, target) in enumerate(tbar):
-            data = data.to(self.device)
-            target = target.to(self.device)
-
             self.data_time.update(time.time() - tic)
             # data, target = data.to(self.device), target.to(self.device)
 
             # LOSS & OPTIMIZE
             output = self.model(data)
+
+            print("Device of target:", target.device)
+            target = target.to(self.device)
+            print("Device of target:", target.device)
+            print("Device of output:", output.device)
+
+
             if self.config['arch']['type'][:3] == 'PSP':
                 assert output[0].size()[1:] == target.size()[1:]
                 assert output[0].size()[1] == self.num_classes
@@ -163,14 +167,15 @@ class DSTLTrainer(BaseTrainer):
         with torch.no_grad():
             val_visual = []
             for batch_idx, (data, target) in enumerate(tbar):
+
+                # LOSS
+                output = self.model(data)
+
                 print("Device of target:", target.device)
-                print("Device of output:", output.device)
-                data = data.to(self.device)
                 target = target.to(self.device)
                 print("Device of target:", target.device)
                 print("Device of output:", output.device)
-                # LOSS
-                output = self.model(data)
+
                 loss = self.loss(output, target)
                 if isinstance(self.loss, torch.nn.DataParallel):
                     loss = loss.mean()
