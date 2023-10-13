@@ -15,10 +15,11 @@ from utils.metrics import eval_metrics, AverageMeter
 import logging
 
 class DSTLTrainer(BaseTrainer):
-    def __init__(self, model, loss, resume, config, train_loader, k_fold = None,
+    def __init__(self, start_time, model, loss, resume, config, train_loader,
+                            k_fold = None,
                  val_loader=None, train_logger=None, prefetch=False, root='.'):
-        super(DSTLTrainer, self).__init__(model, loss, resume, config,
-                                          train_loader, k_fold,
+        super(DSTLTrainer, self).__init__(start_time, model, loss, resume,
+                                          config, train_loader, k_fold,
                                       val_loader, train_logger, root)
         self.wrt_mode, self.wrt_step = 'train_', 0
         self.log_step = config['trainer'].get('log_per_iter', int(np.sqrt(

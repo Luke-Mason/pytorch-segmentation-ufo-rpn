@@ -36,7 +36,7 @@ class DSTLDataset(BaseDataSet):
                  training_classes: List[int],
                  img_ref_scale: str,
                  patch_size: int,
-                 overlap_percentage: float,
+                 overlap_pixels: float,
                  align_images: bool,
                  interpolation_method: int,
                  **kwargs):
@@ -67,7 +67,7 @@ class DSTLDataset(BaseDataSet):
         self.training_classes = training_classes
         self.training_band_groups = training_band_groups
         self.patch_size = patch_size
-        self.overlap_percentage = overlap_percentage
+        self.overlap_pixels = overlap_pixels
         self.align_images = align_images
         self.interpolation_method = interpolation_method
 
@@ -130,8 +130,7 @@ class DSTLDataset(BaseDataSet):
         # TODO use seed to split, and depending on if self.val is true or not
         #  get the left of slice or right of slice
         ids = list(self._wkt_data.keys())
-        step_size = math.ceil(self.patch_size - ((self.overlap_percentage / 100.0) *
-                                       self.patch_size))
+        step_size = self.patch_size - overlap_pixels
         self.files = []  # type: List[Tuple[np.ndarray, np.ndarray, str]]
 
         # Preprocess Images, ensure their existences.
