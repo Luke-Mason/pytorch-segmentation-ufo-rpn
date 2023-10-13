@@ -172,7 +172,7 @@ class DSTLDataset(BaseDataSet):
                 self.files.append((patch, patch_y_mask, image_id))
                 self.print_progress_bar(c_index + 1, len(chunk_offsets),
                                       prefix=f"Chunking Image {image_id}...",
-                                      suffix=f"{((100 / len(chunk_offsets)) * (c_index + 1)):.2f}%\n")
+                                      suffix=f"{((100 / len(chunk_offsets)) * (c_index + 1)):.2f}%")
 
             self.logger.info(f"\nTotal Data Loaded"
                              f" {(100 / len(ids)) * (index + 1)}% ...\n")
