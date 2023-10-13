@@ -7,7 +7,6 @@ from sklearn.metrics import average_precision_score
 
 
 def make_one_hot(labels, classes):
-    print("one hot - ", labels.size(), classes)
     one_hot = torch.FloatTensor(labels.size()[0], classes, labels.size()[2],
                                 labels.size()[3]).zero_().to(labels.device)
     target = one_hot.scatter_(1, labels.data, 1)
@@ -50,12 +49,8 @@ class DiceLoss(nn.Module):
         target = make_one_hot(target, classes=output.size()[1])
         output = F.softmax(output, dim=1)
         # Check the device of the tensor
-        print("Device of target:", target.device)
-        print("Device of output:", output.device)
         output_flat = output.contiguous().view(-1)
         target_flat = target.contiguous().view(-1)
-        print("Device of target_flat:", target_flat.device)
-        print("Device of output_flat:", output_flat.device)
         # Both tensors must be on the same device
         intersection = (output_flat * target_flat).sum()
         loss = 1 - ((2. * intersection + self.smooth) /
