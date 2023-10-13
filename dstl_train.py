@@ -15,7 +15,8 @@ import copy
 torch.cuda.empty_cache()
 
 
-def get_loader_instance(name, _wkt_data, config, *args):
+def get_loader_instance(name, _wkt_data, config, train_indxs=None,
+                        val_indxs=None):
     # TODO implement all params in config
     training_band_groups = []
     for group in config["train_loader"]['preprocessing']['training_band_groups']:
@@ -32,7 +33,7 @@ def get_loader_instance(name, _wkt_data, config, *args):
     batch_size_ = loader_args['batch_size']
     del loader_args['batch_size']
     return (DSTL(_wkt_data, training_band_groups,
-                 batch_size_, *args, **preproccessing_config,
+                 batch_size_, train_indxs, val_indxs, **preproccessing_config,
                  **loader_args))
 
 def get_instance(module, name, config, *args):
@@ -81,10 +82,8 @@ def main(config, resume):
             train_logger.add_entry(f'Starting Fold {fold + 1}:')
 
             # DATA LOADERS
-            train_loader = get_loader_instance('train_loader', _wkt_data,
-                                               config,
-                                               train_indxs,
-                                               val_indxs)
+            train_loader = get_loader_instance(
+                'train_loader', _wkt_data, config, train_indxs, val_indxs)
 
             # MODEL
             model = get_instance(models, 'arch', config,
