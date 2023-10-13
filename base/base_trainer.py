@@ -74,9 +74,9 @@ class BaseTrainer:
             self.early_stoping = cfg_trainer.get('early_stop', math.inf)
 
         # CHECKPOINTS & TENSOBOARD
+        preprocessing_ = config['train_loader']['preprocessing']
         training_classes_str = '_'.join(preprocessing_['training_classes'])
         training_band_groups_str = '_'.join([str(band_group['bands']) for band_group in preprocessing_['training_band_groups']])
-        preprocessing_ = config['train_loader']['preprocessing']
         loader_args = config['train_loader']['args']
         run_name = (f"batch_size_{loader_args['batch_size']}"
                     f"_lr_{config['optimizer']['args']['lr']}"
