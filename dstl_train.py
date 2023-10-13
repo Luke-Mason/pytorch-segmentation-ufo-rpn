@@ -83,15 +83,16 @@ def main(config, resume):
             # DATA LOADERS
             train_loader = get_loader_instance('train_loader', _wkt_data,
                                                config,
-                                               train_indices, val_indices)
+                                               train_indxs=train_indices,
+                                               val_indxs=val_indices)
 
-            # MODELMODEL
+            # MODEL
             model = get_instance(models, 'arch', config,
                                  train_loader.dataset.num_classes)
 
-            print(train_loader.get_val_loader())
+            if train_loader.get_val_loader() is None:
+                raise ValueError("Val Loader is None")
 
-            return
             # TRAINING
             trainer = DSTLTrainer(
                 k_fold=fold,
