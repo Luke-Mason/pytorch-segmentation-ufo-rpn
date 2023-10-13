@@ -107,7 +107,6 @@ class DSTLTrainer(BaseTrainer):
                            f'PixelAcc: {pixAcc:.2f}, '
                            f'Mean IoU: {mIoU:.2f} |')
             tbar.set_description(description)
-            self.logger.info(f__format)
 
         # METRICS TO TENSORBOARD
         seg_metrics = self._get_seg_metrics()
