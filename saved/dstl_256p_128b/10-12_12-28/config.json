@@ -28,7 +28,7 @@
         "align_images": false,
         "img_ref_scale": "RGB",
         "interpolation_method": 4,
-        "overlap_percentage": 25,
+        "overlap_pixels": 25,
         "patch_size": 256,
         "training_band_groups": [
             {

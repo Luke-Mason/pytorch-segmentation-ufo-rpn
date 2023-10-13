@@ -75,6 +75,7 @@ def main(config, resume):
 
     # LOSS
     loss = getattr(losses, config['loss'])(ignore_index=config['ignore_index'])
+    start_time = datetime.datetime.now().strftime('%m-%d_%H-%M')
 
     if config["trainer"]["val"]:
         # Split the data into K folds
@@ -100,6 +101,7 @@ def main(config, resume):
 
             # TRAINING
             trainer = DSTLTrainer(
+                start_time=start_time,
                 k_fold=fold,
                 model=model,
                 loss=loss,
@@ -128,6 +130,7 @@ def main(config, resume):
 
         # TRAINING
         trainer = DSTLTrainer(
+            start_time=start_time,
             model=model,
             loss=loss,
             resume=resume,

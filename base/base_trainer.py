@@ -17,7 +17,8 @@ def get_instance(module, name, config, *args):
 
 class BaseTrainer:
 
-    def __init__(self, model, loss, resume, config, train_loader, k_fold = None,
+    def __init__(self, start_time, model, loss, resume, config, train_loader,
+                 k_fold = None,
                  val_loader=None, train_logger=None, root='.'):
         self.root = root
         self.model = model
@@ -73,23 +74,37 @@ class BaseTrainer:
             self.early_stoping = cfg_trainer.get('early_stop', math.inf)
 
         # CHECKPOINTS & TENSOBOARD
-        start_time = datetime.datetime.now().strftime('%m-%d_%H-%M')
-        run_name = (f"{self.config['name']}_"
-                    f"{'K_' + str(k_fold) if k_fold is not None else 'run'}")
+        training_classes_str = '_'.join(preprocessing_['training_classes'])
+        training_band_groups_str = '_'.join([str(band_group['bands']) for band_group in preprocessing_['training_band_groups']])
+        preprocessing_ = config['train_loader']['preprocessing']
+        loader_args = config['train_loader']['args']
+        run_name = (f"batch_size_{loader_args['batch_size']}"
+                    f"_lr_{config['optimizer']['args']['lr']}"
+                    f"_epochs_{cfg_trainer['epochs']}"
+                    f"_loss_{config['loss']}"
+                    f"_scheduler_{config['lr_scheduler']['type']}"
+                    f"_patch_size_{preprocessing_['patch_size']}"
+                    f"_overlap_pixels_{preprocessing_['overlap_pixels']}"
+                    f"_training_classes_({training_classes_str})"
+                    f"_training_band_groups_({training_band_groups_str})")
+
+        fold_name = (f"{'K_' + str(k_fold) if k_fold is not None else 'run'}")
+
+        path = os.path.join(self.config['name'], start_time, fold_name)
 
         self.checkpoint_dir = os.path.join(cfg_trainer['save_dir'],
-                                           "checkpoints", run_name, start_time)
+                                           "checkpoints", path)
         helpers.dir_exists(self.checkpoint_dir)
 
         self.config_dir = os.path.join(cfg_trainer['save_dir'],
-                                       "config", run_name, start_time)
+                                       "config", path)
         helpers.dir_exists(self.config_dir)
 
         config_save_path = os.path.join(self.config_dir, 'config.json')
         with open(config_save_path, 'w') as handle:
             json.dump(self.config, handle, indent=4, sort_keys=True)
 
-        writer_dir = os.path.join(cfg_trainer['log_dir'], run_name, start_time)
+        writer_dir = os.path.join(cfg_trainer['log_dir'], path)
         self.writer = tensorboard.SummaryWriter(writer_dir)
 
         if resume: self._resume_checkpoint(resume)
