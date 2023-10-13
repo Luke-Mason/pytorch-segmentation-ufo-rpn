@@ -130,7 +130,7 @@ class DSTLDataset(BaseDataSet):
         # TODO use seed to split, and depending on if self.val is true or not
         #  get the left of slice or right of slice
         ids = list(self._wkt_data.keys())
-        step_size = self.patch_size - overlap_pixels
+        step_size = self.patch_size - self.overlap_pixels
         self.files = []  # type: List[Tuple[np.ndarray, np.ndarray, str]]
 
         # Preprocess Images, ensure their existences.
