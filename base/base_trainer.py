@@ -31,6 +31,7 @@ class BaseTrainer:
 
         # SETTING THE DEVICE
         self.device, availble_gpus = self._get_available_devices(self.config['n_gpu'])
+        print("AVAILABLE: ", availble_gpus, "DEVICE: ", self.device)
         if config["use_synch_bn"]:
             self.model = convert_model(self.model)
             self.model = DataParallelWithCallback(self.model, device_ids=availble_gpus)
