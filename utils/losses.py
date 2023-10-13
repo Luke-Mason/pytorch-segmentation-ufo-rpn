@@ -49,9 +49,13 @@ class DiceLoss(nn.Module):
                 target[target == self.ignore_index] = target.min()
         target = make_one_hot(target, classes=output.size()[1])
         output = F.softmax(output, dim=1)
+        # Check the device of the tensor
+        print("Device of target:", target.device)
+        print("Device of output:", output.device)
         output_flat = output.contiguous().view(-1)
         target_flat = target.contiguous().view(-1)
-
+        print("Device of target_flat:", target_flat.device)
+        print("Device of output_flat:", output_flat.device)
         # Both tensors must be on the same device
         intersection = (output_flat * target_flat).sum()
         loss = 1 - ((2. * intersection + self.smooth) /
