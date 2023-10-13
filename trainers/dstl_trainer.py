@@ -84,12 +84,7 @@ class DSTLTrainer(BaseTrainer):
 
             # LOSS & OPTIMIZE
             output = self.model(data)
-
-            print("Device of target:", target.device)
             target = target.to(self.device)
-            print("Device of target:", target.device)
-            print("Device of output:", output.device)
-
 
             if self.config['arch']['type'][:3] == 'PSP':
                 assert output[0].size()[1:] == target.size()[1:]
@@ -170,11 +165,7 @@ class DSTLTrainer(BaseTrainer):
 
                 # LOSS
                 output = self.model(data)
-
-                print("Device of target:", target.device)
                 target = target.to(self.device)
-                print("Device of target:", target.device)
-                print("Device of output:", output.device)
 
                 loss = self.loss(output, target)
                 if isinstance(self.loss, torch.nn.DataParallel):

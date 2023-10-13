@@ -56,13 +56,11 @@ def batch_intersection_union(predict, target, num_class, labeled):
     return area_inter.cpu().numpy(), area_union.cpu().numpy()
 
 def eval_metrics(output, target, num_class):
-    print("eval shape: ", output.data.shape)
     # Each channel is a class, so we need to find the max channel for each
     # pixel to get the predicted class for that pixel. The actual class
     # represented is mapped by the index in the training_classes list.
     _, predict = torch.max(output.data, 1)
     _, target_predict = torch.max(target.data, 1)
-    print("predicted shape: ", predict.shape)
     labeled = target_predict <= num_class
     correct, num_labeled = batch_pix_accuracy(predict, target_predict, labeled)
     inter, union = batch_intersection_union(predict, target_predict, num_class, labeled)
