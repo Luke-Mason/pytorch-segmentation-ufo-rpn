@@ -164,10 +164,10 @@ class DSTLTrainer(BaseTrainer):
 
                 # PRINT INFO
                 pixAcc, mIoU, _ = self._get_seg_metrics().values()
-                description = 'EVAL ({}) | Loss: {:.3f}, PixelAcc: {:.2f}, Mean IoU: {:.2f} |'.format(
-                    epoch,
-                    self.total_loss.average,
-                    pixAcc, mIoU)
+                print(f'pixAcc: {pixAcc:.2f}, mIoU: {mIoU:.2f}')
+                description = (f'EVAL EPOCH {epoch} | Loss: {self.total_loss.average:.3f}, '
+                               f'PixelAcc: {pixAcc:.2f}, '
+                              f'Mean IoU: {mIoU:.2f} |')
                 tbar.set_description(description)
 
             # WRTING & VISUALIZING THE MASKS
