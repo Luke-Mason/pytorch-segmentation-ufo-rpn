@@ -196,8 +196,6 @@ class DSTLTrainer(BaseTrainer):
                 if len(val_visual) < 15:
                     target_np = target.data.cpu().numpy()
                     output_np = output.data.max(1)[1].cpu().numpy()
-                    print("viz shapes: ", data.shape, target_np.shape,
-                          output_np.shape)
                     val_visual.append(
                         [self.dra(data[0].data.cpu()), target_np[0],
                          output_np[0]])
@@ -215,10 +213,10 @@ class DSTLTrainer(BaseTrainer):
             palette = self.train_loader.dataset.palette
             for dta, tgt, out in val_visual:
                 dta = dta * 2048
-                print("TOTAL: ", tgt.sum(), out.sum())
-                print("Max: ", tgt.max(), out.max())
-                print("Min: ", tgt.min(), out.min())
-
+                # print("TOTAL: ", tgt.sum(), out.sum())
+                # print("Max: ", tgt.max(), out.max())
+                # print("Min: ", tgt.min(), out.min())
+                print("viz shapes: ", dta.shape, tgt.shape, out.shape)
                 dta = dta.transpose(1,2,0)
                 tgt = tgt.transpose(1,2,0)
                 dta = self.restore_transform(dta.astype(np.uint8))
