@@ -37,12 +37,47 @@ class DSTLTrainer(BaseTrainer):
             transforms.Resize((400, 400)),
             transforms.ToTensor()])
 
+        self.min_clip_percentile = 2
+        self.max_clip_percentile = 98
+
         # if self.device == torch.device('cpu'): prefetch = False
         # if prefetch:
         #     self.train_loader = DataPrefetcher(train_loader, device=self.device)
         #     self.val_loader = DataPrefetcher(val_loader, device=self.device)
 
         torch.backends.cudnn.benchmark = True
+
+    def dra(self, array: np.ndarray) -> np.ndarray:
+        output = np.zeros(array.shape, np.uint8)
+        mask = array[0, :, :] != 0
+        for i in range(1, array.shape[0] - 1):
+            mask &= array[i, :, :] != 0
+
+        for i in range(array.shape[0]):
+            masked_array = array[i][mask]
+            min_pixel = np.percentile(masked_array, self.min_clip_percentile)
+            max_pixel = np.percentile(masked_array, self.max_clip_percentile)
+            array[i] = array[i].clip(min_pixel, max_pixel)
+
+            array[i] -= np.min(array[i])
+            output[i] = (array[i] / (np.max(array[i]) / 255)).astype(np.uint8,
+                                                                     copy=False)
+
+        return output
+
+    def dra2(self, array: np.ndarray):
+        # Calculate the values at the specified percentiles
+        min_clip_value = np.percentile(array, self.min_clip_percentile)
+        max_clip_value = np.percentile(array, self.max_clip_percentile)
+
+        # Clip the values outside the specified range
+        adjusted_array = np.clip(array, min_clip_value, max_clip_value)
+
+        # Normalize the values to [0, 1] range
+        adjusted_array = (adjusted_array - min_clip_value) / (
+                max_clip_value - min_clip_value)
+
+        return adjusted_array
 
     def _train_epoch(self, epoch):
         self.logger.info('\n')
@@ -159,8 +194,11 @@ class DSTLTrainer(BaseTrainer):
                 if len(val_visual) < 15:
                     target_np = target.data.cpu().numpy()
                     output_np = output.data.max(1)[1].cpu().numpy()
+                    print("viz shapes: ", data.shape, target_np.shape,
+                          output_np.shape))
                     val_visual.append(
-                        [data[0].data.cpu(), target_np[0], output_np[0]])
+                        [dra(data[0].data.cpu()), dra(target_np[0]),
+                         dra(output_np[0])])
 
                 # PRINT INFO
                 pixAcc, mIoU, _ = self._get_seg_metrics().values()

@@ -61,7 +61,7 @@
             "momentum": 0.9
         }
     },
-    "loss": "DiceLoss",
+    "loss": "JaccardCoefficient",
     "ignore_index": 10,
     "lr_scheduler": {
         "type": "Poly",
