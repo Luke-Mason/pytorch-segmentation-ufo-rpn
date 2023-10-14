@@ -221,7 +221,7 @@ class DSTLTrainer(BaseTrainer):
 
                 dta = dta.transpose(1,2,0)
                 tgt = tgt.transpose(1,2,0)
-                dta = self.restore_transform(dta.to(torch.uint8))
+                dta = self.restore_transform(dta.astype(np.uint8))
 
                 tgt, out = colorize_mask(tgt, palette), colorize_mask(out, palette)
                 dta, tgt, out = dta.convert('RGB'), tgt.convert('RGB'), out.convert('RGB')
