@@ -59,7 +59,7 @@ class DSTLTrainer(BaseTrainer):
             max_pixel = np.percentile(masked_array, self.max_clip_percentile)
             array[i] = array[i].clip(min_pixel, max_pixel)
 
-            array[i] -= np.min(array[i])
+            array[i] -= array[i].min()
             output[i] = (array[i] / (np.max(array[i]) / 255)).astype(np.uint8,
                                                                      copy=False)
 
