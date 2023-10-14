@@ -74,6 +74,8 @@ def main(config, resume):
         # Add the polygon to the dictionary
         _wkt_data.setdefault(im_id, {})[int(class_type)] = poly
 
+    _wkt_data = list(_wkt_data.items())
+
     # LOSS
     loss = getattr(losses, config['loss'])(ignore_index=config['ignore_index'])
     start_time = datetime.datetime.now().strftime('%m-%d_%H-%M')
@@ -85,8 +87,7 @@ def main(config, resume):
         kfold = KFold(n_splits=config["trainer"]["k_split"],
                       shuffle=shuffle_, random_state=random_state_)
         # Iterate over the K folds
-        for fold, (train_indxs, val_indxs) in enumerate(kfold.split(
-                list(_wkt_data.keys()))):
+        for fold, (train_indxs, val_indxs) in enumerate(kfold.split(_wkt_data)):
             train_logger.add_entry(f'Starting Fold {fold + 1}:')
 
             # DATA LOADERS
