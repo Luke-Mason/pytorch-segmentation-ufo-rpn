@@ -317,7 +317,6 @@ class DSTLDataset(BaseDataSet):
                                                    xfact=x_scaler,
                                                    yfact=y_scaler,
                                                    origin=(0, 0, 0)) for
-            # TODO use index to access the poly type
             poly_type, poly in class_poly.items()}
         self.logger.debug(f'Loaded polygons for image: {image_id}')
         return items_
@@ -514,8 +513,6 @@ class DSTL(BaseDataLoader):
         # Min Max for Type A: [[671, 15562], [489, 16383], [434, 16383], [390, 16383], [1, 16383], [129, 16383], [186, 16383], [1, 16383]]
         # P is 11bit, RGB is 11bit, M is 11bit, A is 14bit
 
-        # TODO construct the std and means only from the bands that are being
-        #  trained on.
         dstl_data_path = os.environ.get('DSTL_DATA_PATH')
         kwargs = {
             'root': dstl_data_path,
