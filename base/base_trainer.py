@@ -76,7 +76,7 @@ class BaseTrainer:
         # CHECKPOINTS & TENSOBOARD
         preprocessing_ = config['train_loader']['preprocessing']
         training_classes_str = '_'.join(str(i) for i in preprocessing_['training_classes'])
-        training_band_groups_str = '_'.join([str(i) for i in band_group['bands'] for band_group in preprocessing_['training_band_groups']])
+        training_band_groups_str = '_'.join(str(i) for band_group in preprocessing_['training_band_groups'] for i in band_group['bands'])
         loader_args = config['train_loader']['args']
         run_name = (f"batch_size_{loader_args['batch_size']}"
                     f"_lr_{config['optimizer']['args']['lr']}"
