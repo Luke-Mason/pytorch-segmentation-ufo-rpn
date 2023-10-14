@@ -31,6 +31,7 @@ class BaseTrainer:
         self.do_validation = self.config['trainer']['val']
         self.start_epoch = 1
         self.improved = False
+        self.k_fold = k_fold
 
         # SETTING THE DEVICE
         self.device, availble_gpus = self._get_available_devices(self.config['n_gpu'])

@@ -431,10 +431,10 @@ class DSTLDataset(BaseDataSet):
         # Scale images between 0-1 based off their maximum and minimum bounds
         # P and M images are 11bit integers, A is 14bit integers, scale values to be
         # between 0-1 floats
-        im_p = (im_p / 2047.0) * 255.0
-        im_rgb = (im_rgb / 2047.0) * 255.0
-        im_m = (im_m / 2047.0) * 255.0
-        im_a = (im_a / 16383.0) * 255.0
+        im_p = (im_p / 2047.0)
+        im_rgb = (im_rgb / 2047.0)
+        im_m = (im_m / 2047.0)
+        im_a = (im_a / 16383.0)
         image = (np.concatenate([im_p, im_rgb, im_m, im_a], axis=2).transpose([2, 0, 1]))
         self.logger.debug(f"Image shape: {image.shape}")
 
