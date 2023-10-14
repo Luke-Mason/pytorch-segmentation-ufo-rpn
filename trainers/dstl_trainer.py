@@ -60,8 +60,7 @@ class DSTLTrainer(BaseTrainer):
             array[i] = array[i].clip(min_pixel, max_pixel)
 
             array[i] -= array[i].min()
-            output[i] = (array[i] / (array[i].max() / 255)).astype(np.uint8,
-                                                                     copy=False)
+            output[i] = array[i] / (array[i].max() / 255)
 
         return output
 
