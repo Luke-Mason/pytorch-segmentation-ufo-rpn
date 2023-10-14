@@ -39,6 +39,8 @@ class DSTLDataset(BaseDataSet):
                  overlap_pixels: float,
                  align_images: bool,
                  interpolation_method: int,
+                 train_indxs: List[int] or None = None,
+                 val_indxs: List[int] or None = None,
                  **kwargs):
         """Constructor, initialiser.
 
@@ -61,6 +63,13 @@ class DSTLDataset(BaseDataSet):
                                  "there is no merge strategy for the group")
 
         self.num_classes = 10 if len(training_classes) == 0 else len(training_classes) + 1
+
+        # Preprocessing
+        self.train_indxs = train_indxs
+        self.val_indxs = val_indxs
+
+        self.file_train_indxs = []
+        self.file_val_indxs = []
 
         # Attributes
         self.img_ref_scale = img_ref_scale
@@ -127,14 +136,11 @@ class DSTLDataset(BaseDataSet):
         self.logger.addHandler(handler)
 
     def _set_files(self):
-        # TODO use seed to split, and depending on if self.val is true or not
-        #  get the left of slice or right of slice
-        ids = list(self._wkt_data.keys())
         step_size = self.patch_size - self.overlap_pixels
         self.files = []  # type: List[Tuple[np.ndarray, np.ndarray, str]]
 
         # Preprocess Images, ensure their existences.
-        for image_id in ids:
+        for [image_id, class_poly] in self._wkt_data:
             stage_1_file_path = self.get_stage_1_file_path(image_id)
             if not os.path.exists(stage_1_file_path + ".data.npy"):
                 self._preprocess_image_stage_1(image_id, stage_1_file_path)
@@ -142,7 +148,7 @@ class DSTLDataset(BaseDataSet):
             # Save mask for image
             mask_path = self.get_mask_file_path(image_id)
             if not os.path.exists(mask_path + ".mask.npy"):
-                self._save_mask(image_id, stage_1_file_path, mask_path)
+                self._save_mask((image_id, class_poly), stage_1_file_path, mask_path)
 
             stage_2_file_path = self.get_stage_2_file_path(image_id)
             if not os.path.exists(stage_2_file_path + ".data.npy"):
@@ -150,7 +156,7 @@ class DSTLDataset(BaseDataSet):
                                                stage_2_file_path)
 
         # Load Images
-        for index, image_id in enumerate(ids):
+        for index, [image_id, _] in enumerate(self._wkt_data):
             image = np.load(Path(self.get_stage_2_file_path(image_id) +
                                  ".data.npy"),  allow_pickle=True)
 
@@ -168,12 +174,28 @@ class DSTLDataset(BaseDataSet):
                 # the input patch image.
                 patch = image[:, y:y + self.patch_size, x:x + self.patch_size]
 
+                # All files associated with image @ index are put into train
+                # or val.
+                file_idx = len(self.files)
+                if index in self.train_indxs:
+                    self.file_train_indxs.append(file_idx)
+                elif index in self.val_indxs:
+                    self.file_val_indxs.append(file_idx)
+                else:
+                    raise ValueError(f"Index {index} not in train or val indexes")
+
                 self.files.append((patch, patch_y_mask, image_id))
                 self.print_progress_bar(c_index + 1, len(chunk_offsets),
                                       prefix=f"Chunking Image {image_id}...")
 
             self.logger.info(f"\nTotal Data Loaded"
-                             f" {(100 / len(ids)) * (index + 1)}% ...\n")
+                             f" {(100 / len(self._wkt_data)) * (index + 1)}% "
+                             f"...\n")
+
+        self.logger.info(f"Total files: {len(self.files)}")
+
+    def get_file_indexes(self):
+        return self.file_train_indxs, self.file_val_indxs
 
     def print_progress_bar(self, iteration, total, prefix='', suffix='',
                            length=50,
@@ -217,10 +239,10 @@ class DSTLDataset(BaseDataSet):
         filename = f"{image_id}_{hash_id}"
         return os.path.join(self.cache_dir, "stage_2", filename)
 
-    def _save_mask(self, image_id, file_path, mask_path):
+    def _save_mask(self, img_class, file_path, mask_path):
         image = np.load(Path(file_path + ".data.npy"),  allow_pickle=True)
         im_size = image.shape[1:]
-        class_to_polygons = self._load_polygons(image_id, im_size)
+        class_to_polygons = self._load_polygons(img_class, im_size)
         mask = np.array(
             [mask_for_polygons(im_size, class_to_polygons.get(str(cls + 1)))
              for cls in self.training_classes])
@@ -276,14 +298,15 @@ class DSTLDataset(BaseDataSet):
 
         return chunk_offsets
 
-    def _load_polygons(self, image_id: str, im_size: Tuple[int, int]) \
-            -> Dict[str, MultiPolygon]:
+    def _load_polygons(self, img_class: Tuple[str, Dict[int, MultiPolygon]],
+                       im_size:Tuple[int, int]) -> Dict[str, MultiPolygon]:
         """
         Load the polygons for the image id and scale them to the image size.
         :param im_id: The image id.
         :param im_size: The image size.
         :return: A dictionary of class type to polygon.
         """
+        image_id, class_poly = img_class
         height, width = im_size
         self.logger.debug(f'Loading polygons for image: {image_id}')
         x_max, y_min = self._get_x_max_y_min(image_id)
@@ -294,7 +317,8 @@ class DSTLDataset(BaseDataSet):
                                                    xfact=x_scaler,
                                                    yfact=y_scaler,
                                                    origin=(0, 0, 0)) for
-            poly_type, poly in self._wkt_data[image_id].items()}
+            # TODO use index to access the poly type
+            poly_type, poly in class_poly.items()}
         self.logger.debug(f'Loaded polygons for image: {image_id}')
         return items_
 
@@ -479,7 +503,6 @@ class DSTLDataset(BaseDataSet):
 
 class DSTL(BaseDataLoader):
     def __init__(self, data, training_band_groups, batch_size,
-                 train_indxs=None, val_indxs=None,
                  num_workers=1, val=False, shuffle=False, flip=False,
                  rotate=False, blur=False, augment=False, return_id=False,
                  **params):
@@ -509,9 +532,14 @@ class DSTL(BaseDataLoader):
         print("kwargs", kwargs)
         print("params", params)
 
-        self.dataset = DSTLDataset(data, training_band_groups, **params, **kwargs)
+        self.dataset = DSTLDataset(data, training_band_groups, **params,
+                                   **kwargs)
+        train_indxs, val_indxs = self.dataset.get_file_indexes()
+        # Convert the image indexes into files indexes.
 
         print("LENGTH: ", len(self.dataset))
+        print("TRAIN: ", len(train_indxs))
+        print("VAL: ", len(val_indxs))
         super(DSTL, self).__init__(self.dataset, batch_size, shuffle,
                                    num_workers, train_indxs, val_indxs, val)
 
