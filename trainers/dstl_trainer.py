@@ -215,10 +215,13 @@ class DSTLTrainer(BaseTrainer):
             palette = self.train_loader.dataset.palette
             for dta, tgt, out in val_visual:
                 dta = dta * 2048
-                print("TOTAL 0s: ", (tgt == 0).sum(), (out == 0).sum())
-                print("TOTAL 1s: ", (tgt == 1).sum(), (out == 1).sum())
-                dta = self.restore_transform(dta)
+                print("TOTAL: ", tgt.sum(), out.sum())
+                print("Max: ", tgt.max(), out.max())
+                print("Min: ", tgt.min(), out.min())
+
+                dta = dta.transpose(1,2,0)
                 tgt = tgt.transpose(1,2,0)
+                dta = self.restore_transform(dta)
 
                 tgt, out = colorize_mask(tgt, palette), colorize_mask(out, palette)
                 dta, tgt, out = dta.convert('RGB'), tgt.convert('RGB'), out.convert('RGB')
