@@ -73,7 +73,7 @@ class BaseTrainer:
             self.mnt_best = -math.inf if self.mnt_mode == 'max' else math.inf
             self.early_stoping = cfg_trainer.get('early_stop', math.inf)
 
-        # CHECKPOINTS & TENSOBOARD
+        # CHECKPOINTS & TENSORBOARD
         preprocessing_ = config['train_loader']['preprocessing']
         training_classes_str = '_'.join(str(i) for i in preprocessing_['training_classes'])
         training_band_groups_str = '_'.join(str(i) for band_group in preprocessing_['training_band_groups'] for i in band_group['bands'])
@@ -90,7 +90,8 @@ class BaseTrainer:
 
         fold_name = (f"{'K_' + str(k_fold) if k_fold is not None else 'run'}")
 
-        path = os.path.join(self.config['name'], start_time, fold_name)
+        path = os.path.join(self.config['name'], run_name, start_time,
+                            fold_name)
 
         self.checkpoint_dir = os.path.join(cfg_trainer['save_dir'],
                                            "checkpoints", path)
