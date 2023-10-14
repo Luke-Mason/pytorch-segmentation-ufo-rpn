@@ -195,7 +195,7 @@ class DSTLTrainer(BaseTrainer):
                     target_np = target.data.cpu().numpy()
                     output_np = output.data.max(1)[1].cpu().numpy()
                     print("viz shapes: ", data.shape, target_np.shape,
-                          output_np.shape))
+                          output_np.shape)
                     val_visual.append(
                         [dra(data[0].data.cpu()), dra(target_np[0]),
                          dra(output_np[0])])
