@@ -11,3 +11,8 @@ scikit-image
 pandas
 shapely
 rasterio
+matplotlib
+geopandas
+tensorboard-logger
+descartes
+sklearn
