@@ -152,8 +152,10 @@ class BaseTrainer:
         for epoch in range(self.start_epoch, self.epochs+1):
             # RUN TRAIN (AND VAL)
             results = self._train_epoch(epoch)
+            train_loss, train_acc, train_mIoU, train_cIoU = results
             if self.do_validation and epoch % self.config['trainer']['val_per_epochs'] == 0:
                 results = self._valid_epoch(epoch)
+                val_loss, val_acc, val_mIoU, val_cIoU = results
 
                 # LOGGING INFO
                 self.logger.info(f'\n         ## Info for epoch {epoch} ## ')
