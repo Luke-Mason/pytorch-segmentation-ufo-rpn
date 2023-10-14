@@ -131,8 +131,9 @@ class DSTLTrainer(BaseTrainer):
             # LOGGING & TENSORBOARD
             if batch_idx % self.log_step == 0:
                 self.wrt_step = (epoch - 1) * len(self.train_loader) + batch_idx
-                self.writer.add_scalar(f'{self.wrt_mode}/loss', loss.item(),
+                self.writer.add_scalar(f'{self.k_fold}/{self.wrt_mode}/loss', loss.item(),
                                        self.wrt_step)
+                self.writer.add_scalar('loss', loss.item(), self.wrt_step)
 
             # FOR EVAL
             seg_metrics = eval_metrics(output, target, self.num_classes)
@@ -148,11 +149,13 @@ class DSTLTrainer(BaseTrainer):
         # METRICS TO TENSORBOARD
         seg_metrics = self._get_seg_metrics()
         for k, v in list(seg_metrics.items())[:-1]:
-            self.writer.add_scalar(f'{self.wrt_mode}/{k}', v, self.wrt_step)
+            self.writer.add_scalar(f'{self.k_fold}/{self.wrt_mode}/{k}', v, self.wrt_step)
+            self.writer.add_scalar(f'{k}', v, self.wrt_step)
+
         for i, opt_group in enumerate(self.optimizer.param_groups):
-            self.writer.add_scalar(f'{self.wrt_mode}/Learning_rate_{i}',
+            self.writer.add_scalar(f'{self.k_fold}/{self.wrt_mode}/Learning_rate_{i}',
                                    opt_group['lr'], self.wrt_step)
-            # self.writer.add_scalar(f'{self.wrt_mode}/Momentum_{k}', opt_group['momentum'], self.wrt_step)
+            self.writer.add_scalar(f'Learning_rate_{i}', opt_group['lr'], self.wrt_step)
 
         # RETURN LOSS & METRICS
         log = {'loss': self.total_loss.average,
@@ -197,8 +200,8 @@ class DSTLTrainer(BaseTrainer):
                     print("viz shapes: ", data.shape, target_np.shape,
                           output_np.shape)
                     val_visual.append(
-                        [dra(data[0].data.cpu()), dra(target_np[0]),
-                         dra(output_np[0])])
+                        [dra(data[0].data.cpu()), target_np[0],
+                         output_np[0]])
 
                 # PRINT INFO
                 pixAcc, mIoU, _ = self._get_seg_metrics().values()
@@ -211,26 +214,32 @@ class DSTLTrainer(BaseTrainer):
             # WRTING & VISUALIZING THE MASKS
             val_img = []
             palette = self.train_loader.dataset.palette
-            for d, t, o in val_visual:
-                d = self.restore_transform(d)
-                t = t.transpose(1,2,0)
+            for dta, tgt, out in val_visual:
+                dta = dta * 2048
+                print("TOTAL 0s: ", (tgt == 0).sum(), (out == 0).sum())
+                print("TOTAL 1s: ", (tgt == 1).sum(), (out == 1).sum())
+                dta = self.restore_transform(dta)
+                tgt = tgt.transpose(1,2,0)
 
-                t, o = colorize_mask(t, palette), colorize_mask(o, palette)
-                d, t, o = d.convert('RGB'), t.convert('RGB'), o.convert('RGB')
-                [d, t, o] = [self.viz_transform(x) for x in [d, t, o]]
-                val_img.extend([d, t, o])
+                tgt, out = colorize_mask(tgt, palette), colorize_mask(out, palette)
+                dta, tgt, out = dta.convert('RGB'), tgt.convert('RGB'), out.convert('RGB')
+                [dta, tgt, out] = [self.viz_transform(x) for x in [dta, tgt, out]]
+                val_img.extend([dta, tgt, out])
             val_img = torch.stack(val_img, 0)
             val_img = make_grid(val_img.cpu(), nrow=3, padding=5)
-            self.writer.add_image(f'{self.wrt_mode}/inputs_targets_predictions',
+            self.writer.add_image(f'{self.k_fold}/{self.wrt_mode}/inputs_targets_predictions',
                                   val_img, self.wrt_step)
 
             # METRICS TO TENSORBOARD
             self.wrt_step = (epoch) * len(self.val_loader)
-            self.writer.add_scalar(f'{self.wrt_mode}/loss',
+            self.writer.add_scalar(f'{self.k_fold}/{self.wrt_mode}/loss',
+                                   self.total_loss.average, self.wrt_step)
+            self.writer.add_scalar('loss',
                                    self.total_loss.average, self.wrt_step)
             seg_metrics = self._get_seg_metrics()
             for k, v in list(seg_metrics.items())[:-1]:
-                self.writer.add_scalar(f'{self.wrt_mode}/{k}', v, self.wrt_step)
+                self.writer.add_scalar(f'{self.k_fold}/{self.wrt_mode}/{k}', v, self.wrt_step)
+                self.writer.add_scalar(f'{k}', v, self.wrt_step)
 
             log = {
                 'val_loss': self.total_loss.average,
