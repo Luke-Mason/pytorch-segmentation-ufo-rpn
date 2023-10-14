@@ -111,16 +111,11 @@ class JaccardCoefficient(nn.Module):
         super(JaccardCoefficient, self).__init__()
 
     def forward(self, output, target):
-        eps = 1e-10  # Small epsilon to avoid division by zero
-        output = F.softmax(output, dim=1)
-        target = make_one_hot(target, classes=output.size()[1])
-
-        intersection = (output * target).sum(dim=(2, 3))
-        union = (output + target).sum(dim=(2, 3)) - intersection
-
-        jaccard = (intersection + eps) / (union + eps)
-
-        return jaccard.mean()
+        y_true_f = np.flatten(target)
+        y_pred_f = np.flatten(output)
+        intersection = np.sum(y_true_f * y_pred_f)
+        return (intersection + 1.0) / (
+                    np.sum(y_true_f) + np.sum(y_pred_f) - intersection + 1.0)
 
 
 class Recall(nn.Module):
