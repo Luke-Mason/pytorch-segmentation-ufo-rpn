@@ -144,7 +144,7 @@ def write_metric_3_param(writer, stats, metric_1, metric_2, metric_3, func,
 def write_stats_to_tensorboard(writer, class_stats):
 
     # LOSS
-    write_metric(writer, class_stats['all'], 'loss', np.mean, 'all', 'Loss')
+    # write_metric(writer, class_stats['all'], 'loss', np.mean, 'all', 'Loss')
 
     for class_name, stats in class_stats.item():
 
