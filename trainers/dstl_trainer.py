@@ -141,8 +141,9 @@ class DSTLTrainer(BaseTrainer):
                     metric_totals['all'][k] += v
 
             for class_idx in range(self.num_classes):
-                class_metrics_totals = eval_metrics(output[:, class_idx, :, :],
-                                                    target[:, class_idx, :, :],
+                class_metrics_totals = eval_metrics(
+                    output[:, class_idx, :, :][:, np.newaxis, :, :],
+                    target[:, class_idx, :, :][:, np.newaxis, :, :],
                                                     self.threshold)
                 if str(class_idx) not in metric_totals:
                     metric_totals[str(class_idx)] = class_metrics_totals
@@ -208,7 +209,9 @@ class DSTLTrainer(BaseTrainer):
                         metric_totals['all'][k] += v
 
                 for class_idx in range(self.num_classes):
-                    class_metrics_totals = eval_metrics(output[:,class_idx,:,:], target[:,class_idx,:,:],
+                    class_metrics_totals = eval_metrics(
+                        output[:, class_idx, :, :][:, np.newaxis, :, :],
+                        target[:, class_idx, :, :][:, np.newaxis, :, :],
                                                     self.threshold)
                     if str(class_idx) not in metric_totals:
                         metric_totals[str(class_idx)] = class_metrics_totals
