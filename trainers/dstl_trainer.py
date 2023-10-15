@@ -13,7 +13,8 @@ from tqdm import tqdm
 from utils import transforms as local_transforms
 from utils.helpers import colorize_mask
 from utils.metrics import (eval_metrics, recall, precision, f1_score,
-                           pixel_accuracy, AverageMeter)
+                           pixel_accuracy, AverageMeter,
+                           mean_average_precision, intersection_over_union)
 import logging
 
 # def precision(output, target):

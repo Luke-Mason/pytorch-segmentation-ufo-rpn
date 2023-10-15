@@ -16,7 +16,9 @@ from base import initiate_stats
 from pathlib import Path
 import numpy as np
 import logging
-
+from utils.metrics import (eval_metrics, recall, precision, f1_score,
+                           pixel_accuracy, AverageMeter,
+                           mean_average_precision, intersection_over_union)
 torch.cuda.empty_cache()
 
 
