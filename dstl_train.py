@@ -240,7 +240,7 @@ def main(config, resume):
         writer = None
 
         # Initialise the stats
-        fold_stats = np.array([])
+        fold_stats = None
 
         # Iterate over the K folds
         for fold, (train_indxs_of_indxs, val_indxs_of_indxs) in enumerate(kfold.split(stratisfied_indices)):
