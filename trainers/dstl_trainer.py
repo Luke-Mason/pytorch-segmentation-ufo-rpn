@@ -152,7 +152,7 @@ class DSTLTrainer(BaseTrainer):
                         metric_totals[str(class_idx)][k] += v
 
             # PRINT INFO
-            seg_metrics = self._get_seg_metrics().values()
+            seg_metrics = self._get_seg_metrics()
             description = f'TRAIN EPOCH {epoch} | Batch: {batch_idx + 1} | '
             for k, v in seg_metrics.items():
                 description += f'{self.convert_to_title_case(k)}: {v:.3f} | '
@@ -228,7 +228,7 @@ class DSTLTrainer(BaseTrainer):
                          output_np[0]])
 
                 # PRINT INFO
-                seg_metrics = self._get_seg_metrics().values()
+                seg_metrics = self._get_seg_metrics()
                 description = f'EVAL EPOCH {epoch} | Batch: {batch_idx + 1} | '
                 for k, v in seg_metrics.items():
                     description += f'{self.convert_to_title_case(k)}: {v:.3f} | '
