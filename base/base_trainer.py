@@ -202,11 +202,14 @@ class BaseTrainer:
                 # LOGGING INFO
                 self.logger.info(f'\n         ## Info for epoch {epoch} ## ')
                 for k, v in results.items():
-                    self.logger.info(f'         {str(k):15s}: {v}')
+                    self.logger.info(
+                        f'\n    Class {k}: ')
+                    for q, p in k.items():
+                        self.logger.info(f'         {str(q):15s}: {p}')
             
             if self.train_logger is not None:
                 log = {'epoch' : epoch, **results}
-                self.train_logger.add_entry(log)
+                self.train_logger.info(log)
 
             # CHECKING IF THIS IS THE BEST MODEL (ONLY FOR VAL)
             if self.mnt_mode != 'off' and epoch % self.config['trainer']['val_per_epochs'] == 0:
