@@ -152,7 +152,7 @@ class DSTLTrainer(BaseTrainer):
                         total_metric_totals[str(class_idx)][k] += v
 
             # PRINT INFO
-            seg_metrics = self._get_seg_metrics(total_metric_totals)
+            seg_metrics = self._get_seg_metrics(metrics_totals)
             description = f'TRAIN EPOCH {epoch} | Batch: {batch_idx + 1} | '
             for k, v in seg_metrics.items():
                 description += f'{self.convert_to_title_case(k)}: {v:.3f} | '
@@ -228,7 +228,7 @@ class DSTLTrainer(BaseTrainer):
                          output_np[0]])
 
                 # PRINT INFO
-                seg_metrics = self._get_seg_metrics(total_metric_totals)
+                seg_metrics = self._get_seg_metrics(metrics_totals)
                 description = f'EVAL EPOCH {epoch} | Batch: {batch_idx + 1} | '
                 for k, v in seg_metrics.items():
                     description += f'{self.convert_to_title_case(k)}: {v:.3f} | '
@@ -254,13 +254,6 @@ class DSTLTrainer(BaseTrainer):
             val_img = torch.stack(val_img, 0)
             val_img = make_grid(val_img.cpu(), nrow=3, padding=5)
             self.writer.add_image(f'inputs_targets_predictions', val_img, epoch)
-
-            # WRITE TO FILE
-            seg_metrics = self._get_seg_metrics(total_metric_totals)
-            self.logger.info(description)
-            seg_metrics_json = json.dumps(seg_metrics, indent=4,
-                                          sort_keys=True)
-            self.logger.info(seg_metrics_json)
 
         # Add loss
         total_metric_totals['all']['loss'] = loss_history
