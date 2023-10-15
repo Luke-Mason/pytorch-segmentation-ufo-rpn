@@ -111,18 +111,15 @@ class JaccardCoefficient(nn.Module):
         self.threshold = threshold
         super(JaccardCoefficient, self).__init__()
 
-    def calculate_loss(self, output, target):
-        output = (output > self.threshold)
-        target = (target > self.threshold)
+    def forward(self, output, target):
+        # output = (output > self.threshold)
+        # target = (target > self.threshold)
         y_true_f = target.flatten()
         y_pred_f = output.flatten()
         intersection = (y_true_f * y_pred_f).sum()
         return (intersection + 1.0) / (
                 y_true_f.sum() + y_pred_f.sum() -
                 intersection + 1.0)
-
-    def forward(self, output, target):
-        return self.calculate_loss(output, target)
 
 
 class Recall(nn.Module):
