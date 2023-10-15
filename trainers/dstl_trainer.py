@@ -141,16 +141,16 @@ class DSTLTrainer(BaseTrainer):
                 for k, v in metrics_totals.items():
                     total_metric_totals['all'][k] += v
 
-            # for class_idx in range(self.num_classes):
-            #     class_metrics_totals = eval_metrics(
-            #         output[:, class_idx, :, :][:, np.newaxis, :, :],
-            #         target[:, class_idx, :, :][:, np.newaxis, :, :],
-            #                                         self.threshold)
-            #     if str(class_idx) not in total_metric_totals:
-            #         total_metric_totals[str(class_idx)] = class_metrics_totals
-            #     else:
-            #         for k, v in class_metrics_totals.items():
-            #             total_metric_totals[str(class_idx)][k] += v
+            for class_idx in range(self.num_classes):
+                class_metrics_totals = eval_metrics(
+                    output[:, class_idx, :, :][:, np.newaxis, :, :],
+                    target[:, class_idx, :, :][:, np.newaxis, :, :],
+                                                    self.threshold)
+                if str(class_idx) not in total_metric_totals:
+                    total_metric_totals[str(class_idx)] = class_metrics_totals
+                else:
+                    for k, v in class_metrics_totals.items():
+                        total_metric_totals[str(class_idx)][k] += v
             end_time = time.time()
             elapsed_time = end_time - start_time
             print(f"Elapsed time: {elapsed_time} seconds")
