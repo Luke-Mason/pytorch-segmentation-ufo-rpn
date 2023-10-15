@@ -11,7 +11,7 @@
         }
     },
     "trainer": {
-        "epochs": 10,
+        "epochs": 3,
         "save_dir": "saved/",
         "save_period": 20,
         "monitor": "max Mean_IoU",
@@ -49,7 +49,7 @@
             "flip": true,
             "rotate": true,
             "blur": true,
-            "num_workers": 4
+            "num_workers": 8
         }
     },
     "optimizer": {

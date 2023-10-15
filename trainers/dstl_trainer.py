@@ -121,7 +121,7 @@ class DSTLTrainer(BaseTrainer):
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
-            self.lr_scheduler.step(epoch=epoch - 1)
+            self.lr_scheduler.step()
 
             # measure elapsed time
             self.batch_time.update(time.time() - tic)
@@ -132,8 +132,6 @@ class DSTLTrainer(BaseTrainer):
                 loss_history = np.append(loss_history, loss.item())
 
             # FOR EVAL
-            print("TRAIN output shape ", output.shape, "target shape ",
-                  target.shape)
             metrics_totals = eval_metrics(output, target, self.threshold)
             if 'all' not in total_metric_totals:
                 total_metric_totals['all'] = metrics_totals
@@ -200,8 +198,6 @@ class DSTLTrainer(BaseTrainer):
                     loss_history = np.append(loss_history, loss.item())
 
                 # METRICS
-                print("VAL output shape ", output.shape, "target shape ",
-                      target.shape)
                 metrics_totals = eval_metrics(output, target, self.threshold)
                 if 'all' not in total_metric_totals:
                     total_metric_totals['all'] = metrics_totals
@@ -233,6 +229,8 @@ class DSTLTrainer(BaseTrainer):
                 description = f'EVAL EPOCH {epoch} | Batch: {batch_idx + 1} | '
                 for k, v in seg_metrics.items():
                     description += f'{self.convert_to_title_case(k)}: {v:.3f} | '
+
+                description += f"| B {self.batch_time.average:.2f} D {self.data_time.average:.2f} |"
                 tbar.set_description(description)
 
 
