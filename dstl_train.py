@@ -270,7 +270,7 @@ def main(config, resume):
                 'train_loader', _wkt_data, config, train_indxs, val_indxs)
 
             # MODEL
-            model = get_instance(models, 'arch', config, training_classes_)
+            model = get_instance(models, 'arch', config, len(training_classes_))
 
             if train_loader.get_val_loader() is None:
                 raise ValueError("Val Loader is None")
