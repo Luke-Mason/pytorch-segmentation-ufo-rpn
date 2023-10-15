@@ -131,7 +131,8 @@ class DSTLTrainer(BaseTrainer):
                 loss_history = np.append(loss_history, loss.item())
 
             # FOR EVAL
-            print("output shape ", output.shape, "target shape ", target.shape)
+            print("TRAIN output shape ", output.shape, "target shape ",
+                  target.shape)
             all_metrics_totals = eval_metrics(output, target, self.threshold)
             if 'all' not in metric_totals:
                 metric_totals['all'] = all_metrics_totals
@@ -197,7 +198,8 @@ class DSTLTrainer(BaseTrainer):
                     loss_history = np.append(loss_history, loss.item())
 
                 # METRICS
-                all_metrics_totals = eval_metrics(output, target, self.threshold)
+                print("VAL output shape ", output.shape, "target shape ",
+                      all_metrics_totals = eval_metrics(output, target, self.threshold)
                 if 'all' not in metric_totals:
                     metric_totals['all'] = all_metrics_totals
                 else:
