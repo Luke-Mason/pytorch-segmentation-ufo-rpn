@@ -112,18 +112,8 @@ class JaccardCoefficient(nn.Module):
         super(JaccardCoefficient, self).__init__()
 
     def forward(self, output, target):
-        print("out req grad: ", output.requires_grad)
-        print("target req grad: ", target.requires_grad)
-        out = (output > self.threshold).float().clone()
-        # tar = (target > self.threshold).float()
-        out.retain_grad()
-        # tar.retain_grad()
-        print("out req grad 2: ", out.requires_grad)
-        print("target req grad 2: ", tar.requires_grad)
-        y_pred_f = out.flatten()
-        y_true_f = tar.flatten()
-        print("out req grad 3: ", out.requires_grad)
-        print("target req grad 3: ", tar.requires_grad)
+        y_pred_f = output.flatten()
+        y_true_f = target.flatten()
         intersection = (y_true_f * y_pred_f).sum()
         return (intersection + 1.0) / (
                 y_true_f.sum() + y_pred_f.sum() -
