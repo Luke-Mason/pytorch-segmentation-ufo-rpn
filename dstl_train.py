@@ -92,11 +92,11 @@ def write_metric(writer, stats, metric, func, class_name, metric_name):
     print("STATS", stats, metric, func, class_name, metric_name)
     for m in stats[metric]:
         print("DUDE", m)
-        for index in range(len(m['train'])):
-            m_t = m['train'][:, index]
+        for index in range(len(dict(m)['train'])):
+            m_t = dict(m)['train'][:, index]
             metric_t = func(m_t)
 
-            m_v = m['val'][:, index]
+            m_v = dict(m)['val'][:, index]
             metric_v = func(m_v)
 
             writer.add_scalar(f'{class_name}/{metric_name}', {
