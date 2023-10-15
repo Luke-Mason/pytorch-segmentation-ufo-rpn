@@ -56,15 +56,34 @@ def get_instance(module, name, config, *args):
     return getattr(module, config[name]['type'])(*args, **config[name]['args'])
 
 
-def split_array(array, num_parts):
-    parts = []
-    for start, end in zip(range(0, num_parts), range(num_parts, num_parts * 2)):
-        if end < len(array) - 1:
-            end_index = end
-        else:
-            end_index = end - len(array)
-        parts.append([array[start], array[end_index]])
-    return parts
+def stratified_split(sorted_array, group_size):
+    """
+    Stratified split of a sorted array into groups of specified size.
+
+    Parameters:
+    sorted_array (list): The sorted array to be split.
+    group_size (int): The size of each group.
+
+    Returns:
+    list: A list of lists representing the stratified split.
+    """
+    num_elements = len(sorted_array)
+    num_groups = num_elements // group_size
+    remainder = num_elements % group_size
+
+    groups = []
+    start_idx = 0
+
+    for i in range(num_groups):
+        group_end = start_idx + group_size
+        groups.append(sorted_array[start_idx:group_end])
+        start_idx = group_end
+
+    # If there's a remainder, add it as the last group
+    if remainder > 0:
+        groups.append(sorted_array[start_idx:])
+
+    return np.array(groups).transpose((1, 0))
 
 
 def write_metric(writer, stats, metric, func, class_name, metric_name):
@@ -199,14 +218,9 @@ def main(config, resume):
                for idx, im_id in enumerate(image_ids)]
 
     sorted_by_area = sorted(im_area, key=lambda x: str(x[1]), reverse=True)
-    logger.debug(f"sorted_by_area: {sorted_by_area}")
-    print(f"sorted_by_area: {sorted_by_area}")
-
-    arr = split_array(sorted_by_area, 5)
-    logger.debug(f"arr: {arr}")
-    print(f"arr: {arr}")
-    stratisfied_indices = np.array([k for k, v in arr[0]]
-    logger.debug(f"Stratisfied: {stratisfied_indices}")
+    sorted_by_area = [t[0] for t in sorted_by_area]
+    arr = stratified_split(sorted_by_area, 5)
+    stratisfied_indices = arr.flatten()
 
     # LOSS
     loss = getattr(losses, config['loss'])(threshold=config['threshold'])
@@ -233,22 +247,23 @@ def main(config, resume):
             val_indxs = stratisfied_indices[val_indxs_of_indxs]
 
             # Logging
-            logger.info(f"Train: {' '.join(sorted(train_indxs))}")
-            logger.info(f"Valid: {' '.join(sorted(val_indxs))}")
+            logger.info(f"Train: {' '.join([str(k) for k in train_indxs])}")
+            logger.info(f"Valid: {' '.join([str(k) for k in val_indxs])}")
             logger.info(
                 f'Train area mean: {np.mean([area_by_id[im_id] for im_id in train_indxs]):.6f}')
             logger.info(
                 f'Valid area mean: {np.mean([area_by_id[im_id] for im_id in val_indxs]):.6f}')
             train_area_by_class, valid_area_by_class = [
                 {cls: np.mean(
-                    [mask_stats[im_id][str(cls)]['area'] for im_id in im_ids])
+                    [mask_stats[image_ids[im_id]][str(cls)]['area'] for im_id 
+                     in im_ids])
                     for cls in training_classes_}
                 for im_ids in [train_indxs, val_indxs]]
 
             logger.info(f"Train area by class: "
-                        f"{' '.join(f'{cls}: {train_area_by_class[cls]:.6f}' for cls in train_loader.dataset.train_classes)}")
+                        f"{' '.join(f'{cls}: {train_area_by_class[cls]:.6f}' for cls in training_classes_)}")
             logger.info(f"Valid area by class: "
-                        f"{' '.join(f'cls-{cls}: {valid_area_by_class[cls]:.6f}' for cls in train_loader.dataset.train_classes)}")
+                        f"{' '.join(f'cls-{cls}: {valid_area_by_class[cls]:.6f}' for cls in training_classes_)}")
 
             # DATA LOADERS
             train_loader = get_loader_instance(
