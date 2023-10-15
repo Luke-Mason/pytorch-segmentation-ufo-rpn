@@ -47,6 +47,16 @@ def get_instance(module, name, config, *args):
     # GET THE CORRESPONDING CLASS / FCT
     return getattr(module, config[name]['type'])(*args, **config[name]['args'])
 
+def split_array(array, num_parts):
+    parts = []
+    for start, end in zip(range(0, num_parts), range(num_parts, num_parts*2)):
+        if end < len(array) - 1:
+             end_index = end
+        else:
+            end_index = end - len(array)
+        parts.append([array[start], array[end_index]])
+    return parts
+
 def main(config, resume):
     train_logger = Logger()
 
@@ -76,6 +86,17 @@ def main(config, resume):
 
     _wkt_data = list(_wkt_data.items())
 
+    # Stratified K-Fold
+    mask_stats = json.loads(Path(
+        'dataloaders/labels/dstl-stats.json').read_text())
+    im_area = [(im_id, np.mean([mask_stats[im_id][str(cls)]['area']
+                                for cls in hps.classes]))
+               for im_id in all_im_ids]
+
+    sorted_by_area = sorted(im_area, key=lambda x: (x[1], x[0]), reverse=True)
+    arr = split_array(sorted_by_area, 5)
+    stratisfied_indices_by_class_area =np.array(arr).flatten()
+
     # LOSS
     loss = getattr(losses, config['loss'])(ignore_index=config['ignore_index'])
     start_time = datetime.datetime.now().strftime('%m-%d_%H-%M')
@@ -86,6 +107,9 @@ def main(config, resume):
         random_state_ = config["trainer"]["k_random_state"] if shuffle_ else None
         kfold = KFold(n_splits=config["trainer"]["k_split"],
                       shuffle=shuffle_, random_state=random_state_)
+
+        area_by_id = dict(im_area)
+
         # Iterate over the K folds
         for fold, (train_indxs, val_indxs) in enumerate(kfold.split(_wkt_data)):
             train_logger.add_entry(f'Starting Fold {fold + 1}:')
@@ -100,6 +124,19 @@ def main(config, resume):
 
             if train_loader.get_val_loader() is None:
                 raise ValueError("Val Loader is None")
+
+            logger.info('Train: {}'.format(' '.join(sorted(train_ids))))
+            logger.info('Valid: {}'.format(' '.join(sorted(valid_ids))))
+            logger.info('Train area mean: {:.6f}'.format(
+                np.mean([area_by_id[im_id] for im_id in valid_ids])))
+            logger.info('Train area by class: {}'.format(
+                ' '.join('{}: {:.6f}'.format(cls, train_area_by_class[cls])
+                         for cls in hps.classes)))
+            logger.info('Valid area mean: {:.6f}'.format(
+                np.mean([area_by_id[im_id] for im_id in train_ids])))
+            logger.info('Valid area by class: {}'.format(
+                ' '.join('cls-{}: {:.6f}'.format(cls, valid_area_by_class[cls])
+                         for cls in hps.classes)))
 
             # TRAINING
             trainer = DSTLTrainer(
