@@ -146,7 +146,7 @@ def write_stats_to_tensorboard(writer, class_stats):
     # LOSS
     # write_metric(writer, class_stats['all'], 'loss', np.mean, 'all', 'Loss')
 
-    for class_name, stats in class_stats.item():
+    for class_name, stats in class_stats.items():
 
         # # mAP
         # write_metric(writer, stats, 'average_precision', np.mean, class_name, 'mAP')
@@ -259,7 +259,7 @@ def main(config, resume):
                 f'Valid area mean: {np.mean([area_by_id[im_id] for im_id in val_indxs]):.6f}')
             train_area_by_class, valid_area_by_class = [
                 {cls: np.mean(
-                    [mask_stats[image_ids[im_id]][str(cls)]['area'] for im_id 
+                    [mask_stats[image_ids[im_id]][str(cls)]['area'] for im_id
                      in im_ids])
                     for cls in training_classes_}
                 for im_ids in [train_indxs, val_indxs]]
@@ -316,8 +316,6 @@ def main(config, resume):
 
         # Write the stats to tensorboard
         write_stats_to_tensorboard(writer, fold_stats)
-
-        print('train_cIoU', train_ti)
 
     else:
         # DATA LOADERS
