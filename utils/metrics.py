@@ -14,11 +14,11 @@ def recall(intersection, total_positives):
     return intersection / (total_positives + np.spacing(1))
 
 def f1_score(intersection, predicted_positives, total_positives):
-    precision = precision(intersection, predicted_positives)
-    recall = recall(intersection, total_positives)
+    p = precision(intersection, predicted_positives)
+    r = recall(intersection, total_positives)
 
     # Compute F1 score
-    return 2 * (precision * recall) / (precision + recall + np.spacing(1))
+    return 2 * (p * r) / (p + r + np.spacing(1))
 
 def mean_average_precision(average_precision):
     return np.mean(average_precision)
