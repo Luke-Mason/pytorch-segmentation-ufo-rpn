@@ -92,7 +92,7 @@ class DSTLTrainer(BaseTrainer):
         tic = time.time()
 
         loss_history = np.array([])
-        metric_totals = dict()
+        total_metric_totals = dict()
         self.batch_time = AverageMeter()
         self.data_time = AverageMeter()
         tbar = tqdm(self.train_loader, ncols=130)
@@ -133,26 +133,26 @@ class DSTLTrainer(BaseTrainer):
             # FOR EVAL
             print("TRAIN output shape ", output.shape, "target shape ",
                   target.shape)
-            all_metrics_totals = eval_metrics(output, target, self.threshold)
-            if 'all' not in metric_totals:
-                metric_totals['all'] = all_metrics_totals
+            metrics_totals = eval_metrics(output, target, self.threshold)
+            if 'all' not in total_metric_totals:
+                total_metric_totals['all'] = metrics_totals
             else:
-                for k, v in all_metrics_totals.items():
-                    metric_totals['all'][k] += v
+                for k, v in metrics_totals.items():
+                    total_metric_totals['all'][k] += v
 
             for class_idx in range(self.num_classes):
                 class_metrics_totals = eval_metrics(
                     output[:, class_idx, :, :][:, np.newaxis, :, :],
                     target[:, class_idx, :, :][:, np.newaxis, :, :],
                                                     self.threshold)
-                if str(class_idx) not in metric_totals:
-                    metric_totals[str(class_idx)] = class_metrics_totals
+                if str(class_idx) not in total_metric_totals:
+                    total_metric_totals[str(class_idx)] = class_metrics_totals
                 else:
                     for k, v in class_metrics_totals.items():
-                        metric_totals[str(class_idx)][k] += v
+                        total_metric_totals[str(class_idx)][k] += v
 
             # PRINT INFO
-            seg_metrics = self._get_seg_metrics()
+            seg_metrics = self._get_seg_metrics(total_metric_totals)
             description = f'TRAIN EPOCH {epoch} | Batch: {batch_idx + 1} | '
             for k, v in seg_metrics.items():
                 description += f'{self.convert_to_title_case(k)}: {v:.3f} | '
@@ -161,9 +161,9 @@ class DSTLTrainer(BaseTrainer):
         self.logger.info(f"Finished training epoch {epoch}")
 
         # Add loss
-        metric_totals['all']['loss'] = loss_history
+        total_metric_totals['all']['loss'] = loss_history
 
-        return metric_totals
+        return total_metric_totals
 
     def convert_to_title_case(self, input_string):
         words = input_string.split('_')
@@ -181,7 +181,7 @@ class DSTLTrainer(BaseTrainer):
         self.wrt_mode = 'val'
 
         loss_history = np.array([])
-        metric_totals = dict()
+        total_metric_totals = dict()
 
         tbar = tqdm(self.val_loader, ncols=130)
         with torch.no_grad():
@@ -201,23 +201,23 @@ class DSTLTrainer(BaseTrainer):
                 # METRICS
                 print("VAL output shape ", output.shape, "target shape ",
                       target.shape)
-                all_metrics_totals = eval_metrics(output, target, self.threshold)
-                if 'all' not in metric_totals:
-                    metric_totals['all'] = all_metrics_totals
+                metrics_totals = eval_metrics(output, target, self.threshold)
+                if 'all' not in total_metric_totals:
+                    total_metric_totals['all'] = metrics_totals
                 else:
-                    for k, v in all_metrics_totals.items():
-                        metric_totals['all'][k] += v
+                    for k, v in metrics_totals.items():
+                        total_metric_totals['all'][k] += v
 
                 for class_idx in range(self.num_classes):
                     class_metrics_totals = eval_metrics(
                         output[:, class_idx, :, :][:, np.newaxis, :, :],
                         target[:, class_idx, :, :][:, np.newaxis, :, :],
                                                     self.threshold)
-                    if str(class_idx) not in metric_totals:
-                        metric_totals[str(class_idx)] = class_metrics_totals
+                    if str(class_idx) not in total_metric_totals:
+                        total_metric_totals[str(class_idx)] = class_metrics_totals
                     else:
                         for k, v in class_metrics_totals.items():
-                            metric_totals[str(class_idx)][k] += v
+                            total_metric_totals[str(class_idx)][k] += v
 
                 # LIST OF IMAGE TO VIZ (15 images)
                 if len(val_visual) < 15:
@@ -228,7 +228,7 @@ class DSTLTrainer(BaseTrainer):
                          output_np[0]])
 
                 # PRINT INFO
-                seg_metrics = self._get_seg_metrics()
+                seg_metrics = self._get_seg_metrics(total_metric_totals)
                 description = f'EVAL EPOCH {epoch} | Batch: {batch_idx + 1} | '
                 for k, v in seg_metrics.items():
                     description += f'{self.convert_to_title_case(k)}: {v:.3f} | '
@@ -256,16 +256,16 @@ class DSTLTrainer(BaseTrainer):
             self.writer.add_image(f'inputs_targets_predictions', val_img, epoch)
 
             # WRITE TO FILE
-            seg_metrics = self._get_seg_metrics()
+            seg_metrics = self._get_seg_metrics(total_metric_totals)
             self.logger.info(description)
             seg_metrics_json = json.dumps(seg_metrics, indent=4,
                                           sort_keys=True)
             self.logger.info(seg_metrics_json)
 
         # Add loss
-        metric_totals['all']['loss'] = loss_history
+        total_metric_totals['all']['loss'] = loss_history
 
-        return metric_totals
+        return total_metric_totals
 
     def _get_seg_metrics(self, seg_totals):
         pixAcc = pixel_accuracy(seg_totals['correct_pixels'], seg_totals['total_labeled_pixels'])
