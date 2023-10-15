@@ -237,7 +237,6 @@ class BaseTrainer:
 
         # stats['all']['lr']['0'] = self.optimizer.param_groups[0]['lr']
         # stats['all']['lr']['1'] = self.optimizer.param_groups[1]['lr']
-
         return self.writer, stats
 
 
