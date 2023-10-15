@@ -146,8 +146,8 @@ def write_stats_to_tensorboard(writer, class_stats):
 
     for class_name, stats in class_stats.item():
 
-        # mAP
-        write_metric(writer, stats, 'average_precision', np.mean, class_name, 'mAP')
+        # # mAP
+        # write_metric(writer, stats, 'average_precision', np.mean, class_name, 'mAP')
 
         # PIXEL ACCURACY
         write_metric_2_param(writer, stats, 'total_correct',
