@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
+from sklearn.metrics import average_precision_score
 
 def pixel_accuracy(correct_pixels, total_labeled_pixels):
     return correct_pixels / (total_labeled_pixels + np.spacing(1))
