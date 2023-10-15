@@ -235,8 +235,8 @@ class BaseTrainer:
             if epoch % self.save_period == 0:
                 self._save_checkpoint(epoch, save_best=self.improved)
 
-        stats['all']['lr']['0'] = self.optimizer.param_groups[0]['lr']
-        stats['all']['lr']['1'] = self.optimizer.param_groups[1]['lr']
+        # stats['all']['lr']['0'] = self.optimizer.param_groups[0]['lr']
+        # stats['all']['lr']['1'] = self.optimizer.param_groups[1]['lr']
 
         return self.writer, stats
 
