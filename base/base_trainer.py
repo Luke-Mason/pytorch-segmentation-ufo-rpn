@@ -10,10 +10,31 @@ from utils import logger
 import utils.lr_scheduler
 from utils.sync_batchnorm import convert_model
 from utils.sync_batchnorm import DataParallelWithCallback
+import numpy as np
 
 def get_instance(module, name, config, *args):
     # GET THE CORRESPONDING CLASS / FCT 
     return getattr(module, config[name]['type'])(*args, **config[name]['args'])
+
+def initiate_stats():
+    return dict({
+        'loss': dict({'train': np.array([]), 'val': np.array([])}),
+        'total_correct': dict({'train': np.array([]), 'val': np.array([])}),
+        'total_label': dict({'train': np.array([]), 'val': np.array([])}),
+        'total_inter': dict({'train': np.array([]), 'val': np.array([])}),
+        'total_union': dict({'train': np.array([]), 'val': np.array([])})
+    })
+
+
+def update_stats(stats, results, type='train'):
+    loss, tc, tl, ti, tu = results
+    stats['loss'][type].append(loss)
+    stats['total_correct'][type].append(tc)
+    stats['total_label'][type].append(tl)
+    stats['total_inter'][type].append(ti)
+    stats['total_union'][type].append(tu)
+
+    return stats
 
 class BaseTrainer:
 
@@ -147,15 +168,34 @@ class BaseTrainer:
         return device, available_gpus
     
     def train(self):
-        print(self.start_epoch)
-        print(self.epochs)
+        stats = dict()
+
         for epoch in range(self.start_epoch, self.epochs+1):
             # RUN TRAIN (AND VAL)
             results = self._train_epoch(epoch)
-            train_loss, train_acc, train_mIoU, train_cIoU = results
+            for class_name, metric_totals in results.items():
+                if class_name not in stats:
+                    stats[class_name] = dict()
+                for metric_name, total in metric_totals.items():
+                    if metric_name not in stats[class_name]:
+                        stats[class_name][metric_name] = dict({
+                            'train': np.array([]),
+                            'val': np.array([])
+                        })
+                    stats[class_name][metric_name]['train'].append(total)
+
             if self.do_validation and epoch % self.config['trainer']['val_per_epochs'] == 0:
                 results = self._valid_epoch(epoch)
-                val_loss, val_acc, val_mIoU, val_cIoU = results
+                for class_name, metric_totals in results.items():
+                    if class_name not in stats:
+                        stats[class_name] = dict()
+                    for metric_name, total in metric_totals.items():
+                        if metric_name not in stats[class_name]:
+                            stats[class_name][metric_name] = dict({
+                                'train': np.array([]),
+                                'val': np.array([])
+                            })
+                        stats[class_name][metric_name]['val'].append(total)
 
                 # LOGGING INFO
                 self.logger.info(f'\n         ## Info for epoch {epoch} ## ')
@@ -189,6 +229,12 @@ class BaseTrainer:
             # SAVE CHECKPOINT
             if epoch % self.save_period == 0:
                 self._save_checkpoint(epoch, save_best=self.improved)
+
+        stats['all']['lr']['0'] = self.optimizer.param_groups[0]['lr']
+        stats['all']['lr']['1'] = self.optimizer.param_groups[1]['lr']
+
+        return self.writer, stats
+
 
     def _save_checkpoint(self, epoch, save_best=False):
         state = {
