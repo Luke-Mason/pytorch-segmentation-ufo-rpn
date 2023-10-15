@@ -112,10 +112,10 @@ class JaccardCoefficient(nn.Module):
         super(JaccardCoefficient, self).__init__()
 
     def forward(self, output, target):
-        # output = (output > self.threshold)
-        # target = (target > self.threshold)
-        y_true_f = target.flatten()
-        y_pred_f = output.flatten()
+        out = (output > self.threshold).float()
+        tar = (target > self.threshold).float()
+        y_pred_f = out.flatten()
+        y_true_f = tar.flatten()
         intersection = (y_true_f * y_pred_f).sum()
         return (intersection + 1.0) / (
                 y_true_f.sum() + y_pred_f.sum() -
