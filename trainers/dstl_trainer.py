@@ -45,6 +45,7 @@ class DSTLTrainer(BaseTrainer):
         self.max_clip_percentile = 98
 
         torch.backends.cudnn.benchmark = True
+        self.threshold = config["threshold"]
 
     def dra(self, array: np.ndarray) -> np.ndarray:
         output = np.zeros(array.shape, np.uint8)
