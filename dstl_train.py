@@ -270,7 +270,8 @@ def main(config, resume):
                 'train_loader', _wkt_data, config, train_indxs, val_indxs)
 
             # MODEL
-            model = get_instance(models, 'arch', config, len(training_classes_))
+            model = get_instance(models, 'arch', config,
+                                 len(training_classes_) + 1)
 
             if train_loader.get_val_loader() is None:
                 raise ValueError("Val Loader is None")
@@ -319,7 +320,7 @@ def main(config, resume):
         train_loader = get_loader_instance('train_loader', _wkt_data, config)
 
         # MODELMODEL
-        model = get_instance(models, 'arch', config, len(training_classes_))
+        model = get_instance(models, 'arch', config, len(training_classes_) + 1)
 
         # TRAINING
         trainer = DSTLTrainer(
