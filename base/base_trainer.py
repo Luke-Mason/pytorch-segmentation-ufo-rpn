@@ -182,7 +182,8 @@ class BaseTrainer:
                             'train': np.array([]),
                             'val': np.array([])
                         })
-                    stats[class_name][metric_name]['train'].append(total)
+                    stats[class_name][metric_name]['train'] = np.append(
+                        stats[class_name][metric_name]['train'], total)
 
             if self.do_validation and epoch % self.config['trainer']['val_per_epochs'] == 0:
                 results = self._valid_epoch(epoch)
@@ -195,7 +196,8 @@ class BaseTrainer:
                                 'train': np.array([]),
                                 'val': np.array([])
                             })
-                        stats[class_name][metric_name]['val'].append(total)
+                        stats[class_name][metric_name]['val'] = np.append(
+                            stats[class_name][metric_name]['val'], total)
 
                 # LOGGING INFO
                 self.logger.info(f'\n         ## Info for epoch {epoch} ## ')
