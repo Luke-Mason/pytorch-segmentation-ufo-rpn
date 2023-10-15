@@ -199,8 +199,8 @@ class DSTLTrainer(BaseTrainer):
 
                 # METRICS
                 print("VAL output shape ", output.shape, "target shape ",
-                  target.shape)
-                      all_metrics_totals = eval_metrics(output, target, self.threshold)
+                      target.shape)
+                all_metrics_totals = eval_metrics(output, target, self.threshold)
                 if 'all' not in metric_totals:
                     metric_totals['all'] = all_metrics_totals
                 else:
