@@ -319,8 +319,7 @@ def main(config, resume):
         train_loader = get_loader_instance('train_loader', _wkt_data, config)
 
         # MODELMODEL
-        model = get_instance(models, 'arch', config,
-                             training_classes_)
+        model = get_instance(models, 'arch', config, len(training_classes_))
 
         # TRAINING
         trainer = DSTLTrainer(

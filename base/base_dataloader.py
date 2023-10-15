@@ -10,7 +10,6 @@ class BaseDataLoader(DataLoader):
         self.shuffle = shuffle
         self.dataset = dataset
         self.nbr_examples = len(dataset)
-        print("val: ", val, " train_indxs: ", train_indxs, " val_indxs: ", val_indxs)
         if val: self.train_sampler, self.val_sampler = (
             self._split_sampler(train_indxs, val_indxs))
         else: self.train_sampler, self.val_sampler = None, None
