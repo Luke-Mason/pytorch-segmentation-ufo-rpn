@@ -132,6 +132,8 @@ class DSTLTrainer(BaseTrainer):
                 loss_history = np.append(loss_history, loss.item())
 
             # FOR EVAL
+            start_time = time.time()
+
             metrics_totals = eval_metrics(output, target, self.threshold)
             if 'all' not in total_metric_totals:
                 total_metric_totals['all'] = metrics_totals
@@ -149,12 +151,18 @@ class DSTLTrainer(BaseTrainer):
                 else:
                     for k, v in class_metrics_totals.items():
                         total_metric_totals[str(class_idx)][k] += v
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+            print(f"Elapsed time: {elapsed_time} seconds")
+
 
             # PRINT INFO
             seg_metrics = self._get_seg_metrics(metrics_totals)
             description = f'TRAIN EPOCH {epoch} | Batch: {batch_idx + 1} | '
             for k, v in seg_metrics.items():
-                description += f'{self.convert_to_title_case(k)}: {v:.3f} | '
+                description += f'{k}: {v:.3f} | '
+
+            description += f"| B {self.batch_time.average:.2f} D {self.data_time.average:.2f} |"
             tbar.set_description(description)
 
         self.logger.info(f"Finished training epoch {epoch}")
@@ -222,7 +230,7 @@ class DSTLTrainer(BaseTrainer):
                     output_np = output.data.max(1)[1].cpu().numpy()
                     val_visual.append(
                         [self.dra(data[0].data.cpu()), target_np[0],
-                         output_np[0]])
+                         output_np])
 
                 # PRINT INFO
                 seg_metrics = self._get_seg_metrics(metrics_totals)
@@ -241,7 +249,6 @@ class DSTLTrainer(BaseTrainer):
                 # TODO scale the last 8 bands
                 dta = dta * 2048
 
-                print("viz shapes: ", dta.shape, tgt.shape, out.shape)
                 dta = dta.transpose(1,2,0)
                 tgt = tgt.transpose(1,2,0)
                 dta = self.restore_transform(dta.astype(np.uint8))
