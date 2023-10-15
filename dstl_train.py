@@ -90,6 +90,7 @@ def stratified_split(sorted_array, group_size):
 
 def write_metric(writer, stats, metric, func, class_name, metric_name):
     for m in stats[metric]:
+        print("DUDE", m)
         for index in range(len(m['train'])):
             m_t = m['train'][:, index]
             metric_t = func(m_t)
