@@ -114,7 +114,7 @@ class JaccardCoefficient(nn.Module):
     def forward(self, output, target):
         print("out req grad: ", output.requires_grad)
         print("target req grad: ", target.requires_grad)
-        out = (output > self.threshold).float().copy()
+        out = (output > self.threshold).float().clone()
         # tar = (target > self.threshold).float()
         out.retain_grad()
         # tar.retain_grad()
