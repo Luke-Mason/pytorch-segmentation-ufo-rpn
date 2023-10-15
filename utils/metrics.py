@@ -55,8 +55,8 @@ def eval_metrics(output, target, threshold=0.5):
     # For each class
     for class_ in range(num_classes):
         # Get class-specific output and target
-        output_class = output[:, class_, :, :]
-        target_class = target[:, class_, :, :]
+        output_class = output[class_, :, :]
+        target_class = target[class_, :, :]
 
         # Get class-specific average precision
         class_average_precision = average_precision_score(
