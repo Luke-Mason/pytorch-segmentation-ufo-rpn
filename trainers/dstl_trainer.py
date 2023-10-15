@@ -141,16 +141,16 @@ class DSTLTrainer(BaseTrainer):
                 for k, v in metrics_totals.items():
                     total_metric_totals['all'][k] += v
 
-            for class_idx in range(self.num_classes):
-                class_metrics_totals = eval_metrics(
-                    output[:, class_idx, :, :][:, np.newaxis, :, :],
-                    target[:, class_idx, :, :][:, np.newaxis, :, :],
-                                                    self.threshold)
-                if str(class_idx) not in total_metric_totals:
-                    total_metric_totals[str(class_idx)] = class_metrics_totals
-                else:
-                    for k, v in class_metrics_totals.items():
-                        total_metric_totals[str(class_idx)][k] += v
+            # for class_idx in range(self.num_classes):
+            #     class_metrics_totals = eval_metrics(
+            #         output[:, class_idx, :, :][:, np.newaxis, :, :],
+            #         target[:, class_idx, :, :][:, np.newaxis, :, :],
+            #                                         self.threshold)
+            #     if str(class_idx) not in total_metric_totals:
+            #         total_metric_totals[str(class_idx)] = class_metrics_totals
+            #     else:
+            #         for k, v in class_metrics_totals.items():
+            #             total_metric_totals[str(class_idx)][k] += v
             end_time = time.time()
             elapsed_time = end_time - start_time
             print(f"Elapsed time: {elapsed_time} seconds")
@@ -274,13 +274,13 @@ class DSTLTrainer(BaseTrainer):
             'total_positives'])
         f1 = f1_score(seg_totals['intersection'], seg_totals[
             'predicted_positives'], seg_totals['total_positives'])
-        mAP = mean_average_precision(seg_totals['average_precision'])
+        # mAP = mean_average_precision(seg_totals['average_precision'])
         mIoU = intersection_over_union(seg_totals['intersection'], seg_totals[
             'union'])
 
         return {
             "Mean_IoU": np.round(mIoU, 3),
-            "mAP": np.round(mAP, 3),
+            # "mAP": np.round(mAP, 3),
             "F1": np.round(f1, 3),
             "Pixel_Accuracy": np.round(pixAcc, 3),
             "Precision": np.round(p, 3),
