@@ -3,6 +3,80 @@ import torch
 import torch.nn.functional as F
 import torch.nn as nn
 
+def pixel_accuracy(correct_pixels, total_labeled_pixels):
+    return correct_pixels / (total_labeled_pixels + np.spacing(1))
+
+def precision(intersection, predicted_positives):
+    return intersection / (predicted_positives + np.spacing(1))
+
+def recall(intersection, total_positives):
+    return intersection / (total_positives + np.spacing(1))
+
+def f1_score(intersection, predicted_positives, total_positives):
+    precision = precision(intersection, predicted_positives)
+    recall = recall(intersection, total_positives)
+
+    # Compute F1 score
+    return 2 * (precision * recall) / (precision + recall + np.spacing(1))
+
+def mean_average_precision(average_precision):
+    return np.mean(average_precision)
+
+def intersection_over_union(intersection, union):
+    return intersection / (union + np.spacing(1))
+
+def eval_metrics(output, target, threshold=0.5):
+    output = (output > threshold).float().detach().clone()
+    target = (target > threshold).float().detach().clone()
+
+    # All positives in prediction
+    predicted_positives = torch.sum(output)
+
+    # Pixel Accuracy Components
+    # Correct pixels
+    correct_pixels = torch.sum(output == target)
+    total_labeled_pixels = torch.sum(target == 1)
+
+    # Recall Components
+    total_positives = torch.sum(target)
+
+    # IoU Components
+    # True positives
+    intersection = torch.sum(output * target)
+    union = torch.sum(output) + torch.sum(target) - intersection
+
+    # Average Precision Components
+    # Number of classes
+    num_classes = output.shape[1]
+    # Initialize average precision list
+    average_precision = []
+
+    # For each class
+    for class_ in range(num_classes):
+        # Get class-specific output and target
+        output_class = output[:, class_, :, :]
+        target_class = target[:, class_, :, :]
+
+        # Get class-specific average precision
+        class_average_precision = average_precision_score(
+            target_class.flatten().cpu(),
+            output_class.flatten().cpu())
+
+        # Append to the list of average precisions
+        average_precision.append(class_average_precision)
+
+    return {
+        # Also true_positives
+        "intersection": intersection.item(),
+        "union": union.item(),
+        "total_positives": total_positives.item(),
+        "total_labeled_pixels": total_labeled_pixels.item(),
+        "correct_pixels": correct_pixels.item(),
+        "predicted_positives": predicted_positives.item(),
+        "average_precision": average_precision,
+    }
+
+
 class AverageMeter(object):
     """Computes and stores the average and current value"""
     def __init__(self):
@@ -38,40 +112,3 @@ class AverageMeter(object):
     @property
     def average(self):
         return np.round(self.avg, 5)
-
-def batch_pix_accuracy(predict, target, labeled):
-    pixel_labeled = labeled.sum()
-    pixel_correct = ((predict == target) * labeled).sum()
-    assert pixel_correct <= pixel_labeled, "Correct area should be smaller than Labeled"
-    return pixel_correct.cpu().numpy(), pixel_labeled.cpu().numpy()
-
-def batch_intersection_union(predict, target, num_class, labeled):
-    predict = predict * labeled.long()
-    intersection = predict * (predict == target).long()
-    area_inter = torch.histc(intersection.float(), bins=num_class, max=num_class, min=1)
-    area_pred = torch.histc(predict.float(), bins=num_class, max=num_class, min=1)
-    area_lab = torch.histc(target.float(), bins=num_class, max=num_class, min=1)
-    area_union = area_pred + area_lab - area_inter
-    assert (area_inter <= area_union).all(), "Intersection area should be smaller than Union area"
-    return area_inter.cpu().numpy(), area_union.cpu().numpy()
-
-def eval_metrics(output, target, num_class):
-    # Each channel is a class, so we need to find the max channel for each
-    # pixel to get the predicted class for that pixel. The actual class
-    # represented is mapped by the index in the training_classes list.
-    _, predict = torch.max(output.data, 1)
-    _, target_predict = torch.max(target.data, 1)
-    labeled = target_predict <= num_class
-    correct, num_labeled = batch_pix_accuracy(predict, target_predict, labeled)
-    inter, union = batch_intersection_union(predict, target_predict, num_class, labeled)
-
-    correct = np.round(correct, 5)
-    labeled = np.round(num_labeled, 5)
-    inter = np.round(inter, 5)
-    union = np.round(union, 5)
-    return [correct, labeled, inter, union]
-
-# def eval_metrics(output, target, num_class):
-#     correct, labeled = batch_pix_accuracy(output.data, target, num_class)
-#     inter, union = batch_intersection_union(output.data, target, num_class)
-#     return [np.round(correct, 5), np.round(labeled, 5), np.round(inter, 5), np.round(union, 5)]

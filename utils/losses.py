@@ -107,16 +107,22 @@ class LovaszSoftmax(nn.Module):
 
 
 class JaccardCoefficient(nn.Module):
-    def __init__(self, ignore_index=255):
+    def __init__(self, threshold=0.5):
+        self.threshold = threshold
         super(JaccardCoefficient, self).__init__()
 
-    def forward(self, output, target):
+    def calculate_loss(self, output, target):
+        output = (output > threshold).float().detach().clone()
+        target = (target > threshold).float().detach().clone()
         y_true_f = target.flatten()
         y_pred_f = output.flatten()
         intersection = (y_true_f * y_pred_f).sum()
         return (intersection + 1.0) / (
-                    y_true_f.sum() + y_pred_f.sum() -
-                    intersection + 1.0)
+                y_true_f.sum() + y_pred_f.sum() -
+                intersection + 1.0)
+
+    def forward(self, output, target):
+        return self.calculate_loss(output, target)
 
 
 class Recall(nn.Module):
@@ -168,21 +174,21 @@ class F1Score(nn.Module):
         return f1.mean()
 
 
-# class MeanAveragePrecision(nn.Module):
-#     def __init__(self, ignore_index=255):
-#         super(MeanAveragePrecision, self).__init__()
-#
-#     def forward(self, output, target):
-#         output = F.softmax(output, dim=1)
-#         target = make_one_hot(target, classes=output.size()[1])
-#
-#         output_flat = output.contiguous().view(-1)
-#         target_flat = target.contiguous().view(-1)
-#
-#         ap = average_precision_score(target_flat.cpu().numpy(),
-#                                      output_flat.cpu().numpy())
-#
-#         return torch.tensor(ap).to(output.device)
+class MeanAveragePrecision(nn.Module):
+    def __init__(self, ignore_index=255):
+        super(MeanAveragePrecision, self).__init__()
+
+    def forward(self, output, target):
+        output = F.softmax(output, dim=1)
+        target = make_one_hot(target, classes=output.size()[1])
+
+        output_flat = output.contiguous().view(-1)
+        target_flat = target.contiguous().view(-1)
+
+        ap = average_precision_score(target_flat.cpu().numpy(),
+                                     output_flat.cpu().numpy())
+
+        return torch.tensor(ap).to(output.device)
 
 
 class BCELoss(nn.Module):

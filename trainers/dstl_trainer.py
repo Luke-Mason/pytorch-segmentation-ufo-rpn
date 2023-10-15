@@ -12,8 +12,11 @@ from torchvision.utils import make_grid
 from tqdm import tqdm
 from utils import transforms as local_transforms
 from utils.helpers import colorize_mask
-from utils.metrics import eval_metrics, AverageMeter
+from utils.metrics import eval_metrics, recall, precision, f1_score, pixel_accuracy
 import logging
+
+# def precision(output, target):
+#     true_positive = ((output == 0) * (target == 0)).sum().float()
 
 class DSTLTrainer(BaseTrainer):
     def __init__(self, start_time, model, loss, resume, config, train_loader,
@@ -39,11 +42,6 @@ class DSTLTrainer(BaseTrainer):
 
         self.min_clip_percentile = 2
         self.max_clip_percentile = 98
-
-        # if self.device == torch.device('cpu'): prefetch = False
-        # if prefetch:
-        #     self.train_loader = DataPrefetcher(train_loader, device=self.device)
-        #     self.val_loader = DataPrefetcher(val_loader, device=self.device)
 
         torch.backends.cudnn.benchmark = True
 
@@ -90,11 +88,13 @@ class DSTLTrainer(BaseTrainer):
         self.wrt_mode = 'train'
 
         tic = time.time()
-        self._reset_metrics()
+
+        loss_history = np.array([])
+        metric_totals = dict()
+
         tbar = tqdm(self.train_loader, ncols=130)
         for batch_idx, (data, target) in enumerate(tbar):
             self.data_time.update(time.time() - tic)
-            # data, target = data.to(self.device), target.to(self.device)
 
             # LOSS & OPTIMIZE
             output = self.model(data)
@@ -107,8 +107,6 @@ class DSTLTrainer(BaseTrainer):
                 loss += self.loss(output[1], target) * 0.4
                 output = output[0]
             else:
-                # print(output.size()[1:])
-                # print(target.size()[1:])
                 assert output.size()[1:] == target.size()[1:]
                 assert output.size()[1] == self.num_classes
                 loss = self.loss(output, target)
@@ -121,48 +119,50 @@ class DSTLTrainer(BaseTrainer):
             self.optimizer.step()
             self.lr_scheduler.step(epoch=epoch - 1)
 
-            self.total_loss.update(loss.item())
-
             # measure elapsed time
             self.batch_time.update(time.time() - tic)
             tic = time.time()
 
             # LOGGING & TENSORBOARD
             if batch_idx % self.log_step == 0:
-                self.wrt_step = (epoch - 1) * len(self.train_loader) + batch_idx
-                self.writer.add_scalar(f'{self.k_fold}/{self.wrt_mode}/loss', loss.item(),
-                                       self.wrt_step)
-                self.writer.add_scalar('loss', loss.item(), self.wrt_step)
+                loss_history = np.append(loss_history, loss.item())
 
             # FOR EVAL
-            seg_metrics = eval_metrics(output, target, self.num_classes)
-            self._update_seg_metrics(*seg_metrics)
+            all_metrics_totals = eval_metrics(output, target, self.threshold)
+            if 'all' not in metric_totals:
+                metric_totals['all'] = all_metrics_totals
+            else:
+                for k, v in all_metrics_totals.items():
+                    metric_totals['all'][k] += v
+
+            for class_idx in range(self.num_classes):
+                class_metrics_totals = eval_metrics(output[:, class_idx, :, :],
+                                                    target[:, class_idx, :, :],
+                                                    self.threshold)
+                if str(class_idx) not in metric_totals:
+                    metric_totals[str(class_idx)] = class_metrics_totals
+                else:
+                    for k, v in class_metrics_totals.items():
+                        metric_totals[str(class_idx)][k] += v
+
             # PRINT INFO
-            pixAcc, mIoU, _ = self._get_seg_metrics().values()
-            description = (f'TRAIN EPOCH {epoch} | Batch: {batch_idx + 1} | '
-                           f'Loss: {self.total_loss.average:.3f}, '
-                           f'PixelAcc: {pixAcc:.2f}, '
-                           f'Mean IoU: {mIoU:.2f} |')
+            seg_metrics = self._get_seg_metrics().values()
+            description = f'TRAIN EPOCH {epoch} | Batch: {batch_idx + 1} | '
+            for k, v in seg_metrics.items():
+                description += f'{self.convert_to_title_case(k)}: {v:.3f} | '
             tbar.set_description(description)
 
-        # METRICS TO TENSORBOARD
-        seg_metrics = self._get_seg_metrics()
-        for k, v in list(seg_metrics.items())[:-1]:
-            self.writer.add_scalar(f'{self.k_fold}/{self.wrt_mode}/{k}', v, self.wrt_step)
-            self.writer.add_scalar(f'{k}', v, self.wrt_step)
-
-        for i, opt_group in enumerate(self.optimizer.param_groups):
-            self.writer.add_scalar(f'{self.k_fold}/{self.wrt_mode}/Learning_rate_{i}',
-                                   opt_group['lr'], self.wrt_step)
-            self.writer.add_scalar(f'Learning_rate_{i}', opt_group['lr'], self.wrt_step)
-
-        # RETURN LOSS & METRICS
-        log = {'loss': self.total_loss.average,
-               **seg_metrics}
         self.logger.info(f"Finished training epoch {epoch}")
 
-        # if self.lr_scheduler is not None: self.lr_scheduler.step()
-        return log
+        # Add loss
+        metric_totals['all']['loss'] = loss_history
+
+        return metric_totals
+
+    def convert_to_title_case(self, input_string):
+        words = input_string.split('_')
+        capitalized_words = [word.capitalize() for word in words]
+        return ' '.join(capitalized_words)
 
     def _valid_epoch(self, epoch):
         if self.val_loader is None:
@@ -174,12 +174,13 @@ class DSTLTrainer(BaseTrainer):
         self.model.eval()
         self.wrt_mode = 'val'
 
-        self._reset_metrics()
+        loss_history = np.array([])
+        metric_totals = dict()
+
         tbar = tqdm(self.val_loader, ncols=130)
         with torch.no_grad():
             val_visual = []
             for batch_idx, (data, target) in enumerate(tbar):
-
                 # LOSS
                 output = self.model(data)
                 target = target.to(self.device)
@@ -187,10 +188,26 @@ class DSTLTrainer(BaseTrainer):
                 loss = self.loss(output, target)
                 if isinstance(self.loss, torch.nn.DataParallel):
                     loss = loss.mean()
-                self.total_loss.update(loss.item())
 
-                seg_metrics = eval_metrics(output, target, self.num_classes)
-                self._update_seg_metrics(*seg_metrics)
+                if batch_idx % self.log_step == 0:
+                    loss_history = np.append(loss_history, loss.item())
+
+                # METRICS
+                all_metrics_totals = eval_metrics(output, target, self.threshold)
+                if 'all' not in metric_totals:
+                    metric_totals['all'] = all_metrics_totals
+                else:
+                    for k, v in all_metrics_totals.items():
+                        metric_totals['all'][k] += v
+
+                for class_idx in range(self.num_classes):
+                    class_metrics_totals = eval_metrics(output[:,class_idx,:,:], target[:,class_idx,:,:],
+                                                    self.threshold)
+                    if str(class_idx) not in metric_totals:
+                        metric_totals[str(class_idx)] = class_metrics_totals
+                    else:
+                        for k, v in class_metrics_totals.items():
+                            metric_totals[str(class_idx)][k] += v
 
                 # LIST OF IMAGE TO VIZ (15 images)
                 if len(val_visual) < 15:
@@ -201,21 +218,20 @@ class DSTLTrainer(BaseTrainer):
                          output_np[0]])
 
                 # PRINT INFO
-                pixAcc, mIoU, _ = self._get_seg_metrics().values()
-                description = (f'EVAL EPOCH {epoch} | Batch: {batch_idx + 1} | '
-                               f'Loss: {self.total_loss.average:.3f}, '
-                               f'PixelAcc: {pixAcc:.2f}, '
-                               f'Mean IoU: {mIoU:.2f} |')
+                seg_metrics = self._get_seg_metrics().values()
+                description = f'EVAL EPOCH {epoch} | Batch: {batch_idx + 1} | '
+                for k, v in seg_metrics.items():
+                    description += f'{self.convert_to_title_case(k)}: {v:.3f} | '
                 tbar.set_description(description)
+
 
             # WRTING & VISUALIZING THE MASKS
             val_img = []
             palette = self.train_loader.dataset.palette
             for dta, tgt, out in val_visual:
+                # TODO scale the last 8 bands
                 dta = dta * 2048
-                # print("TOTAL: ", tgt.sum(), out.sum())
-                # print("Max: ", tgt.max(), out.max())
-                # print("Min: ", tgt.min(), out.min())
+
                 print("viz shapes: ", dta.shape, tgt.shape, out.shape)
                 dta = dta.transpose(1,2,0)
                 tgt = tgt.transpose(1,2,0)
@@ -227,53 +243,37 @@ class DSTLTrainer(BaseTrainer):
                 val_img.extend([dta, tgt, out])
             val_img = torch.stack(val_img, 0)
             val_img = make_grid(val_img.cpu(), nrow=3, padding=5)
-            self.writer.add_image(f'{self.k_fold}/{self.wrt_mode}/inputs_targets_predictions',
-                                  val_img, self.wrt_step)
-
-            # METRICS TO TENSORBOARD
-            self.wrt_step = (epoch) * len(self.val_loader)
-            self.writer.add_scalar(f'{self.k_fold}/{self.wrt_mode}/loss',
-                                   self.total_loss.average, self.wrt_step)
-            self.writer.add_scalar('loss',
-                                   self.total_loss.average, self.wrt_step)
-            seg_metrics = self._get_seg_metrics()
-            for k, v in list(seg_metrics.items())[:-1]:
-                self.writer.add_scalar(f'{self.k_fold}/{self.wrt_mode}/{k}', v, self.wrt_step)
-                self.writer.add_scalar(f'{k}', v, self.wrt_step)
-
-            log = {
-                'val_loss': self.total_loss.average,
-                **seg_metrics
-            }
+            self.writer.add_image(f'inputs_targets_predictions', val_img, epoch)
 
             # WRITE TO FILE
+            seg_metrics = self._get_seg_metrics()
             self.logger.info(description)
-            seg_metrics_json = json.dumps(str(seg_metrics), indent=4,
+            seg_metrics_json = json.dumps(seg_metrics, indent=4,
                                           sort_keys=True)
             self.logger.info(seg_metrics_json)
 
-        return log
+        # Add loss
+        metric_totals['all']['loss'] = loss_history
 
-    def _reset_metrics(self):
-        self.batch_time = AverageMeter()
-        self.data_time = AverageMeter()
-        self.total_loss = AverageMeter()
-        self.total_inter, self.total_union = 0, 0
-        self.total_correct, self.total_label = 0, 0
+        return metric_totals
 
-    def _update_seg_metrics(self, correct, labeled, inter, union):
-        self.total_correct += correct
-        self.total_label += labeled
-        self.total_inter += inter
-        self.total_union += union
-
-    def _get_seg_metrics(self):
-        pixAcc = 1.0 * self.total_correct / (np.spacing(1) + self.total_label)
-        IoU = 1.0 * self.total_inter / (np.spacing(1) + self.total_union)
-        mIoU = IoU.mean()
+    def _get_seg_metrics(self, seg_totals):
+        pixAcc = pixel_accuracy(seg_totals['correct_pixels'], seg_totals['total_labeled_pixels'])
+        precision = precision(seg_totals['intersection'], seg_totals[
+            'predicted_positives'])
+        recall = recall(seg_totals['intersection'], seg_totals[
+            'total_positives'])
+        f1 = f1_score(seg_totals['intersection'], seg_totals[
+            'predicted_positives'], seg_totals['total_positives'])
+        mAP = mean_average_precision(seg_totals['average_precision'])
+        mIoU = intersection_over_union(seg_totals['intersection'], seg_totals[
+            'union'])
 
         return {
-            "Pixel_Accuracy": np.round(pixAcc, 3),
             "Mean_IoU": np.round(mIoU, 3),
-            "Class_IoU": dict(zip(range(self.num_classes), np.round(IoU, 3)))
+            "mAP": np.round(mAP, 3),
+            "F1": np.round(f1, 3),
+            "Pixel_Accuracy": np.round(pixAcc, 3),
+            "Precision": np.round(precision, 3),
+            "Recall": np.round(recall, 3),
         }
