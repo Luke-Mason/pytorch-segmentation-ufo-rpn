@@ -1,34 +1,34 @@
-import numpy as np
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
+import sys
 from sklearn.metrics import average_precision_score
-
+epsilon = sys.float_info.epsilon
 def pixel_accuracy(correct_pixels, total_labeled_pixels):
-    return correct_pixels / (total_labeled_pixels + np.spacing(1))
+    return correct_pixels / (total_labeled_pixels + epsilon)
 
 def precision(intersection, predicted_positives):
-    return intersection / (predicted_positives + np.spacing(1))
+    return intersection / (predicted_positives + epsilon)
 
 def recall(intersection, total_positives):
-    return intersection / (total_positives + np.spacing(1))
+    return intersection / (total_positives + epsilon)
 
 def f1_score(intersection, predicted_positives, total_positives):
     p = precision(intersection, predicted_positives)
     r = recall(intersection, total_positives)
 
     # Compute F1 score
-    return 2 * (p * r) / (p + r + np.spacing(1))
+    return 2 * (p * r) / (p + r + epsilon)
 
 def mean_average_precision(average_precision):
     return np.mean(average_precision)
 
 def intersection_over_union(intersection, union):
-    return intersection / (union + np.spacing(1))
+    return intersection / (union + epsilon)
 
-def eval_metrics(output, target, threshold=0.5):
-    output = (output > threshold).float().detach().clone()
-    target = (target > threshold).float().detach().clone()
+def eval_metrics(o, t, threshold=0.5):
+    output = (o > threshold)
+    target = (t > threshold)
 
     # All positives in prediction
     predicted_positives = torch.sum(output)
@@ -46,25 +46,25 @@ def eval_metrics(output, target, threshold=0.5):
     intersection = torch.sum(output * target)
     union = torch.sum(output) + torch.sum(target) - intersection
 
-    # Average Precision Components
-    # Number of classes
-    num_classes = output.shape[1]
-    # Initialize average precision list
-    average_precision = []
-
-    # For each class
-    for class_ in range(num_classes):
-        # Get class-specific output and target
-        output_class = output[:, class_, :, :]
-        target_class = target[:, class_, :, :]
-
-        # Get class-specific average precision
-        class_average_precision = average_precision_score(
-            target_class.flatten().cpu(),
-            output_class.flatten().cpu())
-
-        # Append to the list of average precisions
-        average_precision.append(class_average_precision)
+    # # Average Precision Components
+    # # Number of classes
+    # num_classes = output.shape[1]
+    # # Initialize average precision list
+    # average_precision = []
+    #
+    # # For each class
+    # for class_ in range(num_classes):
+    #     # Get class-specific output and target
+    #     output_class = output[:, class_, :, :]
+    #     target_class = target[:, class_, :, :]
+    #
+    #     # Get class-specific average precision
+    #     class_average_precision = average_precision_score(
+    #         target_class.flatten().cpu(),
+    #         output_class.flatten().cpu())
+    #
+    #     # Append to the list of average precisions
+    #     average_precision.append(class_average_precision)
 
     return {
         # Also true_positives
@@ -74,7 +74,7 @@ def eval_metrics(output, target, threshold=0.5):
         "total_labeled_pixels": total_labeled_pixels.item(),
         "correct_pixels": correct_pixels.item(),
         "predicted_positives": predicted_positives.item(),
-        "average_precision": average_precision,
+        # "average_precision": average_precision,
     }
 
 
