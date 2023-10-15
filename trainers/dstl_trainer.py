@@ -262,9 +262,9 @@ class DSTLTrainer(BaseTrainer):
 
     def _get_seg_metrics(self, seg_totals):
         pixAcc = pixel_accuracy(seg_totals['correct_pixels'], seg_totals['total_labeled_pixels'])
-        precision = precision(seg_totals['intersection'], seg_totals[
+        p = precision(seg_totals['intersection'], seg_totals[
             'predicted_positives'])
-        recall = recall(seg_totals['intersection'], seg_totals[
+        r = recall(seg_totals['intersection'], seg_totals[
             'total_positives'])
         f1 = f1_score(seg_totals['intersection'], seg_totals[
             'predicted_positives'], seg_totals['total_positives'])
@@ -277,6 +277,6 @@ class DSTLTrainer(BaseTrainer):
             "mAP": np.round(mAP, 3),
             "F1": np.round(f1, 3),
             "Pixel_Accuracy": np.round(pixAcc, 3),
-            "Precision": np.round(precision, 3),
-            "Recall": np.round(recall, 3),
+            "Precision": np.round(p, 3),
+            "Recall": np.round(r, 3),
         }
