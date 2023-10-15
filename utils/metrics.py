@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
@@ -20,8 +21,8 @@ def f1_score(intersection, predicted_positives, total_positives):
     # Compute F1 score
     return 2 * (p * r) / (p + r + epsilon)
 
-def mean_average_precision(average_precision):
-    return np.mean(average_precision)
+# def mean_average_precision(average_precision):
+#     return np.mean(average_precision)
 
 def intersection_over_union(intersection, union):
     return intersection / (union + epsilon)
