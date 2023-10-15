@@ -12,7 +12,8 @@ from torchvision.utils import make_grid
 from tqdm import tqdm
 from utils import transforms as local_transforms
 from utils.helpers import colorize_mask
-from utils.metrics import eval_metrics, recall, precision, f1_score, pixel_accuracy
+from utils.metrics import (eval_metrics, recall, precision, f1_score,
+                           pixel_accuracy, AverageMeter)
 import logging
 
 # def precision(output, target):
@@ -91,7 +92,8 @@ class DSTLTrainer(BaseTrainer):
 
         loss_history = np.array([])
         metric_totals = dict()
-
+        self.batch_time = AverageMeter()
+        self.data_time = AverageMeter()
         tbar = tqdm(self.train_loader, ncols=130)
         for batch_idx, (data, target) in enumerate(tbar):
             self.data_time.update(time.time() - tic)
