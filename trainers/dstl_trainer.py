@@ -101,15 +101,7 @@ class DSTLTrainer(BaseTrainer):
 
             # LOSS & OPTIMIZE
             output = self.model(data)
-            print("output req grad 1.1: ", output.requires_grad)
-
-            print("target req grad 2.0: ", target.requires_grad)
-            # target = torch.tensor(target, requires_grad=True)
-            print("target req grad 2.1: ", target.requires_grad)
             target = target.to(self.device)
-            print("target req grad 2.2: ", target.requires_grad)
-            # target.retain_grad()
-            print("target req grad 2.3: ", target.requires_grad)
 
             if self.config['arch']['type'][:3] == 'PSP':
                 assert output[0].size()[1:] == target.size()[1:]
