@@ -161,8 +161,7 @@ class DSTLTrainer(BaseTrainer):
             description = f'TRAIN EPOCH {epoch} | Batch: {batch_idx + 1} | '
             for k, v in seg_metrics.items():
                 description += f'{k}: {v:.3f} | '
-
-            description += f"| B {self.batch_time.average:.2f} D {self.data_time.average:.2f} |"
+            description += f" B {self.batch_time.average:.2f} D {self.data_time.average:.2f} |"
             tbar.set_description(description)
 
         self.logger.info(f"Finished training epoch {epoch}")
@@ -224,42 +223,39 @@ class DSTLTrainer(BaseTrainer):
                         for k, v in class_metrics_totals.items():
                             total_metric_totals[str(class_idx)][k] += v
 
-                # LIST OF IMAGE TO VIZ (15 images)
-                if len(val_visual) < 15:
-                    target_np = target.data.cpu().numpy()
-                    output_np = output.data.max(1)[1].cpu().numpy()
-                    val_visual.append(
-                        [self.dra(data[0].data.cpu()), target_np[0],
-                         output_np])
-
                 # PRINT INFO
                 seg_metrics = self._get_seg_metrics(metrics_totals)
                 description = f'EVAL EPOCH {epoch} | Batch: {batch_idx + 1} | '
                 for k, v in seg_metrics.items():
                     description += f'{self.convert_to_title_case(k)}: {v:.3f} | '
-
-                description += f"| B {self.batch_time.average:.2f} D {self.data_time.average:.2f} |"
                 tbar.set_description(description)
 
 
             # WRTING & VISUALIZING THE MASKS
-            val_img = []
-            palette = self.train_loader.dataset.palette
-            for dta, tgt, out in val_visual:
-                # TODO scale the last 8 bands
-                dta = dta * 2048
-
-                dta = dta.transpose(1,2,0)
-                tgt = tgt.transpose(1,2,0)
-                dta = self.restore_transform(dta.astype(np.uint8))
-
-                tgt, out = colorize_mask(tgt, palette), colorize_mask(out, palette)
-                dta, tgt, out = dta.convert('RGB'), tgt.convert('RGB'), out.convert('RGB')
-                [dta, tgt, out] = [self.viz_transform(x) for x in [dta, tgt, out]]
-                val_img.extend([dta, tgt, out])
-            val_img = torch.stack(val_img, 0)
-            val_img = make_grid(val_img.cpu(), nrow=3, padding=5)
-            self.writer.add_image(f'inputs_targets_predictions', val_img, epoch)
+            # LIST OF IMAGE TO VIZ (15 images)
+            # if len(val_visual) < 15:
+            #     target_np = target.data.cpu().numpy()
+            #     output_np = output.data.max(1)[1].cpu().numpy()
+            #     val_visual.append(
+            #         [self.dra(data[0].data.cpu()), target_np[0],
+            #          output_np[0]])
+            # val_img = []
+            # palette = self.train_loader.dataset.palette
+            # for dta, tgt, out in val_visual:
+            #     # TODO scale the last 8 bands
+            #     dta = dta * 2048
+            #
+            #     dta = dta.transpose(1,2,0)
+            #     tgt = tgt.transpose(1,2,0)
+            #     dta = self.restore_transform(dta.astype(np.uint8))
+            #
+            #     tgt, out = colorize_mask(tgt, palette), colorize_mask(out, palette)
+            #     dta, tgt, out = dta.convert('RGB'), tgt.convert('RGB'), out.convert('RGB')
+            #     [dta, tgt, out] = [self.viz_transform(x) for x in [dta, tgt, out]]
+            #     val_img.extend([dta, tgt, out])
+            # val_img = torch.stack(val_img, 0)
+            # val_img = make_grid(val_img.cpu(), nrow=3, padding=5)
+            # self.writer.add_image(f'inputs_targets_predictions', val_img, epoch)
 
         # Add loss
         total_metric_totals['all']['loss'] = loss_history
