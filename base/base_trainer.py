@@ -204,7 +204,7 @@ class BaseTrainer:
                 for k, v in results.items():
                     self.logger.info(
                         f'\n    Class {k}: ')
-                    for q, p in k.items():
+                    for q, p in v.items():
                         self.logger.info(f'         {str(q):15s}: {p}')
             
             if self.train_logger is not None:
