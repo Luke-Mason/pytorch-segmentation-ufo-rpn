@@ -11,30 +11,11 @@ import utils.lr_scheduler
 from utils.sync_batchnorm import convert_model
 from utils.sync_batchnorm import DataParallelWithCallback
 import numpy as np
+from test_helper import epoch_gateway
 
 def get_instance(module, name, config, *args):
     # GET THE CORRESPONDING CLASS / FCT 
     return getattr(module, config[name]['type'])(*args, **config[name]['args'])
-
-def initiate_stats():
-    return dict({
-        'loss': dict({'train': np.array([]), 'val': np.array([])}),
-        'total_correct': dict({'train': np.array([]), 'val': np.array([])}),
-        'total_label': dict({'train': np.array([]), 'val': np.array([])}),
-        'total_inter': dict({'train': np.array([]), 'val': np.array([])}),
-        'total_union': dict({'train': np.array([]), 'val': np.array([])})
-    })
-
-
-def update_stats(stats, results, type='train'):
-    loss, tc, tl, ti, tu = results
-    stats['loss'][type].append(loss)
-    stats['total_correct'][type].append(tc)
-    stats['total_label'][type].append(tl)
-    stats['total_inter'][type].append(ti)
-    stats['total_union'][type].append(tu)
-
-    return stats
 
 class BaseTrainer:
 
@@ -66,7 +47,7 @@ class BaseTrainer:
 
         # CONFIGS
         cfg_trainer = self.config['trainer']
-        self.epochs = cfg_trainer['epochs']
+        self.epochs = epoch_gateway(cfg_trainer['epochs'])
         self.save_period = cfg_trainer['save_period']
 
         # OPTIMIZER
@@ -102,7 +83,7 @@ class BaseTrainer:
         loader_args = config['train_loader']['args']
         run_name = (f"batch_size_{loader_args['batch_size']}"
                     f"_lr_{config['optimizer']['args']['lr']}"
-                    f"_epochs_{cfg_trainer['epochs']}"
+                    f"_epochs_{self.epochs}"
                     f"_loss_{config['loss']}"
                     f"_scheduler_{config['lr_scheduler']['type']}"
                     f"_patch_size_{preprocessing_['patch_size']}"
@@ -179,11 +160,11 @@ class BaseTrainer:
                 for metric_name, total in metric_totals.items():
                     if metric_name not in stats[class_name]:
                         stats[class_name][metric_name] = dict({
-                            'train': np.array([]),
-                            'val': np.array([])
+                            # List because I append arrays into it
+                            'train': [],
+                            'val': []
                         })
-                    stats[class_name][metric_name]['train'] = np.append(
-                        stats[class_name][metric_name]['train'], total)
+                    stats[class_name][metric_name]['train'].append(total)
 
             if self.do_validation and epoch % self.config['trainer']['val_per_epochs'] == 0:
                 results = self._valid_epoch(epoch)
@@ -193,11 +174,10 @@ class BaseTrainer:
                     for metric_name, total in metric_totals.items():
                         if metric_name not in stats[class_name]:
                             stats[class_name][metric_name] = dict({
-                                'train': np.array([]),
-                                'val': np.array([])
+                                'train': [],
+                                'val': []
                             })
-                        stats[class_name][metric_name]['val'] = np.append(
-                            stats[class_name][metric_name]['val'], total)
+                        stats[class_name][metric_name]['val'].append(total)
 
                 # LOGGING INFO
                 self.logger.info(f'\n         ## Info for epoch {epoch} ## ')
@@ -214,8 +194,11 @@ class BaseTrainer:
             # CHECKING IF THIS IS THE BEST MODEL (ONLY FOR VAL)
             if self.mnt_mode != 'off' and epoch % self.config['trainer']['val_per_epochs'] == 0:
                 try:
-                    if self.mnt_mode == 'min': self.improved = (log[self.mnt_metric] < self.mnt_best)
-                    else: self.improved = (log[self.mnt_metric] > self.mnt_best)
+                    # TODO Seg metrics, check result here
+                    if self.mnt_mode == 'min':
+                        self.improved = (log[self.mnt_metric] < self.mnt_best)
+                    else:
+                        self.improved = (log[self.mnt_metric] > self.mnt_best)
                 except KeyError:
                     self.logger.warning(f'The metrics being tracked ({self.mnt_metric}) has not been calculated. Training stops.')
                     break
