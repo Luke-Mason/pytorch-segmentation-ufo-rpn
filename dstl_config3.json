@@ -11,7 +11,7 @@
         }
     },
     "trainer": {
-        "epochs": 3,
+        "epochs": 1,
         "save_dir": "saved/",
         "save_period": 20,
         "monitor": "max Mean_IoU",
@@ -33,13 +33,13 @@
             "img_ref_scale": "RGB",
             "overlap_pixels": 56,
             "interpolation_method": 4,
-            "training_classes": [2],
+            "training_classes": [0],
             "training_band_groups": [{
-                "bands": [1]
-            }, {
                 "bands": [2]
             }, {
                 "bands": [3]
+            }, {
+                "bands": [4]
             }]
         },
         "args": {
