@@ -28,8 +28,8 @@ def intersection_over_union(intersection, union):
     return intersection / (union + epsilon)
 
 def eval_metrics(o, t, threshold=0.5):
-    output = (o > threshold)
-    target = (t > threshold)
+    output = (o > threshold).float().to(torch.int)
+    target = (t > threshold).float().to(torch.int)
 
     # All positives in prediction
     predicted_positives = torch.sum(output)

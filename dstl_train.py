@@ -6,6 +6,7 @@ from sklearn.model_selection import KFold
 import torch
 import pandas as pd
 import datetime
+from torch.utils import tensorboard
 
 from dataloaders import DSTL
 import models
@@ -100,7 +101,7 @@ def write_metric(writer, stats, metric, func, class_name, metric_name):
         m_v = val_[:, index]
         metric_v = func(m_v)
 
-        writer.add_scalar(f'{class_name}/{metric_name}', {
+        writer.add_scalars(f'{class_name}/{metric_name}', {
             'train': np.mean(metric_t),
             'val': np.mean(metric_v)
         }, index + 1)
@@ -122,7 +123,7 @@ def write_metric_2_param(writer, stats, metric_1, metric_2, func, class_name,
         metric_v = func(m1_v, m2_v)
 
         # for epoch_indx in range():
-        writer.add_scalar(f'{class_name}/{metric_name}', {
+        writer.add_scalars(f'{class_name}/{metric_name}', {
             'train': np.mean(metric_t),
             'val': np.mean(metric_v)
         }, index + 1)
@@ -149,33 +150,49 @@ def write_metric_3_param(writer, stats, metric_1, metric_2, metric_3, func,
         m3_v = val_m3[:, index]
         metric_v = func(m1_v, m2_v, m3_v)
 
-        writer.add_scalar(f'{class_name}/{metric_name}', {
+        writer.add_scalars(f'{class_name}/{metric_name}', {
             'train': np.mean(metric_t),
             'val': np.mean(metric_v)
         }, index + 1)
 
+metric_indx = dict({
+    "all": "All_Classes",
+    "0": "Buildings",
+    "1": "Misc",
+    "2": "Road",
+    "3": "Track",
+    "4": "Trees",
+    "5": "Crops",
+    "6": "Waterway",
+    "7": "Standing water",
+    "8": "Vehicle Large",
+    "9": "Vehicle Small",
+    "10": "Nothing"
+})
+
 def write_stats_to_tensorboard(writer, class_stats):
 
     # LOSS
-    # write_metric(writer, class_stats['all'], 'loss', np.mean, 'all', 'Loss')
+    write_metric(writer, class_stats['all'], 'loss', np.mean, 'All', 'Loss')
 
-    for class_name, stats in class_stats.items():
+    for class_name_indx, stats in class_stats.items():
 
         # # mAP
         # write_metric(writer, stats, 'average_precision', np.mean, class_name, 'mAP')
 
         # PIXEL ACCURACY
+        class_name = metric_indx[str(class_name_indx)]
         write_metric_2_param(writer, stats, 'correct_pixels',
                              'total_labeled_pixels',
-                                pixel_accuracy, class_name, 'Pixel_Accuracy')
+                             pixel_accuracy, class_name, 'Pixel_Accuracy')
 
         # PRECISION
         write_metric_2_param(writer, stats, 'intersection', 'predicted_positives',
-                                precision, class_name, 'Precision')
+                             precision, class_name, 'Precision')
 
         # RECALL
         write_metric_2_param(writer, stats, 'intersection', 'total_positives',
-                                recall, class_name, 'Recall')
+                             recall, class_name, 'Recall')
 
         # F1 SCORE
         write_metric_3_param(writer, stats, 'intersection', 'predicted_positives',
@@ -184,7 +201,7 @@ def write_stats_to_tensorboard(writer, class_stats):
 
         # MEAN IoU
         write_metric_2_param(writer, stats, 'intersection', 'union',
-                                intersection_over_union, class_name, 'Mean_IoU')
+                             intersection_over_union, class_name, 'Mean_IoU')
 
 
 def _append_stats(all_stats, stats):
@@ -257,7 +274,23 @@ def main(config, resume):
 
         area_by_id = dict(im_area)
 
-        writer = None
+        preprocessing_ = config['train_loader']['preprocessing']
+        training_classes_str = '_'.join(
+            str(i) for i in preprocessing_['training_classes'])
+        training_band_groups = ['_'.join(map(str, band_group)) for band_group in
+                                preprocessing_['training_band_groups']]
+        loader_args = config['train_loader']['args']
+        run_name = (f"batch_size_{loader_args['batch_size']}"
+                    f"_lr_{config['optimizer']['args']['lr']}"
+                    f"_epochs_{config['trainer']['epochs']}"
+                    f"_loss_{config['loss']}"
+                    f"_scheduler_{config['lr_scheduler']['type']}"
+                    f"_patch_size_{preprocessing_['patch_size']}"
+                    f"_overlap_pixels_{preprocessing_['overlap_pixels']}"
+                    f"_training_classes_{training_classes_str})"
+                    f"_training_band_groups_[{'-'.join(training_band_groups)}]")
+        writer_dir = os.path.join(config['trainer']['log_dir'], config['name'], run_name, start_time)
+        writer = tensorboard.SummaryWriter(writer_dir)
 
         # Initialise the stats
         fold_stats = dict()
@@ -307,14 +340,14 @@ def main(config, resume):
                 resume=resume,
                 config=config,
                 train_loader=train_loader,
+                writer=writer,
                 val_loader=train_loader.get_val_loader(),
                 train_logger=logger,
                 root=dstl_data_path,
             )
 
-            wrter, train_stats = trainer.train()
+            train_stats = trainer.train()
             # im lazy and dont want to refactor the code
-            writer = wrter
             for class_name, class_stats in train_stats.items():
                 if class_name not in fold_stats:
                     fold_stats[class_name] = dict()
