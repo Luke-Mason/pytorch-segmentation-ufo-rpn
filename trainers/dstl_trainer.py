@@ -123,7 +123,7 @@ class DSTLTrainer(BaseTrainer):
         total_metric_totals = dict()
         self.batch_time = AverageMeter()
         self.data_time = AverageMeter()
-        tbar = tqdm(self.train_loader, ncols=130)
+        tbar = tqdm(self.train_loader, ncols=200)
         for batch_idx, (data, target) in enumerate(tbar):
             self.data_time.update(time.time() - tic)
 
@@ -182,16 +182,15 @@ class DSTLTrainer(BaseTrainer):
                         total_metric_totals[str(class_name_idx)][k] += v
             end_time = time.time()
             elapsed_time = end_time - start_time
-            print(f"Elapsed time: {elapsed_time} seconds")
-
 
             # PRINT INFO
             seg_metrics = self._get_metrics(metrics_totals)
-            description = f'TRAIN EPOCH {epoch} | Batch: {batch_idx + 1} | '
+            tbar.set_description(f'TRAIN EPOCH {epoch} | Batch: {batch_idx + 1} | ')
+            message = f'TRAIN EPOCH {epoch} | Batch: {batch_idx + 1} | '
             for k, v in seg_metrics.items():
-                description += f'{k}: {v:.3f} | '
-            description += f" B {self.batch_time.average:.2f} D {self.data_time.average:.2f} |"
-            tbar.set_description(description)
+                message += f'{k}: {v:.3f} | '
+            message += f" B {self.batch_time.average:.2f} D {self.data_time.average:.2f} |"
+            self.logger.info(message)
 
         self.logger.info(f"Finished training epoch {epoch}")
 
