@@ -100,14 +100,14 @@ def write_metric(writer, do_validation, val_per_epochs, stats,
     val_m1 = np.array(m['val'])
     for epoch in range(train_m1.shape[1]):
         metric_t = func(train_m1[:, epoch])
-        train = dict({ 'train': np.mean(metric_t) })
+        metrics = dict({ 'train': np.mean(metric_t) })
         val = dict({})
         if do_validation and epoch + 1 % val_per_epochs == 0:
             val_epoch = (epoch // val_per_epochs) - 1
             metric_v = func(val_m1[:, val_epoch])
             val = dict({ 'val': np.mean(metric_v) })
-            train.update(val)
-        writer.add_scalars(f'{class_name}/{metric_name}', train, epoch + 1)
+            metrics.update(val)
+        writer.add_scalars(f'{class_name}/{metric_name}', metrics, epoch + 1)
 
 
 def write_metric_2_param(writer, do_validation, val_per_epochs, stats,
