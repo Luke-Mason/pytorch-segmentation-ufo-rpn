@@ -102,16 +102,16 @@ def write_metric(logger, writer, do_validation, val_per_epochs, stats,
         metric_t = func(train_m1[:, epoch])
         metrics = dict({ 'train': np.mean(metric_t) })
         val = dict({})
-        logger.debug(f"epoch: {epoch + 1} | val_per_epochs: {val_per_epochs} "
+        logger.debug(f"epoch: {(epoch + 1)} | val_per_epochs: {val_per_epochs} "
                      f"do_validation | {do_validation} "
-                     f"| allowed: {epoch + 1 % val_per_epochs == 0}")
-        if do_validation and epoch + 1 % val_per_epochs == 0:
+                     f"| allowed: {(epoch + 1) % val_per_epochs == 0}")
+        if do_validation and (epoch + 1) % val_per_epochs == 0:
             val_epoch = epoch // val_per_epochs
             logger.debug(f"val epoch: {val_epoch}")
             metric_v = func(val_m1[:, val_epoch])
             val = dict({ 'val': np.mean(metric_v) })
             metrics.update(val)
-        writer.add_scalars(f'{class_name}/{metric_name}', metrics, epoch + 1)
+        writer.add_scalars(f'{class_name}/{metric_name}', metrics, (epoch + 1))
 
 
 def write_metric_2_param(logger, writer, do_validation, val_per_epochs, stats,
@@ -125,16 +125,16 @@ def write_metric_2_param(logger, writer, do_validation, val_per_epochs, stats,
         metric_t = func(train_m1[:, epoch], train_m2[:, epoch])
         train = dict({ 'train': np.mean(metric_t) })
         val = dict({})
-        logger.debug(f"epoch: {epoch + 1} | val_per_epochs: {val_per_epochs} "
+        logger.debug(f"epoch: {(epoch + 1)} | val_per_epochs: {val_per_epochs} "
                      f"do_validation | {do_validation} "
-                     f"| allowed: {epoch + 1 % val_per_epochs == 0}")
-        if do_validation and epoch + 1 % val_per_epochs == 0:
+                     f"| allowed: {(epoch + 1) % val_per_epochs == 0}")
+        if do_validation and (epoch + 1) % val_per_epochs == 0:
             val_epoch = epoch // val_per_epochs
             logger.debug(f"val epoch: {val_epoch}")
             metric_v = func(val_m1[:, val_epoch], val_m2[:, val_epoch])
             val = dict({ 'val': np.mean(metric_v) })
             train.update(val)
-        writer.add_scalars(f'{class_name}/{metric_name}', train, epoch + 1)
+        writer.add_scalars(f'{class_name}/{metric_name}', train, (epoch + 1))
 
 def write_metric_3_param(logger, writer, do_validation, val_per_epochs, stats,
                          metric_1, metric_2, metric_3, func, class_name,
@@ -151,16 +151,16 @@ def write_metric_3_param(logger, writer, do_validation, val_per_epochs, stats,
         metric_t = func(train_m1[:, epoch], train_m2[:, epoch], train_m3[:, epoch])
         train = dict({ 'train': np.mean(metric_t) })
         val = dict({})
-        logger.debug(f"epoch: {epoch + 1} | val_per_epochs: {val_per_epochs} "
+        logger.debug(f"epoch: {(epoch + 1)} | val_per_epochs: {val_per_epochs} "
                      f"do_validation | {do_validation} "
-                     f"| allowed: {epoch + 1 % val_per_epochs == 0}")
-        if do_validation and epoch + 1 % val_per_epochs == 0:
+                     f"| allowed: {(epoch + 1) % val_per_epochs == 0}")
+        if do_validation and ((epoch + 1)) % val_per_epochs == 0:
             val_epoch = epoch // val_per_epochs
             logger.debug(f"val epoch: {val_epoch}")
             metric_v = func(val_m1[:, val_epoch], val_m2[:, val_epoch], val_m3[:, val_epoch])
             val = dict({ 'val': np.mean(metric_v) })
             train.update(val)
-        writer.add_scalars(f'{class_name}/{metric_name}', train, epoch + 1)
+        writer.add_scalars(f'{class_name}/{metric_name}', train, (epoch + 1))
 
 def write_stats_to_tensorboard(logger, writer, do_validation, val_per_epochs,
                                class_stats):
