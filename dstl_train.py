@@ -127,7 +127,10 @@ def write_metric_2_param(writer, do_validation, val_per_epochs, stats,
         metric_t = func(m1_t, m2_t)
 
         val = {}
+        print("do_validation", do_validation)
+        print("epoch", epoch)
         if do_validation and epoch + 1 % val_per_epochs == 0:
+            print("Add validation metric")
             val_epoch = (epoch // val_per_epochs) - 1
             m1_v = val_m1[:, val_epoch]
             m2_v = val_m2[:, val_epoch]
