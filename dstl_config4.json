@@ -1,5 +1,5 @@
 {
-    "name": "dstl_ex4",
+    "name": "dstl_ex5",
     "n_gpu": 1,
     "use_synch_bn": false,
     "arch": {

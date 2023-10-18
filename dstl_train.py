@@ -125,7 +125,7 @@ def write_metric_2_param(writer, do_validation, val_per_epochs, stats,
         m1_t = train_m1[:, epoch]
         m2_t = train_m2[:, epoch]
         metric_t = func(m1_t, m2_t)
-
+        train = { 'train': np.mean(metric_t) }
         val = {}
         if do_validation and epoch + 1 % val_per_epochs == 0:
             val_epoch = (epoch // val_per_epochs) - 1
@@ -135,9 +135,8 @@ def write_metric_2_param(writer, do_validation, val_per_epochs, stats,
             val = { 'val': np.mean(metric_v) }
 
         writer.add_scalars(f'{class_name}/{metric_name}', {
-            'train': np.mean(metric_t),
-            **val
-        }, epoch + 1)
+            'train': np.mean(metric_t)
+        }.update(val), epoch + 1)
 
 def write_metric_3_param(writer, do_validation, val_per_epochs, stats,
                          metric_1, metric_2, metric_3, func, class_name,

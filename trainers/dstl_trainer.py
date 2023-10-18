@@ -17,6 +17,7 @@ from utils.metrics import (eval_metrics, recall, precision, f1_score,
                            mean_average_precision, intersection_over_union)
 from utils import metric_indx
 import logging
+from utils import transforms as local_transforms
 
 
 class DSTLTrainer(BaseTrainer):
@@ -41,6 +42,9 @@ class DSTLTrainer(BaseTrainer):
         ])
 
         self.vis_transform = transforms.Compose([
+            local_transforms.DeNormalize(self.train_loader.MEAN,
+                                         self.train_loader.STD),
+            transforms.ToPILImage(),
             transforms.Resize((400, 400), antialias=True),
         ])
 
