@@ -214,8 +214,7 @@ class DSTLDataset(BaseDataSet):
             old_stat = pixel_area_stats[imblanced_classes[-1]]
 
             while True:
-                print(f"| Class Balancing {'% | '
-                ''.join(map(str, np.round((pixel_area_stats / np.sum(pixel_area_stats)) * 100, 2)))}% |")
+                print(f"| Class Balancing {'% | '.join(map(str, np.round((pixel_area_stats / np.sum(pixel_area_stats)) * 100, 2)))}% |")
                 ascending_imblanced_classes = np.argsort(pixel_area_stats)
 
                 # Calculate the threshold for a 5% difference
