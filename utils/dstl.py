@@ -5,6 +5,21 @@ import json
 import hashlib
 import cv2
 
+metric_indx = dict({
+    "all": "All",
+    "0": "Buildings",
+    "1": "Misc",
+    "2": "Road",
+    "3": "Track",
+    "4": "Trees",
+    "5": "Crops",
+    "6": "Waterway",
+    "7": "Standing water",
+    "8": "Vehicle Large",
+    "9": "Vehicle Small",
+    "10": "Nothing"
+})
+
 def generate_unique_config_hash(config):
 
     # Convert to json

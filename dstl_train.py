@@ -22,6 +22,7 @@ from utils.metrics import (eval_metrics, recall, precision, f1_score,
                            mean_average_precision, intersection_over_union)
 from test_helper import dataset_gateway
 import utils
+from utils import metric_indx
 
 torch.cuda.empty_cache()
 
@@ -180,7 +181,7 @@ def write_stats_to_tensorboard(writer, do_validation, val_per_epochs,
         # write_metric(writer, stats, 'average_precision', np.mean, class_name, 'mAP')
 
         # PIXEL ACCURACY
-        class_name = utils.metric_indx[str(class_name_indx)]
+        class_name = metric_indx[str(class_name_indx)]
         write_metric_2_param(writer, do_validation, val_per_epochs, stats,
                              'correct_pixels',
                              'total_labeled_pixels',
