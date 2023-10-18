@@ -36,6 +36,7 @@ class BaseTrainer:
         self.improved = False
         self.k_fold = k_fold
         self.writer = writer
+        self.training_classes = self.config["train_loader"]["preprocessing"]["training_classes"]
 
         # SETTING THE DEVICE
         self.device, availble_gpus = self._get_available_devices(self.config['n_gpu'])
@@ -150,7 +151,7 @@ class BaseTrainer:
                             'val': []
                         })
                     stats[class_name][metric_name]['train'].append(total)
-
+            metrics = {}
             if self.do_validation and epoch % self.config['trainer']['val_per_epochs'] == 0:
                 epoch_stats = self._valid_epoch(epoch)
                 for class_name, metric_totals in epoch_stats.items():
