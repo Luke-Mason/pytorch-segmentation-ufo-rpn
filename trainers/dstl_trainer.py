@@ -172,11 +172,14 @@ class DSTLTrainer(BaseTrainer):
                     output[:, class_idx, :, :][:, np.newaxis, :, :],
                     target[:, class_idx, :, :][:, np.newaxis, :, :],
                                                     self.threshold)
-                if str(class_idx) not in total_metric_totals:
-                    total_metric_totals[str(class_idx)] = class_metrics_totals
+                # Convert class_indx into class_name_indx
+                class_name_idx = self.training_classes[class_idx] if
+                class_idx < len(self.training_classes) else 10
+                if str(class_name_idx) not in total_metric_totals:
+                    total_metric_totals[str(class_name_idx)] = class_metrics_totals
                 else:
                     for k, v in class_metrics_totals.items():
-                        total_metric_totals[str(class_idx)][k] += v
+                        total_metric_totals[str(class_name_idx)][k] += v
             end_time = time.time()
             elapsed_time = end_time - start_time
             print(f"Elapsed time: {elapsed_time} seconds")
@@ -216,8 +219,7 @@ class DSTLTrainer(BaseTrainer):
         total_metric_totals = dict()
 
         tbar = tqdm(self.val_loader, ncols=130)
-        with torch.no_grad():
-            visualise_first_img_in_batch = []
+        with ((torch.no_grad())):
             for batch_idx, (data, target) in enumerate(tbar):
                 # LOSS
                 output = self.model(data)
@@ -243,11 +245,16 @@ class DSTLTrainer(BaseTrainer):
                         output[:, class_idx, :, :][:, np.newaxis, :, :],
                         target[:, class_idx, :, :][:, np.newaxis, :, :],
                                                     self.threshold)
-                    if str(class_idx) not in total_metric_totals:
-                        total_metric_totals[str(class_idx)] = class_metrics_totals
+                    # Convert class_indx into class_name_indx
+                    class_name_idx = self.training_classes[class_idx] if
+                    class_idx < len(self.training_classes) else 10
+                    if str(class_name_idx) not in total_metric_totals:
+                        # Convert class_indx into class_name_indx
+
+                        total_metric_totals[str(class_name_idx)] = class_metrics_totals
                     else:
                         for k, v in class_metrics_totals.items():
-                            total_metric_totals[str(class_idx)][k] += v
+                            total_metric_totals[str(class_name_idx)][k] += v
 
                 # PRINT INFO
                 seg_metrics = self._get_metrics(metrics_totals)
@@ -260,7 +267,7 @@ class DSTLTrainer(BaseTrainer):
 
                 # WRTING & VISUALIZING THE MASKS
                 # LIST OF IMAGE TO VIZ (15 images)
-                if len(visualise_first_img_in_batch) < 15:
+                if batch_idx < 15 and self.k_fold == 0:
                     for k in range(1):
                         dta, tgt, out = data[k], target[k], output[k]
 
@@ -332,14 +339,19 @@ class DSTLTrainer(BaseTrainer):
                             outi = torch.unsqueeze(outi, dim=0)
                             outi = outi.expand(-1, 3, -1, -1)
 
-                            visualise_first_img_in_batch.extend([dta, tgi,
-                                                                 outi])
+                            imgs = torch.cat([dta, tgi, outi], dim=0)
+                            grid_img = make_grid(imgs, nrow=3)
 
-            imgs = torch.cat(visualise_first_img_in_batch, dim=0)
-            grid_img = make_grid(imgs, ncol=3)
-
-            # row shows one class (num_classes_to_predict)
-            self.writer.add_image(f'inputs_targets_predictions', grid_img, epoch)
+                            # Get class name from the class index
+                            training_classes = self.config["train_loader"]
+                            ["preprocessing"]["training_classes"]
+                            #  TODO
+                            class_id = training_classes[i]
+                            class_name = metric_indx[str(class_id)]
+                            # row shows one class (num_classes_to_predict)
+                            self.writer.add_image(
+                                f'inputs_targets_predictions/{class_name}',
+                                                  grid_img, epoch)
 
         # Add loss
         total_metric_totals['all']['loss'] = loss_history
