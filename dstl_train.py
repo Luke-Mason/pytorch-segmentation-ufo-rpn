@@ -1,5 +1,6 @@
 import argparse
 import json
+import math
 import os
 from sklearn.model_selection import KFold
 
@@ -90,7 +91,8 @@ def stratified_split(sorted_array, group_size):
     return np.array(groups).transpose((1, 0))
 
 
-def write_metric(writer, stats, metric, func, class_name, metric_name):
+def write_metric(writer, do_validation, val_per_epochs, stats,
+                 metric, func, class_name, metric_name):
     m = stats[metric]
     train_ = np.array(m['train'])
     val_ = np.array(m['val'])
@@ -98,20 +100,20 @@ def write_metric(writer, stats, metric, func, class_name, metric_name):
         m_t = train_[:, index]
         metric_t = func(m_t)
 
-        m_v = val_[:, index]
-        metric_v = func(m_v)
+        val = {}
+        if do_validation and epoch % val_per_epochs == 0:
+            val_epoch = epoch // val_per_epochs
+            m1_v = val_m1[:, val_epoch]
+            metric_v = func(m1_v, m2_v, m3_v)
+            val['val'] = np.mean(metric_v)
 
-        writer.add_scalars(
-            name=f'{class_name}/{metric_name}',
-            data={
-                'train': np.mean(metric_t),
-                'val': np.mean(metric_v)
-            },
-            step=(index + 1),
-            description=metric_name)
+        writer.add_scalars(f'{class_name}/{metric_name}', {
+            'train': np.mean(metric_t),
+            **val
+        }, epoch + 1)
 
-def write_metric_2_param(writer, stats, metric_1, metric_2, func, class_name,
-                      metric_name):
+def write_metric_2_param(writer, do_validation, val_per_epochs, stats,
+                         metric_1, metric_2, func, class_name, metric_name):
     m1, m2 = stats[metric_1], stats[metric_2]
     train_m1 = np.array(m1['train'])
     train_m2 = np.array(m2['train'])
@@ -122,23 +124,22 @@ def write_metric_2_param(writer, stats, metric_1, metric_2, func, class_name,
         m2_t = train_m2[:, index]
         metric_t = func(m1_t, m2_t)
 
-        m1_v = val_m1[:, index]
-        m2_v = val_m2[:, index]
-        metric_v = func(m1_v, m2_v)
+        val = {}
+        if do_validation and epoch % val_per_epochs == 0:
+            val_epoch = epoch // val_per_epochs
+            m1_v = val_m1[:, val_epoch]
+            m2_v = val_m2[:, val_epoch]
+            metric_v = func(m1_v, m2_v)
+            val['val'] = np.mean(metric_v)
 
-        # for epoch_indx in range():
-        writer.add_scalars(
-            name=f'{class_name}/{metric_name}',
-            data={
-                'train': np.mean(metric_t),
-                'val': np.mean(metric_v)
-            },
-            step=(index + 1),
-            description=metric_name)
+        writer.add_scalars(f'{class_name}/{metric_name}', {
+            'train': np.mean(metric_t),
+            **val
+        }, epoch + 1)
 
-def write_metric_3_param(writer, stats, metric_1, metric_2, metric_3, func,
-                         class_name,
-                        metric_name):
+def write_metric_3_param(writer, do_validation, val_per_epochs, stats,
+                         metric_1, metric_2, metric_3, func, class_name,
+                         metric_name):
     m1, m2, m3 = stats[metric_1], stats[metric_2], stats[metric_3]
     train_m1 = np.array(m1['train'])
     train_m2 = np.array(m2['train'])
@@ -147,25 +148,24 @@ def write_metric_3_param(writer, stats, metric_1, metric_2, metric_3, func,
     val_m2 = np.array(m2['val'])
     val_m3 = np.array(m3['val'])
 
-    for index in range(train_m1.shape[1]):
-        m1_t = train_m1[:, index]
-        m2_t = train_m2[:, index]
-        m3_t = train_m3[:, index]
+    for epoch in range(train_m1.shape[1]):
+        m1_t = train_m1[:, epoch]
+        m2_t = train_m2[:, epoch]
+        m3_t = train_m3[:, epoch]
         metric_t = func(m1_t, m2_t, m3_t)
+        val = {}
+        if do_validation and epoch % val_per_epochs == 0:
+            val_epoch = epoch // val_per_epochs
+            m1_v = val_m1[:, val_epoch]
+            m2_v = val_m2[:, val_epoch]
+            m3_v = val_m3[:, val_epoch]
+            metric_v = func(m1_v, m2_v, m3_v)
+            val['val'] = np.mean(metric_v)
 
-        m1_v = val_m1[:, index]
-        m2_v = val_m2[:, index]
-        m3_v = val_m3[:, index]
-        metric_v = func(m1_v, m2_v, m3_v)
-
-        writer.add_scalars(
-            name=f'{class_name}/{metric_name}',
-            data={
-                'train': np.mean(metric_t),
-                'val': np.mean(metric_v)
-            },
-            step=(index + 1),
-            description=metric_name)
+        writer.add_scalars(f'{class_name}/{metric_name}', {
+            'train': np.mean(metric_t),
+            **val
+        }, epoch + 1)
 
 metric_indx = dict({
     "all": "All",
@@ -182,7 +182,8 @@ metric_indx = dict({
     "10": "Nothing"
 })
 
-def write_stats_to_tensorboard(writer, class_stats):
+def write_stats_to_tensorboard(writer, do_validation, val_per_epochs,
+                               class_stats):
     print(class_stats.keys())
     # LOSS
     write_metric(writer, class_stats['all'], 'loss', np.mean, 'All', 'Loss')
@@ -194,7 +195,8 @@ def write_stats_to_tensorboard(writer, class_stats):
 
         # PIXEL ACCURACY
         class_name = metric_indx[str(class_name_indx)]
-        write_metric_2_param(writer, stats, 'correct_pixels',
+        write_metric_2_param(writer, do_validation, val_per_epochs, stats,
+                             'correct_pixels',
                              'total_labeled_pixels',
                              pixel_accuracy, class_name, 'Pixel_Accuracy')
 
@@ -295,6 +297,7 @@ def main(config, resume):
         loader_args = config['train_loader']['args']
         run_name = (f"batch_size_{loader_args['batch_size']}"
                     f"_lr_{config['optimizer']['args']['lr']}"
+                    f"_k_stop_{str(config['trainer']['k_stop'])}"
                     f"_epochs_{config['trainer']['epochs']}"
                     f"_loss_{config['loss']}"
                     f"_scheduler_{config['lr_scheduler']['type']}"
@@ -378,7 +381,9 @@ def main(config, resume):
                 break
 
         # Write the stats to tensorboard
-        write_stats_to_tensorboard(writer, fold_stats)
+        write_stats_to_tensorboard(writer, config['trainer']['val'],
+                                   config['trainer']['val_per_epochs'],
+                                   fold_stats)
 
     else:
         # DATA LOADERS
