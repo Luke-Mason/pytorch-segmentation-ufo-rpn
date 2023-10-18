@@ -104,7 +104,7 @@ def write_metric(writer, do_validation, val_per_epochs, stats,
 
         val = {}
         if do_validation and epoch + 1 % val_per_epochs == 0:
-            val_epoch = epoch // val_per_epochs
+            val_epoch = (epoch // val_per_epochs) - 1
             m1_v = val_m1[:, val_epoch]
             metric_v = func(m1_v, m2_v, m3_v)
             val['val'] = np.mean(metric_v)
@@ -128,7 +128,7 @@ def write_metric_2_param(writer, do_validation, val_per_epochs, stats,
 
         val = {}
         if do_validation and epoch + 1 % val_per_epochs == 0:
-            val_epoch = epoch // val_per_epochs
+            val_epoch = (epoch // val_per_epochs) - 1
             m1_v = val_m1[:, val_epoch]
             m2_v = val_m2[:, val_epoch]
             metric_v = func(m1_v, m2_v)
@@ -157,7 +157,7 @@ def write_metric_3_param(writer, do_validation, val_per_epochs, stats,
         metric_t = func(m1_t, m2_t, m3_t)
         val = {}
         if do_validation and epoch + 1 % val_per_epochs == 0:
-            val_epoch = epoch // val_per_epochs
+            val_epoch = (epoch // val_per_epochs) - 1
             m1_v = val_m1[:, val_epoch]
             m2_v = val_m2[:, val_epoch]
             m3_v = val_m3[:, val_epoch]
