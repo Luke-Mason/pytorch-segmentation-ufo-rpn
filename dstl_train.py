@@ -106,7 +106,7 @@ def write_metric(writer, do_validation, val_per_epochs, stats,
         if do_validation and epoch + 1 % val_per_epochs == 0:
             val_epoch = (epoch // val_per_epochs) - 1
             m1_v = val_m1[:, val_epoch]
-            metric_v = func(m1_v, m2_v, m3_v)
+            metric_v = func(m1_v)
             val['val'] = np.mean(metric_v)
 
         writer.add_scalars(f'{class_name}/{metric_name}', {
