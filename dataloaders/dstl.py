@@ -629,6 +629,8 @@ class DSTL(BaseDataLoader):
         # P is 11bit, RGB is 11bit, M is 11bit, A is 14bit
 
         dstl_data_path = os.environ.get('DSTL_DATA_PATH')
+        self.MEAN = [0.219613, 0.219613, 0.219613]
+        self.STD = [0.110741, 0.110741, 0.110741]
         kwargs = {
             'root': dstl_data_path,
             'augment': augment,
@@ -637,8 +639,8 @@ class DSTL(BaseDataLoader):
             'rotate': rotate,
             'return_id': return_id,
             'val': val,
-            'mean': [0.219613, 0.219613, 0.219613],
-            'std': [0.110741, 0.110741, 0.110741]
+            'mean': self.MEAN,
+            'std': self.STD
         }
 
 
