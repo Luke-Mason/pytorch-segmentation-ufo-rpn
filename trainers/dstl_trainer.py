@@ -15,7 +15,7 @@ from utils.helpers import colorize_mask
 from utils.metrics import (eval_metrics, recall, precision, f1_score,
                            pixel_accuracy, AverageMeter,
                            mean_average_precision, intersection_over_union)
-import utils
+from utils import metric_indx
 import logging
 
 # def precision(output, target):
@@ -344,7 +344,7 @@ class DSTLTrainer(BaseTrainer):
                             # Get class name from the class index
                             #  TODO
                             class_name_idx = self.training_classes[i] if i < len(self.training_classes) else 10
-                            class_name = utils.metric_indx[str(class_name_idx)]
+                            class_name = metric_indx[str(class_name_idx)]
                             # row shows one class (num_classes_to_predict)
                             self.writer.add_image(
                                 f'inputs_targets_predictions/{class_name}',
