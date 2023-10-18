@@ -93,7 +93,7 @@ def stratified_split(sorted_array, group_size):
     return np.array(groups).transpose((1, 0))
 
 
-def write_metric(writer, do_validation, val_per_epochs, stats,
+def write_metric(logger, writer, do_validation, val_per_epochs, stats,
                  metric, func, class_name, metric_name):
     m = stats[metric]
     train_m1 = np.array(m['train'])
@@ -102,16 +102,19 @@ def write_metric(writer, do_validation, val_per_epochs, stats,
         metric_t = func(train_m1[:, epoch])
         metrics = dict({ 'train': np.mean(metric_t) })
         val = dict({})
+        logger.debug(f"epoch: {epoch + 1} | val_per_epochs: {val_per_epochs} "
+                     f"do_validation | {do_validation} "
+                     f"| allowed: {epoch + 1 % val_per_epochs == 0}")
         if do_validation and epoch + 1 % val_per_epochs == 0:
             val_epoch = (epoch // val_per_epochs) - 1
-            print("val epoch: ", val_epoch)
+            logger.debug(f"val epoch: {val_epoch}")
             metric_v = func(val_m1[:, val_epoch])
             val = dict({ 'val': np.mean(metric_v) })
             metrics.update(val)
         writer.add_scalars(f'{class_name}/{metric_name}', metrics, epoch + 1)
 
 
-def write_metric_2_param(writer, do_validation, val_per_epochs, stats,
+def write_metric_2_param(logger, writer, do_validation, val_per_epochs, stats,
                          metric_1, metric_2, func, class_name, metric_name):
     m1, m2 = stats[metric_1], stats[metric_2]
     train_m1 = np.array(m1['train'])
@@ -122,15 +125,18 @@ def write_metric_2_param(writer, do_validation, val_per_epochs, stats,
         metric_t = func(train_m1[:, epoch], train_m2[:, epoch])
         train = dict({ 'train': np.mean(metric_t) })
         val = dict({})
+        logger.debug(f"epoch: {epoch + 1} | val_per_epochs: {val_per_epochs} "
+                     f"do_validation | {do_validation} "
+                     f"| allowed: {epoch + 1 % val_per_epochs == 0}")
         if do_validation and epoch + 1 % val_per_epochs == 0:
             val_epoch = (epoch // val_per_epochs) - 1
-            print("val epoch: ", val_epoch)
+            logger.debug(f"val epoch: {val_epoch}")
             metric_v = func(val_m1[:, val_epoch], val_m2[:, val_epoch])
             val = dict({ 'val': np.mean(metric_v) })
             train.update(val)
         writer.add_scalars(f'{class_name}/{metric_name}', train, epoch + 1)
 
-def write_metric_3_param(writer, do_validation, val_per_epochs, stats,
+def write_metric_3_param(logger, writer, do_validation, val_per_epochs, stats,
                          metric_1, metric_2, metric_3, func, class_name,
                          metric_name):
     m1, m2, m3 = stats[metric_1], stats[metric_2], stats[metric_3]
@@ -145,18 +151,21 @@ def write_metric_3_param(writer, do_validation, val_per_epochs, stats,
         metric_t = func(train_m1[:, epoch], train_m2[:, epoch], train_m3[:, epoch])
         train = dict({ 'train': np.mean(metric_t) })
         val = dict({})
+        logger.debug(f"epoch: {epoch + 1} | val_per_epochs: {val_per_epochs} "
+                     f"do_validation | {do_validation} "
+                     f"| allowed: {epoch + 1 % val_per_epochs == 0}")
         if do_validation and epoch + 1 % val_per_epochs == 0:
             val_epoch = (epoch // val_per_epochs) - 1
-            print("val epoch: ", val_epoch)
+            logger.debug(f"val epoch: {val_epoch}")
             metric_v = func(val_m1[:, val_epoch], val_m2[:, val_epoch], val_m3[:, val_epoch])
             val = dict({ 'val': np.mean(metric_v) })
             train.update(val)
         writer.add_scalars(f'{class_name}/{metric_name}', train, epoch + 1)
 
-def write_stats_to_tensorboard(writer, do_validation, val_per_epochs,
+def write_stats_to_tensorboard(logger, writer, do_validation, val_per_epochs,
                                class_stats):
     # LOSS
-    write_metric(writer, do_validation, val_per_epochs, class_stats['all'], 'loss', np.mean, 'All', 'Loss')
+    write_metric(logger, writer, do_validation, val_per_epochs, class_stats['all'], 'loss', np.mean, 'All', 'Loss')
 
     for class_name_indx, stats in class_stats.items():
         class_name = metric_indx[str(class_name_indx)]
@@ -165,29 +174,30 @@ def write_stats_to_tensorboard(writer, do_validation, val_per_epochs,
         # write_metric(writer, stats, 'average_precision', np.mean, class_name, 'mAP')
 
         # PIXEL ACCURACY
-        write_metric_2_param(writer, do_validation, val_per_epochs, stats,
+        write_metric_2_param(logger, writer, do_validation, val_per_epochs,
+                             stats,
                              'correct_pixels',
                              'total_labeled_pixels',
                              pixel_accuracy, class_name, 'Pixel_Accuracy')
 
         # PRECISION
-        write_metric_2_param(writer, do_validation, val_per_epochs, stats,
+        write_metric_2_param(logger, writer, do_validation, val_per_epochs, stats,
                              'intersection', 'predicted_positives',
                              precision, class_name, 'Precision')
 
         # RECALL
-        write_metric_2_param(writer, do_validation, val_per_epochs, stats,
+        write_metric_2_param(logger, writer, do_validation, val_per_epochs, stats,
                              'intersection', 'total_positives',
                              recall, class_name, 'Recall')
 
         # F1 SCORE
-        write_metric_3_param(writer, do_validation, val_per_epochs, stats,
+        write_metric_3_param(logger, writer, do_validation, val_per_epochs, stats,
                              'intersection', 'predicted_positives',
                                 'total_positives', f1_score, class_name,
                                 'F1_Score')
 
         # MEAN IoU
-        write_metric_2_param(writer, do_validation, val_per_epochs, stats,
+        write_metric_2_param(logger, writer, do_validation, val_per_epochs, stats,
                              'intersection', 'union',
                              intersection_over_union, class_name, 'Mean_IoU')
 
@@ -356,7 +366,8 @@ def main(config, resume):
                 break
 
         # Write the stats to tensorboard
-        write_stats_to_tensorboard(writer, config['trainer']['val'],
+        logger.info(f"val per epoch!!!!!! {config['trainer']['val_per_epochs']}")
+        write_stats_to_tensorboard(logger, writer, config['trainer']['val'],
                                    config['trainer']['val_per_epochs'],
                                    fold_stats)
 
