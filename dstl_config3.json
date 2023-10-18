@@ -11,7 +11,7 @@
         }
     },
     "trainer": {
-        "epochs": 5,
+        "epochs": 80,
         "save_dir": "saved/",
         "save_period": 20,
         "monitor": "max Mean_IoU",
@@ -21,7 +21,7 @@
         "log_per_iter": 10,
         "val": true,
         "val_per_epochs": 5,
-        "k_stop": 3,
+        "k_stop": 1,
         "k_split": 5,
         "k_shuffle": false,
         "k_random_state": 42

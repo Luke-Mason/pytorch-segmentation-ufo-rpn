@@ -171,7 +171,6 @@ def write_metric_3_param(writer, do_validation, val_per_epochs, stats,
 
 def write_stats_to_tensorboard(writer, do_validation, val_per_epochs,
                                class_stats):
-    print(class_stats.keys())
     # LOSS
     write_metric(writer, do_validation, val_per_epochs, class_stats['all'], 'loss', np.mean, 'All', 'Loss')
 
