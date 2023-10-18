@@ -5,7 +5,6 @@
 
 import csv
 import datetime
-import json
 import logging
 import os
 from itertools import islice
@@ -13,7 +12,6 @@ from pathlib import Path
 from typing import Dict, Tuple, List
 import sys
 import cv2
-import math
 import numpy as np
 import rasterio
 import shapely.affinity
