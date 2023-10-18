@@ -36,6 +36,7 @@ class BaseTrainer:
         self.improved = False
         self.k_fold = k_fold
         self.writer = writer
+        self.training_classes = self.config["train_loader"]["preprocessing"]["training_classes"]
 
         # SETTING THE DEVICE
         self.device, availble_gpus = self._get_available_devices(self.config['n_gpu'])
