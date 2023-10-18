@@ -184,7 +184,8 @@ class DSTLTrainer(BaseTrainer):
             # PRINT INFO
             seg_metrics = self._get_metrics(metrics_totals)
             tbar.set_description(f'TRAIN EPOCH {epoch} | Batch: {batch_idx + 1} | ')
-            message = f'TRAIN EPOCH {epoch} | Batch: {batch_idx + 1} | '
+            message = (f'\nTRAIN EPOCH {epoch} | Batch: {batch_idx + 1} | Loss '
+                       f': {loss.item():.3f} | ')
             for k, v in seg_metrics.items():
                 message += f'{k}: {v:.3f} | '
             self.logger.info(message)
