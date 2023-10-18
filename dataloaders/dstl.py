@@ -5,7 +5,6 @@
 
 import csv
 import datetime
-import json
 import logging
 import os
 from itertools import islice
@@ -13,7 +12,6 @@ from pathlib import Path
 from typing import Dict, Tuple, List
 import sys
 import cv2
-import math
 import numpy as np
 import rasterio
 import shapely.affinity
@@ -80,9 +78,6 @@ class DSTLDataset(BaseDataSet):
         self.align_images = align_images
         self.interpolation_method = interpolation_method
 
-        # Colours TODO
-        self.palette = palette.get_voc_palette(self.num_classes)
-
         # Setup directories and paths
         self.root = kwargs['root']
         self.image_dir = os.path.join(self.root, 'sixteen_band/sixteen_band')
@@ -110,9 +105,6 @@ class DSTLDataset(BaseDataSet):
 
         # Logging
         self._setup_logging()
-
-        # The colour palette for the classes
-        self.palette = palette.get_voc_palette(len(self.training_classes))
 
         super(DSTLDataset, self).__init__(**kwargs)
 
@@ -152,26 +144,32 @@ class DSTLDataset(BaseDataSet):
 
             stage_2_file_path = self.get_stage_2_file_path(image_id)
             if not os.path.exists(stage_2_file_path + ".data.npy"):
+                # Saves image to file with 3 bands
                 self._preprocess_image_stage_2(image_id, stage_1_file_path,
                                                stage_2_file_path)
 
         # Load Images
         for index, [image_id, _] in enumerate(self._wkt_data):
+            # Load image with 3 bands
             image = np.load(Path(self.get_stage_2_file_path(image_id) +
                                  ".data.npy"),  allow_pickle=True)
 
             height, width = image.shape[1], image.shape[2]
             chunk_offsets = self._gen_chunk_offsets(width, height, step_size)
-            mask = np.load(Path(self.get_mask_file_path(image_id) + ".mask.npy"),  allow_pickle=True)
+
+            # Load all masks for image
+            all_class_mask = np.load(Path(self.get_mask_file_path(image_id) + ".mask.npy"),  allow_pickle=True)
 
             for c_index, (x, y) in enumerate(chunk_offsets):
 
                 # Get the masks for the classes that we want to validate and train on.
-                patch_y_mask = mask[:, y:y + self.patch_size,
+                patch_y_mask = all_class_mask[self.training_classes, y:y + self.patch_size,
                                x:x + self.patch_size]
 
-                # Merging bands together with the strategies to produce
-                # the input patch image.
+                # Add the mask for all where there is no mask
+                patch_y_mask = np.concatenate((patch_y_mask, np.expand_dims(
+                    np.logical_not(np.any(patch_y_mask, axis=0)), axis=0)), axis=0)
+
                 patch = image[:, y:y + self.patch_size, x:x + self.patch_size]
 
                 # All files associated with image @ index are put into train
@@ -243,13 +241,10 @@ class DSTLDataset(BaseDataSet):
         image = np.load(Path(file_path + ".data.npy"),  allow_pickle=True)
         im_size = image.shape[1:]
         class_to_polygons = self._load_polygons(img_class, im_size)
+        # Load all classes as masks
         mask = np.array(
             [mask_for_polygons(im_size, class_to_polygons.get(str(cls + 1)))
-             for cls in self.training_classes])
-
-        # Add the mask for all where there is no mask
-        mask = np.concatenate((mask, np.expand_dims(
-            np.logical_not(np.any(mask, axis=0)), axis=0)), axis=0)
+             for cls in range(len(class_to_polygons.keys()))])
 
         np.save(Path(mask_path + ".mask.npy"), mask, allow_pickle=True)
 
@@ -391,20 +386,20 @@ class DSTLDataset(BaseDataSet):
         im_a_src = rasterio.open(a_path, driver='GTiff', dtype=np.float32)
 
         # Load data from streams
-        im_rgb = im_rgb_src.read().transpose([1, 2, 0])
-        im_p = im_p_src.read().transpose([1, 2, 0])
-        im_m = im_m_src.read().transpose([1, 2, 0])
-        im_a = im_a_src.read().transpose([1, 2, 0])
+        im_rgb = im_rgb_src.read()
+        im_p = im_p_src.read()
+        im_m = im_m_src.read()
+        im_a = im_a_src.read()
 
-        w, h = im_rgb.shape[:2]
+        w, h = im_rgb.shape[1:]
 
         # TODO This has not been tested yet
         if self.align_images:
             im_p, _ = self._aligned(im_rgb, im_p, key=key('P'))
-            im_m, aligned = self._aligned(im_rgb, im_m, im_m[:, :, :3],
+            im_m, aligned = self._aligned(im_rgb, im_m, im_m[:3, :, :],
                                           key=key('M'))
-            im_ref = im_m[:, :, -1] if aligned else im_rgb[:, :, 0]
-            im_a, _ = self._aligned(im_ref, im_a, im_a[:, :, 0], key=key('A'))
+            im_ref = im_m[-1, :, :] if aligned else im_rgb[0, :, :]
+            im_a, _ = self._aligned(im_ref, im_a, im_a[0, :, :], key=key('A'))
 
         # Get the reference image for scaling the other image bands to it.
         # Allows for experimenting with different reference band scales.
@@ -421,12 +416,14 @@ class DSTLDataset(BaseDataSet):
 
         # Resize the images to be the same size as RGB.
         # Sometimes panchromatic is a couple of pixels different to RGB
-        if im_p.shape != ref_img.shape[:2]:
-            im_p = cv2.resize(im_p, (h, w),
+        if im_p.shape != ref_img.shape[1:]:
+            im_p = cv2.resize(im_p.transpose([1, 2, 0]), (h, w),
                               interpolation=self.interpolation_method)
-        im_p = np.expand_dims(im_p, 2)
-        im_m = cv2.resize(im_m, (h, w), interpolation=self.interpolation_method)
-        im_a = cv2.resize(im_a, (h, w), interpolation=self.interpolation_method)
+            im_p = np.expand_dims(im_p, 0)
+        im_rgb = cv2.resize(im_rgb.transpose([1, 2, 0]), (h, w),
+                            interpolation=self.interpolation_method).transpose([2,0,1])
+        im_m = cv2.resize(im_m.transpose([1, 2, 0]), (h, w), interpolation=self.interpolation_method).transpose([2,0,1])
+        im_a = cv2.resize(im_a.transpose([1, 2, 0]), (h, w), interpolation=self.interpolation_method).transpose([2,0,1])
 
         # Scale images between 0-1 based off their maximum and minimum bounds
         # P and M images are 11bit integers, A is 14bit integers, scale values to be
@@ -435,11 +432,11 @@ class DSTLDataset(BaseDataSet):
         im_rgb = (im_rgb / 2047.0)
         im_m = (im_m / 2047.0)
         im_a = (im_a / 16383.0)
-        image = (np.concatenate([im_p, im_rgb, im_m, im_a], axis=2).transpose([2, 0, 1]))
+        image = np.concatenate([im_p, im_rgb, im_m, im_a], axis=0)
         self.logger.debug(f"Image shape: {image.shape}")
 
         # Save images
-        np.save(Path(file_path + ".data"), image)
+        np.save(Path(file_path + ".data.npy"), image)
         self.logger.debug(f"Saving image to {file_path}.data.npy")
 
         # Close streams
@@ -463,17 +460,17 @@ class DSTLDataset(BaseDataSet):
 
         # Save images
         self.logger.debug(f"Saving image to {dst_path}.data.npy")
-        np.save(Path(dst_path + ".data"), image, allow_pickle=True)
+        np.save(Path(dst_path + ".data.npy"), image, allow_pickle=True)
 
     def _aligned(self, im_ref, im, im_to_align=None, key=None):
-        w, h = im.shape[:2]
+        w, h = im.shape[1:]
         im_ref = cv2.resize(im_ref, (h, w),
                             interpolation=self.interpolation_method)
         im_ref = self._preprocess_for_alignment(im_ref)
         if im_to_align is None:
             im_to_align = im
         im_to_align = self._preprocess_for_alignment(im_to_align)
-        assert im_ref.shape[:2] == im_to_align.shape[:2]
+        assert im_ref.shape[1:] == im_to_align.shape[1:]
         try:
             cc, warp_matrix = self._get_alignment(im_ref, im_to_align, key)
         except cv2.error as e:

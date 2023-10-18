@@ -3,12 +3,12 @@ import json
 import os
 import time
 import datetime
-
 import numpy as np
 import torch
 from base import BaseTrainer, DataPrefetcher
 from torchvision import transforms
-from torchvision.utils import make_grid
+from torchvision.utils import make_grid, make_grid
+import matplotlib.pyplot as plt
 from tqdm import tqdm
 from utils import transforms as local_transforms
 from utils.helpers import colorize_mask
@@ -22,11 +22,11 @@ import logging
 
 class DSTLTrainer(BaseTrainer):
     def __init__(self, start_time, model, loss, resume, config, train_loader,
-                            k_fold = None,
-                 val_loader=None, train_logger=None, prefetch=False, root='.'):
+                 writer, k_fold = None, val_loader=None, train_logger=None,
+                 prefetch=False, root='.'):
         super(DSTLTrainer, self).__init__(start_time, model, loss, resume,
-                                          config, train_loader, k_fold,
-                                      val_loader, train_logger, root)
+                                          config, train_loader, writer, k_fold,
+                                          val_loader, train_logger, root)
         self.wrt_mode, self.wrt_step = 'train_', 0
         self.log_step = config['trainer'].get('log_per_iter', int(np.sqrt(
             self.train_loader.batch_size)))
@@ -37,10 +37,14 @@ class DSTLTrainer(BaseTrainer):
 
         # TRANSORMS FOR VISUALIZATION
         self.restore_transform = transforms.Compose([
-            transforms.ToPILImage()])
-        self.viz_transform = transforms.Compose([
             transforms.Resize((400, 400)),
-            transforms.ToTensor()])
+            transforms.Grayscale(num_output_channels=1),
+        ])
+
+        self.vis_transform = transforms.Compose([
+            transforms.Resize((400, 400)),
+        ])
+
 
         self.min_clip_percentile = 2
         self.max_clip_percentile = 98
@@ -62,6 +66,28 @@ class DSTLTrainer(BaseTrainer):
 
             array[i] -= array[i].min()
             output[i] = array[i] / (array[i].max() / 255)
+
+        return output
+
+    def dra3(self, array: torch.Tensor) -> torch.Tensor:
+        # Convert array to float tensor
+        array = array.float()
+
+        output = torch.zeros(array.shape, dtype=torch.uint8)
+        mask = array[0, :, :] != 0
+        for i in range(1, array.shape[0] - 1):
+            mask &= array[i, :, :] != 0
+
+        for i in range(array.shape[0]):
+            masked_array = array[i][mask]
+            min_pixel = torch.quantile(masked_array, self.min_clip_percentile
+                                       / 100)
+            max_pixel = torch.quantile(masked_array, self.max_clip_percentile
+                                       / 100)
+            array[i] = torch.clamp(array[i], min_pixel, max_pixel)
+
+            array[i] -= array[i].min()
+            output[i] = (array[i] / (array[i].max() / 255)).to(torch.uint8)
 
         return output
 
@@ -157,7 +183,7 @@ class DSTLTrainer(BaseTrainer):
 
 
             # PRINT INFO
-            seg_metrics = self._get_seg_metrics(metrics_totals)
+            seg_metrics = self._get_metrics(metrics_totals)
             description = f'TRAIN EPOCH {epoch} | Batch: {batch_idx + 1} | '
             for k, v in seg_metrics.items():
                 description += f'{k}: {v:.3f} | '
@@ -191,7 +217,7 @@ class DSTLTrainer(BaseTrainer):
 
         tbar = tqdm(self.val_loader, ncols=130)
         with torch.no_grad():
-            val_visual = []
+            visualise_first_img_in_batch = []
             for batch_idx, (data, target) in enumerate(tbar):
                 # LOSS
                 output = self.model(data)
@@ -224,45 +250,103 @@ class DSTLTrainer(BaseTrainer):
                             total_metric_totals[str(class_idx)][k] += v
 
                 # PRINT INFO
-                seg_metrics = self._get_seg_metrics(metrics_totals)
+                seg_metrics = self._get_metrics(metrics_totals)
                 description = f'EVAL EPOCH {epoch} | Batch: {batch_idx + 1} | '
                 for k, v in seg_metrics.items():
                     description += f'{self.convert_to_title_case(k)}: {v:.3f} | '
                 tbar.set_description(description)
 
+                self.writer.add_graph(self.model, data)
 
-            # WRTING & VISUALIZING THE MASKS
-            # LIST OF IMAGE TO VIZ (15 images)
-            # if len(val_visual) < 15:
-            #     target_np = target.data.cpu().numpy()
-            #     output_np = output.data.max(1)[1].cpu().numpy()
-            #     val_visual.append(
-            #         [self.dra(data[0].data.cpu()), target_np[0],
-            #          output_np[0]])
-            # val_img = []
-            # palette = self.train_loader.dataset.palette
-            # for dta, tgt, out in val_visual:
-            #     # TODO scale the last 8 bands
-            #     dta = dta * 2048
-            #
-            #     dta = dta.transpose(1,2,0)
-            #     tgt = tgt.transpose(1,2,0)
-            #     dta = self.restore_transform(dta.astype(np.uint8))
-            #
-            #     tgt, out = colorize_mask(tgt, palette), colorize_mask(out, palette)
-            #     dta, tgt, out = dta.convert('RGB'), tgt.convert('RGB'), out.convert('RGB')
-            #     [dta, tgt, out] = [self.viz_transform(x) for x in [dta, tgt, out]]
-            #     val_img.extend([dta, tgt, out])
-            # val_img = torch.stack(val_img, 0)
-            # val_img = make_grid(val_img.cpu(), nrow=3, padding=5)
-            # self.writer.add_image(f'inputs_targets_predictions', val_img, epoch)
+                # WRTING & VISUALIZING THE MASKS
+                # LIST OF IMAGE TO VIZ (15 images)
+                if len(visualise_first_img_in_batch) < 15:
+                    for k in range(1):
+                        dta, tgt, out = data[k], target[k], output[k]
+
+                        dta = dta * 2047
+                        _dta = self.vis_transform(torch.tensor(dta).to(torch.uint8))
+                        dta = torch.unsqueeze(_dta, dim=0)
+                        visualise_first_img_in_batch.extend([dta])
+                        for i in range(self.num_classes):
+                            tgi = tgt[i, :, :][np.newaxis, :, :]
+                            tgi = (tgi > self.threshold).float().to(torch.int) * 255
+                            tgi = self.restore_transform(tgi.to(torch.uint8))
+
+                            outi = out[i, :, :][np.newaxis, :, :]
+                            outi = (outi > self.threshold).float().to(torch.int) * 255
+                            outi = self.restore_transform(outi.to(torch.uint8))
+
+                            # %%
+                            # plt.figure(figsize=(20, 7))
+                            # plt.subplot(2, 4, 1)
+                            # plt.title('Input (Image)')
+                            # plt.imshow(torch.from_numpy(self.dra(
+                            #     _dta.numpy())).permute(1, 2, 0))
+                            # plt.axis('off')
+                            #
+                            # plt.subplot(2, 4, 2)
+                            # plt.title('Input (Image)')
+                            # plt.imshow(torch.from_numpy(self.dra2(
+                            #     _dta.numpy())).permute(1, 2, 0))
+                            # plt.axis('off')
+                            #
+                            # plt.subplot(2, 4, 3)
+                            # plt.title('Input (Image)')
+                            # plt.imshow(self.dra3(_dta).permute(1, 2, 0))
+                            # plt.axis('off')
+                            #
+                            # plt.subplot(2, 4, 4)
+                            # plt.title('Input (Image)')
+                            # plt.imshow(_dta.permute(1, 2, 0)[:, :, [1,2,0]])
+                            # plt.axis('off')
+                            #
+                            # plt.subplot(2, 4, 5)
+                            # plt.title('Input (Image)')
+                            # plt.imshow(_dta.permute(1, 2, 0)[:, :, [2,0,1]])
+                            # plt.axis('off')
+                            #
+                            # plt.subplot(2, 4, 6)
+                            # plt.title('Input (Image)')
+                            # plt.imshow(_dta.permute(1, 2, 0)[:, :, [2,1,0]])
+                            # plt.axis('off')
+                            #
+                            # plt.subplot(2, 4, 7)
+                            # plt.title('Output (Predicted)')
+                            # plt.imshow(outi.permute(1,2,0), cmap='gray')
+                            # plt.axis('off')
+                            #
+                            # # Plotting the target tensor (ground truth)
+                            # plt.subplot(2, 4, 8)
+                            # plt.title('Target (Ground Truth)')
+                            # plt.imshow(tgi.permute(1,2,0), cmap='gray')
+                            # plt.axis('off')
+                            #
+                            # plt.tight_layout()
+                            # plt.show()
+                            # %%
+
+                            tgi = torch.unsqueeze(tgi, dim=0)
+                            tgi = tgi.expand(-1, 3, -1, -1)
+
+                            outi = torch.unsqueeze(outi, dim=0)
+                            outi = outi.expand(-1, 3, -1, -1)
+
+                            visualise_first_img_in_batch.extend([tgi, outi])
+
+            imgs = torch.cat(visualise_first_img_in_batch, dim=0)
+            grid_img = make_grid(imgs, ncol=(1 + (2 * self.num_classes)))
+
+            # row shows one class (num_classes_to_predict)
+            self.writer.add_image(f'inputs_targets_predictions', grid_img, epoch)
 
         # Add loss
         total_metric_totals['all']['loss'] = loss_history
 
         return total_metric_totals
 
-    def _get_seg_metrics(self, seg_totals):
+    def _get_metrics(self, seg_class_totals):
+        seg_totals = seg_class_totals['all'] if 'all' in seg_class_totals else seg_class_totals
         pixAcc = pixel_accuracy(seg_totals['correct_pixels'], seg_totals['total_labeled_pixels'])
         p = precision(seg_totals['intersection'], seg_totals[
             'predicted_positives'])
