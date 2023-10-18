@@ -15,5 +15,4 @@ matplotlib
 geopandas
 tensorboard-logger
 descartes
-scikit-learn
 tensorboard-plugin-customizable-plots
