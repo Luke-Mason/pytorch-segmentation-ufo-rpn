@@ -150,7 +150,7 @@ class BaseTrainer:
                             'val': []
                         })
                     stats[class_name][metric_name]['train'].append(total)
-
+            metrics = {}
             if self.do_validation and epoch % self.config['trainer']['val_per_epochs'] == 0:
                 epoch_stats = self._valid_epoch(epoch)
                 for class_name, metric_totals in epoch_stats.items():
