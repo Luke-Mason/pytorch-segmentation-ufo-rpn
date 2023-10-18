@@ -190,6 +190,116 @@ class DSTLDataset(BaseDataSet):
                              f" {(100 / len(self._wkt_data)) * (index + 1)}% "
                              f"...\n")
 
+        self.logger.info("Auto balancing classes...")
+
+        # Auto balance the classes so that the negative class is not over represented.
+        pixel_area_stats = np.zeros((self.num_classes,))
+        class_area_stats = np.zeros((len(self.files), self.num_classes + 1))
+        # Get the pixel area statistics for each class and set it
+        for index, (_, patch_y_mask) in enumerate(self.files):
+            for i in range(self.num_classes):
+                pixel_area_stats[i] += np.sum(patch_y_mask[i])
+                class_area_stats[index, i] = np.sum(patch_y_mask[i])
+                class_area_stats[index, -1] = index  # Mark with index of file
+
+        area_stats = class_area_stats.copy()
+        indices_to_delete = [np.array([])]
+        indices_to_duplicate = [np.array([])]
+        group = 0
+        imblanced_classes = np.argsort(pixel_area_stats)
+        old_stat = pixel_area_stats[imblanced_classes[-1]]
+
+        while True:
+            print(f"| Channel Balancing {'% | '.join(map(str, np.round((pixel_area_stats / np.sum(pixel_area_stats)) * 100, 2)))}% |")
+            ascending_imblanced_classes = np.argsort(pixel_area_stats)
+
+            # Calculate the threshold for a 5% difference
+            threshold = 0.05 * pixel_area_stats
+
+            # Check if any element is more than 5% different from another element
+            more_than_5_percent_difference = np.any(np.abs(
+                pixel_area_stats - pixel_area_stats[:, None]) > threshold[:,
+                                                                None])
+            if (not more_than_5_percent_difference or np.any(
+                    old_stat < pixel_area_stats[
+                        ascending_imblanced_classes[-1]])):
+                print(more_than_5_percent_difference)
+                break
+
+            old_stat = pixel_area_stats[ascending_imblanced_classes[-1]]
+
+            # Get the class with the most pixels
+            area_stats = area_stats[np.lexsort([
+                area_stats[:, ascending_imblanced_classes[i]] for i in
+                range(len(ascending_imblanced_classes))
+            ])]
+
+            if len(indices_to_duplicate[group]) == 0 or len(
+                    area_stats) - 1 > np.argmax(indices_to_duplicate[group]):
+                highest_imbalanced_entry = area_stats[-1]
+                indices_to_delete.append(highest_imbalanced_entry[-1])
+                pixel_area_stats = pixel_area_stats - highest_imbalanced_entry[
+                                                      :-1]
+                area_stats = area_stats[:-1]
+
+            lowest_imbalanced_entry = area_stats[0]
+            most_imbalanced_class = ascending_imblanced_classes[-1]
+            least_imbalanced_class = ascending_imblanced_classes[0]
+            # Check that the most imbalanced class value is not greater than the
+            # least imbalanced class value
+            if lowest_imbalanced_entry[most_imbalanced_class] > \
+                    lowest_imbalanced_entry[least_imbalanced_class]:
+                if len(indices_to_duplicate[group]) == 0:
+                    print('No samples to duplicate to balance the classes.')
+                    print('lowest_imbalanced_entry',
+                          np.round(lowest_imbalanced_entry, 3))
+                    print('most_imbalanced_class', most_imbalanced_class)
+                    break
+
+                if group == 0 or len(indices_to_duplicate[group]) == len(
+                        indices_to_duplicate[group - 1]):
+                    group += 1
+                    indices_to_delete.append(np.array([]))
+                    indices_to_duplicate.append(np.array([]))
+
+                mask = np.isin(indices_to_duplicate[group - 1],
+                               indices_to_duplicate[group])
+                indices_left = indices_to_duplicate[group - 1][~mask].astype(
+                    int)
+                if len(indices_left) == 0:
+                    continue
+                # Select the least imbalanced entry from the duplicated indices
+                lowest_imbalanced_index = \
+                class_area_stats[indices_left][np.lexsort([
+                    class_area_stats[indices_left][:,
+                    ascending_imblanced_classes[i]]
+                    for i in range(len(ascending_imblanced_classes))
+                ])][0][-1].astype(int)
+                assert lowest_imbalanced_index in indices_left
+                indices_to_duplicate[group] = np.append(
+                    indices_to_duplicate[group], lowest_imbalanced_index)
+                pixel_area_stats = (pixel_area_stats +
+                                    class_area_stats[lowest_imbalanced_index][:-1])
+            else:
+                indices_to_duplicate[group] = np.append(
+                    indices_to_duplicate[group],
+                    lowest_imbalanced_entry[-1])
+                pixel_area_stats = pixel_area_stats + lowest_imbalanced_entry[:-1]
+                area_stats = area_stats[1:]
+
+        # Copy the files that need to be duplicated
+        indices_to_duplicate = np.array(indices_to_duplicate).flatten()
+        files_to_append = np.array([])
+        for i in range(len(indices_to_duplicate)):
+            files_to_append = np.append(
+                files_to_append, np.copy(self.files[indices_to_duplicate[i]]))
+
+        # Delete the files that are not needed
+        self.files = np.delete(self.files, indices_to_delete)
+
+        # Append the files that need to be duplicated
+        self.files = np.append(self.files, files_to_append)
+
         self.logger.info(f"Total files: {len(self.files)}")
 
     def get_file_indexes(self):

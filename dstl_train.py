@@ -175,12 +175,12 @@ def write_stats_to_tensorboard(writer, do_validation, val_per_epochs,
     write_metric(writer, do_validation, val_per_epochs, class_stats['all'], 'loss', np.mean, 'All', 'Loss')
 
     for class_name_indx, stats in class_stats.items():
+        class_name = metric_indx[str(class_name_indx)]
 
         # # mAP
         # write_metric(writer, stats, 'average_precision', np.mean, class_name, 'mAP')
 
         # PIXEL ACCURACY
-        class_name = metric_indx[str(class_name_indx)]
         write_metric_2_param(writer, do_validation, val_per_epochs, stats,
                              'correct_pixels',
                              'total_labeled_pixels',
