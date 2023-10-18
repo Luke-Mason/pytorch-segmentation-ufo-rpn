@@ -10,12 +10,11 @@ from torchvision import transforms
 from torchvision.utils import make_grid, make_grid
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from utils import transforms as local_transforms
+from utils import transforms as local_transforms, metric_indx
 from utils.helpers import colorize_mask
 from utils.metrics import (eval_metrics, recall, precision, f1_score,
                            pixel_accuracy, AverageMeter,
                            mean_average_precision, intersection_over_union)
-from dstl_train import metric_indx
 import logging
 
 # def precision(output, target):
