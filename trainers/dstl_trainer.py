@@ -44,7 +44,7 @@ class DSTLTrainer(BaseTrainer):
         self.vis_transform = transforms.Compose([
             local_transforms.DeNormalize(self.train_loader.MEAN,
                                          self.train_loader.STD),
-            transforms.ToPILImage(),
+            # transforms.ToPILImage(),
             transforms.Resize((400, 400), antialias=True),
         ])
 
