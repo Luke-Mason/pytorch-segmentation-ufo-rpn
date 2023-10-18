@@ -37,12 +37,12 @@ class DSTLTrainer(BaseTrainer):
 
         # TRANSORMS FOR VISUALIZATION
         self.restore_transform = transforms.Compose([
-            transforms.Resize((400, 400)),
+            transforms.Resize((400, 400), antialias=True),
             transforms.Grayscale(num_output_channels=1),
         ])
 
         self.vis_transform = transforms.Compose([
-            transforms.Resize((400, 400)),
+            transforms.Resize((400, 400), antialias=True),
         ])
 
 
