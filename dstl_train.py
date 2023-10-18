@@ -98,7 +98,7 @@ def write_metric(writer, do_validation, val_per_epochs, stats,
     m = stats[metric]
     train_m1 = np.array(m['train'])
     val_m1 = np.array(m['val'])
-    for epoch in range(train_.shape[1]):
+    for epoch in range(train_m1.shape[1]):
         metric_t = func(train_m1[:, epoch])
 
         val = {}
