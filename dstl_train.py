@@ -101,10 +101,14 @@ def write_metric(writer, stats, metric, func, class_name, metric_name):
         m_v = val_[:, index]
         metric_v = func(m_v)
 
-        writer.add_scalars(f'{class_name}/{metric_name}', {
-            'train': np.mean(metric_t),
-            'val': np.mean(metric_v)
-        }, index + 1)
+        writer.add_scalars(
+            name=f'{class_name}/{metric_name}',
+            data={
+                'train': np.mean(metric_t),
+                'val': np.mean(metric_v)
+            },
+            step=(index + 1),
+            description=metric_name)
 
 def write_metric_2_param(writer, stats, metric_1, metric_2, func, class_name,
                       metric_name):
@@ -123,10 +127,14 @@ def write_metric_2_param(writer, stats, metric_1, metric_2, func, class_name,
         metric_v = func(m1_v, m2_v)
 
         # for epoch_indx in range():
-        writer.add_scalars(f'{class_name}/{metric_name}', {
-            'train': np.mean(metric_t),
-            'val': np.mean(metric_v)
-        }, index + 1)
+        writer.add_scalars(
+            name=f'{class_name}/{metric_name}',
+            data={
+                'train': np.mean(metric_t),
+                'val': np.mean(metric_v)
+            },
+            step=(index + 1),
+            description=metric_name)
 
 def write_metric_3_param(writer, stats, metric_1, metric_2, metric_3, func,
                          class_name,
@@ -150,10 +158,14 @@ def write_metric_3_param(writer, stats, metric_1, metric_2, metric_3, func,
         m3_v = val_m3[:, index]
         metric_v = func(m1_v, m2_v, m3_v)
 
-        writer.add_scalars(f'{class_name}/{metric_name}', {
-            'train': np.mean(metric_t),
-            'val': np.mean(metric_v)
-        }, index + 1)
+        writer.add_scalars(
+            name=f'{class_name}/{metric_name}',
+            data={
+                'train': np.mean(metric_t),
+                'val': np.mean(metric_v)
+            },
+            step=(index + 1),
+            description=metric_name)
 
 metric_indx = dict({
     "all": "All",
@@ -277,7 +289,8 @@ def main(config, resume):
         preprocessing_ = config['train_loader']['preprocessing']
         training_classes_str = '_'.join(
             str(i) for i in preprocessing_['training_classes'])
-        training_band_groups = ['_'.join(map(str, band_group)) for band_group in
+        training_band_groups = [f"({'_'.join(map(str, band_group['bands']))})"
+                                for band_group in
                                 preprocessing_['training_band_groups']]
         loader_args = config['train_loader']['args']
         run_name = (f"batch_size_{loader_args['batch_size']}"
@@ -287,7 +300,7 @@ def main(config, resume):
                     f"_scheduler_{config['lr_scheduler']['type']}"
                     f"_patch_size_{preprocessing_['patch_size']}"
                     f"_overlap_pixels_{preprocessing_['overlap_pixels']}"
-                    f"_training_classes_{training_classes_str})"
+                    f"_training_classes_({training_classes_str})"
                     f"_training_band_groups_[{'-'.join(training_band_groups)}]")
         writer_dir = os.path.join(config['trainer']['log_dir'], config['name'], run_name, start_time)
         writer = tensorboard.SummaryWriter(writer_dir)
@@ -360,8 +373,8 @@ def main(config, resume):
                         fold_stats[class_name][metric_name][type].append(stats)
 
             logger.info(f'Finished Fold {fold + 1}:')
-            if config["trainer"]["k_stop"] is not None and config["trainer"][ \
-                    "k_stop"] == fold + 1:
+            if config["trainer"]["k_stop"] is not None and config["trainer"][
+                "k_stop"] > 0 and config["trainer"]["k_stop"] == fold + 1:
                 break
 
         # Write the stats to tensorboard
