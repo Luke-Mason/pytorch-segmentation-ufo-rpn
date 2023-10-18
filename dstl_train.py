@@ -21,6 +21,7 @@ from utils.metrics import (eval_metrics, recall, precision, f1_score,
                            pixel_accuracy, AverageMeter,
                            mean_average_precision, intersection_over_union)
 from test_helper import dataset_gateway
+from utils import metric_indx
 
 torch.cuda.empty_cache()
 
@@ -166,21 +167,6 @@ def write_metric_3_param(writer, do_validation, val_per_epochs, stats,
             'train': np.mean(metric_t),
             **val
         }, epoch + 1)
-
-metric_indx = dict({
-    "all": "All",
-    "0": "Buildings",
-    "1": "Misc",
-    "2": "Road",
-    "3": "Track",
-    "4": "Trees",
-    "5": "Crops",
-    "6": "Waterway",
-    "7": "Standing water",
-    "8": "Vehicle Large",
-    "9": "Vehicle Small",
-    "10": "Nothing"
-})
 
 def write_stats_to_tensorboard(writer, do_validation, val_per_epochs,
                                class_stats):
