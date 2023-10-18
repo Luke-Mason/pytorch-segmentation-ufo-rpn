@@ -188,20 +188,24 @@ def write_stats_to_tensorboard(writer, do_validation, val_per_epochs,
                              pixel_accuracy, class_name, 'Pixel_Accuracy')
 
         # PRECISION
-        write_metric_2_param(writer, stats, 'intersection', 'predicted_positives',
+        write_metric_2_param(writer, do_validation, val_per_epochs, stats,
+                             'intersection', 'predicted_positives',
                              precision, class_name, 'Precision')
 
         # RECALL
-        write_metric_2_param(writer, stats, 'intersection', 'total_positives',
+        write_metric_2_param(writer, do_validation, val_per_epochs, stats,
+                             'intersection', 'total_positives',
                              recall, class_name, 'Recall')
 
         # F1 SCORE
-        write_metric_3_param(writer, stats, 'intersection', 'predicted_positives',
+        write_metric_3_param(writer, do_validation, val_per_epochs, stats,
+                             'intersection', 'predicted_positives',
                                 'total_positives', f1_score, class_name,
                                 'F1_Score')
 
         # MEAN IoU
-        write_metric_2_param(writer, stats, 'intersection', 'union',
+        write_metric_2_param(writer, do_validation, val_per_epochs, stats,
+                             'intersection', 'union',
                              intersection_over_union, class_name, 'Mean_IoU')
 
 
