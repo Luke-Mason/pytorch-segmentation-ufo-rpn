@@ -18,8 +18,6 @@ from utils.metrics import (eval_metrics, recall, precision, f1_score,
 from utils import metric_indx
 import logging
 
-# def precision(output, target):
-#     true_positive = ((output == 0) * (target == 0)).sum().float()
 
 class DSTLTrainer(BaseTrainer):
     def __init__(self, start_time, model, loss, resume, config, train_loader,
