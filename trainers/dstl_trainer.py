@@ -123,7 +123,7 @@ class DSTLTrainer(BaseTrainer):
         total_metric_totals = dict()
         self.batch_time = AverageMeter()
         self.data_time = AverageMeter()
-        tbar = tqdm(self.train_loader, ncols=200)
+        tbar = tqdm(self.train_loader, ncols=130)
         for batch_idx, (data, target) in enumerate(tbar):
             self.data_time.update(time.time() - tic)
 
@@ -189,7 +189,6 @@ class DSTLTrainer(BaseTrainer):
             message = f'TRAIN EPOCH {epoch} | Batch: {batch_idx + 1} | '
             for k, v in seg_metrics.items():
                 message += f'{k}: {v:.3f} | '
-            message += f" B {self.batch_time.average:.2f} D {self.data_time.average:.2f} |"
             self.logger.info(message)
 
         self.logger.info(f"Finished training epoch {epoch}")
