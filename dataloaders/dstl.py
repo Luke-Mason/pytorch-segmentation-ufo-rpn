@@ -379,10 +379,10 @@ class DSTLDataset(BaseDataSet):
 
         self.logger.debug(f"Patch shape: {patch.shape}")
         if self.return_id:
-            return (self.normalize(self.to_tensor(patch)),
+            return (self.normalize(torch.tensor(patch, dtype=torch.float32)),
                     patch_y_mask,
                     image_id)
-        return self.normalize(self.to_tensor(patch)), patch_y_mask
+        return self.normalize(torch.tensor(patch, dtype=torch.float32)), patch_y_mask
 
     def _gen_chunk_offsets(self, width: int, height: int, step_size: int) -> \
             List[Tuple[int, int]]:
