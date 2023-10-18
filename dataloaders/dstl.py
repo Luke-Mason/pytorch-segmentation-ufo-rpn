@@ -376,7 +376,8 @@ class DSTLDataset(BaseDataSet):
             patch, patch_y_mask = self._augmentation(patch, patch_y_mask)
 
         patch_y_mask = torch.from_numpy(patch_y_mask.astype(np.bool_)).long()
-        print("shape:", patch.shape)
+
+        self.logger.debug(f"Patch shape: {patch.shape}")
         if self.return_id:
             return (self.normalize(self.to_tensor(patch)),
                     patch_y_mask,
