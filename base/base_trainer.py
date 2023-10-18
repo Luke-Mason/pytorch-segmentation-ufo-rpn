@@ -11,34 +11,16 @@ import utils.lr_scheduler
 from utils.sync_batchnorm import convert_model
 from utils.sync_batchnorm import DataParallelWithCallback
 import numpy as np
+from test_helper import epoch_gateway
 
 def get_instance(module, name, config, *args):
     # GET THE CORRESPONDING CLASS / FCT 
     return getattr(module, config[name]['type'])(*args, **config[name]['args'])
 
-def initiate_stats():
-    return dict({
-        'loss': dict({'train': np.array([]), 'val': np.array([])}),
-        'total_correct': dict({'train': np.array([]), 'val': np.array([])}),
-        'total_label': dict({'train': np.array([]), 'val': np.array([])}),
-        'total_inter': dict({'train': np.array([]), 'val': np.array([])}),
-        'total_union': dict({'train': np.array([]), 'val': np.array([])})
-    })
-
-
-def update_stats(stats, results, type='train'):
-    loss, tc, tl, ti, tu = results
-    stats['loss'][type].append(loss)
-    stats['total_correct'][type].append(tc)
-    stats['total_label'][type].append(tl)
-    stats['total_inter'][type].append(ti)
-    stats['total_union'][type].append(tu)
-
-    return stats
-
 class BaseTrainer:
 
     def __init__(self, start_time, model, loss, resume, config, train_loader,
+                 writer,
                  k_fold = None,
                  val_loader=None, train_logger=None, root='.'):
         self.root = root
@@ -53,6 +35,7 @@ class BaseTrainer:
         self.start_epoch = 1
         self.improved = False
         self.k_fold = k_fold
+        self.writer = writer
 
         # SETTING THE DEVICE
         self.device, availble_gpus = self._get_available_devices(self.config['n_gpu'])
@@ -66,7 +49,7 @@ class BaseTrainer:
 
         # CONFIGS
         cfg_trainer = self.config['trainer']
-        self.epochs = cfg_trainer['epochs']
+        self.epochs = epoch_gateway(cfg_trainer['epochs'])
         self.save_period = cfg_trainer['save_period']
 
         # OPTIMIZER
@@ -96,39 +79,22 @@ class BaseTrainer:
             self.early_stoping = cfg_trainer.get('early_stop', math.inf)
 
         # CHECKPOINTS & TENSORBOARD
-        preprocessing_ = config['train_loader']['preprocessing']
-        training_classes_str = '_'.join(str(i) for i in preprocessing_['training_classes'])
-        training_band_groups_str = '_'.join(str(i) for band_group in preprocessing_['training_band_groups'] for i in band_group['bands'])
-        loader_args = config['train_loader']['args']
-        run_name = (f"batch_size_{loader_args['batch_size']}"
-                    f"_lr_{config['optimizer']['args']['lr']}"
-                    f"_epochs_{cfg_trainer['epochs']}"
-                    f"_loss_{config['loss']}"
-                    f"_scheduler_{config['lr_scheduler']['type']}"
-                    f"_patch_size_{preprocessing_['patch_size']}"
-                    f"_overlap_pixels_{preprocessing_['overlap_pixels']}"
-                    f"_training_classes_({training_classes_str})"
-                    f"_training_band_groups_({training_band_groups_str})")
+
 
         fold_name = (f"{'K_' + str(k_fold) if k_fold is not None else 'run'}")
 
-        path = os.path.join(self.config['name'], run_name, start_time,
-                            fold_name)
+        path = os.path.join(self.config['name'], start_time, fold_name)
 
         self.checkpoint_dir = os.path.join(cfg_trainer['save_dir'],
                                            "checkpoints", path)
         helpers.dir_exists(self.checkpoint_dir)
 
-        self.config_dir = os.path.join(cfg_trainer['save_dir'],
-                                       "config", path)
+        self.config_dir = os.path.join(cfg_trainer['save_dir'], "config", path)
         helpers.dir_exists(self.config_dir)
 
         config_save_path = os.path.join(self.config_dir, 'config.json')
         with open(config_save_path, 'w') as handle:
             json.dump(self.config, handle, indent=4, sort_keys=True)
-
-        writer_dir = os.path.join(cfg_trainer['log_dir'], path)
-        self.writer = tensorboard.SummaryWriter(writer_dir)
 
         if resume: self._resume_checkpoint(resume)
 
@@ -172,50 +138,53 @@ class BaseTrainer:
 
         for epoch in range(self.start_epoch, self.epochs+1):
             # RUN TRAIN (AND VAL)
-            results = self._train_epoch(epoch)
-            for class_name, metric_totals in results.items():
+            epoch_stats = self._train_epoch(epoch)
+            for class_name, metric_totals in epoch_stats.items():
                 if class_name not in stats:
                     stats[class_name] = dict()
                 for metric_name, total in metric_totals.items():
                     if metric_name not in stats[class_name]:
                         stats[class_name][metric_name] = dict({
-                            'train': np.array([]),
-                            'val': np.array([])
+                            # List because I append arrays into it
+                            'train': [],
+                            'val': []
                         })
-                    stats[class_name][metric_name]['train'] = np.append(
-                        stats[class_name][metric_name]['train'], total)
+                    stats[class_name][metric_name]['train'].append(total)
 
             if self.do_validation and epoch % self.config['trainer']['val_per_epochs'] == 0:
-                results = self._valid_epoch(epoch)
-                for class_name, metric_totals in results.items():
+                epoch_stats = self._valid_epoch(epoch)
+                for class_name, metric_totals in epoch_stats.items():
                     if class_name not in stats:
                         stats[class_name] = dict()
                     for metric_name, total in metric_totals.items():
                         if metric_name not in stats[class_name]:
                             stats[class_name][metric_name] = dict({
-                                'train': np.array([]),
-                                'val': np.array([])
+                                'train': [],
+                                'val': []
                             })
-                        stats[class_name][metric_name]['val'] = np.append(
-                            stats[class_name][metric_name]['val'], total)
+                        stats[class_name][metric_name]['val'].append(total)
 
                 # LOGGING INFO
                 self.logger.info(f'\n         ## Info for epoch {epoch} ## ')
-                for k, v in results.items():
+                for k, class_stats in epoch_stats.items():
                     self.logger.info(
                         f'\n    Class {k}: ')
-                    for q, p in v.items():
+                    metrics = self._get_metrics(class_stats)
+                    for q, p in metrics.items():
                         self.logger.info(f'         {str(q):15s}: {p}')
-            
+            all_metrics = self._get_metrics(epoch_stats)
             if self.train_logger is not None:
-                log = {'epoch' : epoch, **results}
+                log = {'epoch' : epoch, **metrics}
                 self.train_logger.info(log)
 
             # CHECKING IF THIS IS THE BEST MODEL (ONLY FOR VAL)
             if self.mnt_mode != 'off' and epoch % self.config['trainer']['val_per_epochs'] == 0:
                 try:
-                    if self.mnt_mode == 'min': self.improved = (log[self.mnt_metric] < self.mnt_best)
-                    else: self.improved = (log[self.mnt_metric] > self.mnt_best)
+                    # TODO Seg metrics, check result here
+                    if self.mnt_mode == 'min':
+                        self.improved = (log[self.mnt_metric] < self.mnt_best)
+                    else:
+                        self.improved = (log[self.mnt_metric] > self.mnt_best)
                 except KeyError:
                     self.logger.warning(f'The metrics being tracked ({self.mnt_metric}) has not been calculated. Training stops.')
                     break
@@ -237,7 +206,7 @@ class BaseTrainer:
 
         # stats['all']['lr']['0'] = self.optimizer.param_groups[0]['lr']
         # stats['all']['lr']['1'] = self.optimizer.param_groups[1]['lr']
-        return self.writer, stats
+        return stats
 
 
     def _save_checkpoint(self, epoch, save_best=False):
@@ -286,4 +255,5 @@ class BaseTrainer:
     def _eval_metrics(self, output, target):
         raise NotImplementedError
 
-    
+    def _get_metrics(self, seg_totals):
+        raise NotImplementedError

@@ -6,19 +6,21 @@ from sklearn.model_selection import KFold
 import torch
 import pandas as pd
 import datetime
+from torch.utils import tensorboard
 
 from dataloaders import DSTL
 import models
 from trainers import DSTLTrainer
 from utils import Logger, losses, Array3dMergeConfig, BandGroup
 import copy
-from base import initiate_stats
 from pathlib import Path
 import numpy as np
 import logging
 from utils.metrics import (eval_metrics, recall, precision, f1_score,
                            pixel_accuracy, AverageMeter,
                            mean_average_precision, intersection_over_union)
+from test_helper import dataset_gateway
+
 torch.cuda.empty_cache()
 
 
@@ -89,80 +91,108 @@ def stratified_split(sorted_array, group_size):
 
 
 def write_metric(writer, stats, metric, func, class_name, metric_name):
-    print("STATS", stats, metric, func, class_name, metric_name)
-    for m in stats[metric]:
-        print("DUDE", m)
-        for index in range(len(dict(m)['train'])):
-            m_t = dict(m)['train'][:, index]
-            metric_t = func(m_t)
+    m = stats[metric]
+    train_ = np.array(m['train'])
+    val_ = np.array(m['val'])
+    for index in range(train_.shape[1]):
+        m_t = train_[:, index]
+        metric_t = func(m_t)
 
-            m_v = dict(m)['val'][:, index]
-            metric_v = func(m_v)
+        m_v = val_[:, index]
+        metric_v = func(m_v)
 
-            writer.add_scalar(f'{class_name}/{metric_name}', {
-                'train': metric_t,
-                'val': metric_v
-            }, index + 1)
+        writer.add_scalars(f'{class_name}/{metric_name}', {
+            'train': np.mean(metric_t),
+            'val': np.mean(metric_v)
+        }, index + 1)
 
 def write_metric_2_param(writer, stats, metric_1, metric_2, func, class_name,
                       metric_name):
-    for m1, m2 in zip(stats[metric_1], stats[metric_2]):
-        for index in range(len(m1['train'])):
-            m1_t = m1['train'][:, index]
-            m2_t = m2['train'][:, index]
-            metric_t = func(m1_t, m2_t)
+    m1, m2 = stats[metric_1], stats[metric_2]
+    train_m1 = np.array(m1['train'])
+    train_m2 = np.array(m2['train'])
+    val_m1 = np.array(m1['val'])
+    val_m2 = np.array(m2['val'])
+    for index in range(train_m1.shape[1]):
+        m1_t = train_m1[:, index]
+        m2_t = train_m2[:, index]
+        metric_t = func(m1_t, m2_t)
 
-            m1_v = m1['val'][:, index]
-            m2_v = m2['val'][:, index]
-            metric_v = func(m1_v, m2_v)
+        m1_v = val_m1[:, index]
+        m2_v = val_m2[:, index]
+        metric_v = func(m1_v, m2_v)
 
-            writer.add_scalar(f'{class_name}/{metric_name}', {
-                'train': metric_t,
-                'val': metric_v
-            }, index + 1)
+        # for epoch_indx in range():
+        writer.add_scalars(f'{class_name}/{metric_name}', {
+            'train': np.mean(metric_t),
+            'val': np.mean(metric_v)
+        }, index + 1)
 
 def write_metric_3_param(writer, stats, metric_1, metric_2, metric_3, func,
                          class_name,
                         metric_name):
-    for m1, m2, m3 in zip(stats[metric_1], stats[metric_2], stats[metric_3]):
-        for index in range(len(m1['train'])):
-            m1_t = m1['train'][:, index]
-            m2_t = m2['train'][:, index]
-            m3_t = m3['train'][:, index]
-            metric_t = func(m1_t, m2_t, m3_t)
+    m1, m2, m3 = stats[metric_1], stats[metric_2], stats[metric_3]
+    train_m1 = np.array(m1['train'])
+    train_m2 = np.array(m2['train'])
+    train_m3 = np.array(m3['train'])
+    val_m1 = np.array(m1['val'])
+    val_m2 = np.array(m2['val'])
+    val_m3 = np.array(m3['val'])
 
-            m1_v = m1['val'][:, index]
-            m2_v = m2['val'][:, index]
-            m3_v = m3['val'][:, index]
-            metric_v = func(m1_v, m2_v, m3_v)
+    for index in range(train_m1.shape[1]):
+        m1_t = train_m1[:, index]
+        m2_t = train_m2[:, index]
+        m3_t = train_m3[:, index]
+        metric_t = func(m1_t, m2_t, m3_t)
 
-            writer.add_scalar(f'{class_name}/{metric_name}', {
-                'train': metric_t,
-                'val': metric_v
-            }, index + 1)
+        m1_v = val_m1[:, index]
+        m2_v = val_m2[:, index]
+        m3_v = val_m3[:, index]
+        metric_v = func(m1_v, m2_v, m3_v)
+
+        writer.add_scalars(f'{class_name}/{metric_name}', {
+            'train': np.mean(metric_t),
+            'val': np.mean(metric_v)
+        }, index + 1)
+
+metric_indx = dict({
+    "all": "All_Classes",
+    "0": "Buildings",
+    "1": "Misc",
+    "2": "Road",
+    "3": "Track",
+    "4": "Trees",
+    "5": "Crops",
+    "6": "Waterway",
+    "7": "Standing water",
+    "8": "Vehicle Large",
+    "9": "Vehicle Small",
+    "10": "Nothing"
+})
 
 def write_stats_to_tensorboard(writer, class_stats):
 
     # LOSS
-    # write_metric(writer, class_stats['all'], 'loss', np.mean, 'all', 'Loss')
+    write_metric(writer, class_stats['all'], 'loss', np.mean, 'All', 'Loss')
 
-    for class_name, stats in class_stats.items():
+    for class_name_indx, stats in class_stats.items():
 
         # # mAP
         # write_metric(writer, stats, 'average_precision', np.mean, class_name, 'mAP')
 
         # PIXEL ACCURACY
-        write_metric_2_param(writer, stats, 'total_correct',
-                             'total_label',
-                                pixel_accuracy, class_name, 'Pixel_Accuracy')
+        class_name = metric_indx[str(class_name_indx)]
+        write_metric_2_param(writer, stats, 'correct_pixels',
+                             'total_labeled_pixels',
+                             pixel_accuracy, class_name, 'Pixel_Accuracy')
 
         # PRECISION
         write_metric_2_param(writer, stats, 'intersection', 'predicted_positives',
-                                precision, class_name, 'Precision')
+                             precision, class_name, 'Precision')
 
         # RECALL
         write_metric_2_param(writer, stats, 'intersection', 'total_positives',
-                                recall, class_name, 'Recall')
+                             recall, class_name, 'Recall')
 
         # F1 SCORE
         write_metric_3_param(writer, stats, 'intersection', 'predicted_positives',
@@ -171,7 +201,7 @@ def write_stats_to_tensorboard(writer, class_stats):
 
         # MEAN IoU
         write_metric_2_param(writer, stats, 'intersection', 'union',
-                                intersection_over_union, class_name, 'Mean_IoU')
+                             intersection_over_union, class_name, 'Mean_IoU')
 
 
 def _append_stats(all_stats, stats):
@@ -211,6 +241,8 @@ def main(config, resume):
         _wkt_data.setdefault(im_id, {})[int(class_type)] = poly
 
     _wkt_data = list(_wkt_data.items())
+    _wkt_data = dataset_gateway(_wkt_data)
+
     training_classes_ = config['train_loader']['preprocessing']['training_classes']
 
     # Stratified K-Fold
@@ -221,9 +253,12 @@ def main(config, resume):
                                 in training_classes_]))
                for idx, im_id in enumerate(image_ids)]
 
+    im_area = dataset_gateway(im_area)
+
     sorted_by_area = sorted(im_area, key=lambda x: str(x[1]), reverse=True)
     sorted_by_area = [t[0] for t in sorted_by_area]
-    arr = stratified_split(sorted_by_area, 5)
+    split_count = config["trainer"]["k_split"] if len(im_area) > config["trainer"]["k_split"] else len(im_area)
+    arr = stratified_split(sorted_by_area, split_count)
     stratisfied_indices = arr.flatten()
 
     # LOSS
@@ -234,15 +269,31 @@ def main(config, resume):
         # Split the data into K folds
         shuffle_ = config["trainer"]["k_shuffle"]
         random_state_ = config["trainer"]["k_random_state"] if shuffle_ else None
-        kfold = KFold(n_splits=config["trainer"]["k_split"],
-                      shuffle=shuffle_, random_state=random_state_)
+        kfold = KFold(n_splits=split_count, shuffle=shuffle_,
+                      random_state=random_state_)
 
         area_by_id = dict(im_area)
 
-        writer = None
+        preprocessing_ = config['train_loader']['preprocessing']
+        training_classes_str = '_'.join(
+            str(i) for i in preprocessing_['training_classes'])
+        training_band_groups = ['_'.join(map(str, band_group)) for band_group in
+                                preprocessing_['training_band_groups']]
+        loader_args = config['train_loader']['args']
+        run_name = (f"batch_size_{loader_args['batch_size']}"
+                    f"_lr_{config['optimizer']['args']['lr']}"
+                    f"_epochs_{config['trainer']['epochs']}"
+                    f"_loss_{config['loss']}"
+                    f"_scheduler_{config['lr_scheduler']['type']}"
+                    f"_patch_size_{preprocessing_['patch_size']}"
+                    f"_overlap_pixels_{preprocessing_['overlap_pixels']}"
+                    f"_training_classes_{training_classes_str})"
+                    f"_training_band_groups_[{'-'.join(training_band_groups)}]")
+        writer_dir = os.path.join(config['trainer']['log_dir'], config['name'], run_name, start_time)
+        writer = tensorboard.SummaryWriter(writer_dir)
 
         # Initialise the stats
-        fold_stats = None
+        fold_stats = dict()
 
         # Iterate over the K folds
         for fold, (train_indxs_of_indxs, val_indxs_of_indxs) in enumerate(kfold.split(stratisfied_indices)):
@@ -289,25 +340,24 @@ def main(config, resume):
                 resume=resume,
                 config=config,
                 train_loader=train_loader,
+                writer=writer,
                 val_loader=train_loader.get_val_loader(),
                 train_logger=logger,
                 root=dstl_data_path,
             )
 
-            wrter, stats = trainer.train()
+            train_stats = trainer.train()
             # im lazy and dont want to refactor the code
-            writer = wrter
-
-            if fold_stats is None:
-                # Classes, Metric, Type
-                fold_stats = stats
-            else:
-                for class_name, class_stats in fold_stats.items():
-                    for metric_name, metric_stats in class_stats.items():
-                        for type, stat in metric_stats.items():
-                            fold_stats[class_name][metric_name][type] = (
-                                np.append((fold_stats[class_name][
-                                               metric_name][type], stat)))
+            for class_name, class_stats in train_stats.items():
+                if class_name not in fold_stats:
+                    fold_stats[class_name] = dict()
+                for metric_name, metric_stats in class_stats.items():
+                    if metric_name not in fold_stats[class_name]:
+                        fold_stats[class_name][metric_name] = dict()
+                    for type, stats in metric_stats.items():
+                        if type not in fold_stats[class_name][metric_name]:
+                            fold_stats[class_name][metric_name][type] = []
+                        fold_stats[class_name][metric_name][type].append(stats)
 
             logger.info(f'Finished Fold {fold + 1}:')
             if config["trainer"]["k_stop"] is not None and config["trainer"][ \
