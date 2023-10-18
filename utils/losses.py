@@ -115,10 +115,6 @@ class JaccardCoefficient(nn.Module):
         y_pred_f = output.flatten()
         y_true_f = target.flatten()
         intersection = (y_true_f * y_pred_f).sum()
-        print("Intersection", intersection)
-        print("loss", (intersection + 1.0) / (
-                y_true_f.sum() + y_pred_f.sum() -
-                intersection + 1.0))
         return (intersection + 1.0) / (
                 y_true_f.sum() + y_pred_f.sum() -
                 intersection + 1.0)
