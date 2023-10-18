@@ -378,8 +378,10 @@ class DSTLDataset(BaseDataSet):
         patch_y_mask = torch.from_numpy(patch_y_mask.astype(np.bool_)).long()
 
         if self.return_id:
-            return patch, patch_y_mask, image_id
-        return patch, patch_y_mask
+            return (self.normalize(self.to_tensor(patch)),
+                    patch_y_mask,
+                    image_id)
+        return self.normalize(self.to_tensor(patch)), patch_y_mask
 
     def _gen_chunk_offsets(self, width: int, height: int, step_size: int) -> \
             List[Tuple[int, int]]:
@@ -636,9 +638,10 @@ class DSTL(BaseDataLoader):
             'rotate': rotate,
             'return_id': return_id,
             'val': val,
-            'mean': [],
-            'std': [],
+            'mean': [0.219613, 0.219613, 0.219613],
+            'std': [0.110741, 0.110741, 0.110741]
         }
+
 
         print("kwargs", kwargs)
         print("params", params)
