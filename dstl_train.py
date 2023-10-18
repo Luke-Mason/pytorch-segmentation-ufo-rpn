@@ -96,17 +96,15 @@ def stratified_split(sorted_array, group_size):
 def write_metric(writer, do_validation, val_per_epochs, stats,
                  metric, func, class_name, metric_name):
     m = stats[metric]
-    train_ = np.array(m['train'])
-    val_ = np.array(m['val'])
+    train_m1 = np.array(m['train'])
+    val_m1 = np.array(m['val'])
     for epoch in range(train_.shape[1]):
-        m_t = train_[:, epoch]
-        metric_t = func(m_t)
+        metric_t = func(train_m1[:, epoch])
 
         val = {}
         if do_validation and epoch + 1 % val_per_epochs == 0:
             val_epoch = (epoch // val_per_epochs) - 1
-            m1_v = val_m1[:, val_epoch]
-            metric_v = func(m1_v)
+            metric_v = func(val_m1[:, val_epoch])
             val['val'] = np.mean(metric_v)
 
         writer.add_scalars(f'{class_name}/{metric_name}', {
@@ -122,16 +120,12 @@ def write_metric_2_param(writer, do_validation, val_per_epochs, stats,
     val_m1 = np.array(m1['val'])
     val_m2 = np.array(m2['val'])
     for epoch in range(train_m1.shape[1]):
-        m1_t = train_m1[:, epoch]
-        m2_t = train_m2[:, epoch]
-        metric_t = func(m1_t, m2_t)
+        metric_t = func(train_m1[:, epoch], train_m2[:, epoch])
         train = { 'train': np.mean(metric_t) }
         val = {}
         if do_validation and epoch + 1 % val_per_epochs == 0:
             val_epoch = (epoch // val_per_epochs) - 1
-            m1_v = val_m1[:, val_epoch]
-            m2_v = val_m2[:, val_epoch]
-            metric_v = func(m1_v, m2_v)
+            metric_v = func(val_m1[:, val_epoch], val_m2[:, val_epoch])
             val = { 'val': np.mean(metric_v) }
 
         writer.add_scalars(f'{class_name}/{metric_name}', {
@@ -150,17 +144,11 @@ def write_metric_3_param(writer, do_validation, val_per_epochs, stats,
     val_m3 = np.array(m3['val'])
 
     for epoch in range(train_m1.shape[1]):
-        m1_t = train_m1[:, epoch]
-        m2_t = train_m2[:, epoch]
-        m3_t = train_m3[:, epoch]
-        metric_t = func(m1_t, m2_t, m3_t)
+        metric_t = func(train_m1[:, epoch], train_m2[:, epoch], train_m3[:, epoch])
         val = {}
         if do_validation and epoch + 1 % val_per_epochs == 0:
             val_epoch = (epoch // val_per_epochs) - 1
-            m1_v = val_m1[:, val_epoch]
-            m2_v = val_m2[:, val_epoch]
-            m3_v = val_m3[:, val_epoch]
-            metric_v = func(m1_v, m2_v, m3_v)
+            metric_v = func(val_m1[:, val_epoch], val_m2[:, val_epoch], val_m3[:, val_epoch])
             val['val'] = np.mean(metric_v)
 
         writer.add_scalars(f'{class_name}/{metric_name}', {
