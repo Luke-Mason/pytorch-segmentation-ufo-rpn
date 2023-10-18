@@ -262,7 +262,7 @@ class DSTLTrainer(BaseTrainer):
 
                 # WRTING & VISUALIZING THE MASKS
                 # LIST OF IMAGE TO VIZ (15 images)
-                if batch_idx < 15 and self.k_fold == 0:
+                if batch_idx % 20 == 0 and self.k_fold == 0:
                     for k in range(1):
                         dta, tgt, out = data[k], target[k], output[k]
 
