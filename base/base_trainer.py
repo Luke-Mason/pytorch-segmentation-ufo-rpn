@@ -136,7 +136,7 @@ class BaseTrainer:
     def train(self):
         stats = dict()
 
-        for epoch in range(self.start_epoch, self.epochs):
+        for epoch in range(self.start_epoch, self.epochs+1):
             # RUN TRAIN (AND VAL)
             epoch_stats = self._train_epoch(epoch)
             for class_name, metric_totals in epoch_stats.items():
