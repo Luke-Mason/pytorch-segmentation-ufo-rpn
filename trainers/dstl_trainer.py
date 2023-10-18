@@ -46,8 +46,8 @@ class DSTLTrainer(BaseTrainer):
         ])
 
 
-        self.min_clip_percentile = 2
-        self.max_clip_percentile = 98
+        self.min_clip_percentile = 5
+        self.max_clip_percentile = 95
 
         torch.backends.cudnn.benchmark = True
         self.threshold = config["threshold"]
@@ -268,7 +268,6 @@ class DSTLTrainer(BaseTrainer):
                         dta = torch.tensor(dta).to(self.device)
                         _dta = self.vis_transform(dta.to(torch.uint8))
                         dta = torch.unsqueeze(_dta, dim=0)
-                        visualise_first_img_in_batch.extend([dta])
                         for i in range(self.num_classes):
                             tgi = tgt[i, :, :][np.newaxis, :, :]
                             tgi = (tgi > self.threshold).float().to(torch.int) * 255
@@ -333,10 +332,11 @@ class DSTLTrainer(BaseTrainer):
                             outi = torch.unsqueeze(outi, dim=0)
                             outi = outi.expand(-1, 3, -1, -1)
 
-                            visualise_first_img_in_batch.extend([tgi, outi])
+                            visualise_first_img_in_batch.extend([dta, tgi,
+                                                                 outi])
 
             imgs = torch.cat(visualise_first_img_in_batch, dim=0)
-            grid_img = make_grid(imgs, ncol=(1 + (2 * self.num_classes)))
+            grid_img = make_grid(imgs, ncol=3)
 
             # row shows one class (num_classes_to_predict)
             self.writer.add_image(f'inputs_targets_predictions', grid_img, epoch)
