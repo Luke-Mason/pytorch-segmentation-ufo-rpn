@@ -156,7 +156,7 @@ def write_metric_3_param(writer, stats, metric_1, metric_2, metric_3, func,
         }, index + 1)
 
 metric_indx = dict({
-    "all": "All_Classes",
+    "all": "All",
     "0": "Buildings",
     "1": "Misc",
     "2": "Road",
@@ -171,7 +171,7 @@ metric_indx = dict({
 })
 
 def write_stats_to_tensorboard(writer, class_stats):
-
+    print(class_stats.keys())
     # LOSS
     write_metric(writer, class_stats['all'], 'loss', np.mean, 'All', 'Loss')
 
