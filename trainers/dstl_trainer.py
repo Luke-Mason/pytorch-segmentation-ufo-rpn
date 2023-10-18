@@ -173,8 +173,7 @@ class DSTLTrainer(BaseTrainer):
                     target[:, class_idx, :, :][:, np.newaxis, :, :],
                                                     self.threshold)
                 # Convert class_indx into class_name_indx
-                class_name_idx = self.training_classes[class_idx] if
-                class_idx < len(self.training_classes) else 10
+                class_name_idx = self.training_classes[class_idx] if class_idx < len(self.training_classes) else 10
                 if str(class_name_idx) not in total_metric_totals:
                     total_metric_totals[str(class_name_idx)] = class_metrics_totals
                 else:
@@ -219,7 +218,7 @@ class DSTLTrainer(BaseTrainer):
         total_metric_totals = dict()
 
         tbar = tqdm(self.val_loader, ncols=130)
-        with ((torch.no_grad())):
+        with ((((torch.no_grad())))):
             for batch_idx, (data, target) in enumerate(tbar):
                 # LOSS
                 output = self.model(data)
@@ -246,8 +245,7 @@ class DSTLTrainer(BaseTrainer):
                         target[:, class_idx, :, :][:, np.newaxis, :, :],
                                                     self.threshold)
                     # Convert class_indx into class_name_indx
-                    class_name_idx = self.training_classes[class_idx] if
-                    class_idx < len(self.training_classes) else 10
+                    class_name_idx = self.training_classes[class_idx] if class_idx < len(self.training_classes) else 10
                     if str(class_name_idx) not in total_metric_totals:
                         # Convert class_indx into class_name_indx
 
