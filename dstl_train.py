@@ -98,13 +98,13 @@ def write_metric(writer, do_validation, val_per_epochs, stats,
     m = stats[metric]
     train_ = np.array(m['train'])
     val_ = np.array(m['val'])
-    for index in range(train_.shape[1]):
-        m_t = train_[:, index]
+    for epoch in range(train_.shape[1]):
+        m_t = train_[:, epoch]
         metric_t = func(m_t)
 
         val = {}
-        if do_validation and epoch % val_per_epochs == 0:
-            val_epoch = epoch // val_per_epochs
+        if do_validation and epoch + 1 % val_per_epochs == 0:
+            val_epoch = (epoch // val_per_epochs) - 1
             m1_v = val_m1[:, val_epoch]
             metric_v = func(m1_v, m2_v, m3_v)
             val['val'] = np.mean(metric_v)
@@ -121,14 +121,14 @@ def write_metric_2_param(writer, do_validation, val_per_epochs, stats,
     train_m2 = np.array(m2['train'])
     val_m1 = np.array(m1['val'])
     val_m2 = np.array(m2['val'])
-    for index in range(train_m1.shape[1]):
-        m1_t = train_m1[:, index]
-        m2_t = train_m2[:, index]
+    for epoch in range(train_m1.shape[1]):
+        m1_t = train_m1[:, epoch]
+        m2_t = train_m2[:, epoch]
         metric_t = func(m1_t, m2_t)
 
         val = {}
-        if do_validation and epoch % val_per_epochs == 0:
-            val_epoch = epoch // val_per_epochs
+        if do_validation and epoch + 1 % val_per_epochs == 0:
+            val_epoch = (epoch // val_per_epochs) - 1
             m1_v = val_m1[:, val_epoch]
             m2_v = val_m2[:, val_epoch]
             metric_v = func(m1_v, m2_v)
@@ -156,8 +156,8 @@ def write_metric_3_param(writer, do_validation, val_per_epochs, stats,
         m3_t = train_m3[:, epoch]
         metric_t = func(m1_t, m2_t, m3_t)
         val = {}
-        if do_validation and epoch % val_per_epochs == 0:
-            val_epoch = epoch // val_per_epochs
+        if do_validation and epoch + 1 % val_per_epochs == 0:
+            val_epoch = (epoch // val_per_epochs) - 1
             m1_v = val_m1[:, val_epoch]
             m2_v = val_m2[:, val_epoch]
             m3_v = val_m3[:, val_epoch]
