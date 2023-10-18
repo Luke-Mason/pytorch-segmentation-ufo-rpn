@@ -265,7 +265,8 @@ class DSTLTrainer(BaseTrainer):
                         dta, tgt, out = data[k], target[k], output[k]
 
                         dta = dta * 2047
-                        _dta = self.vis_transform(torch.tensor(dta).to(torch.uint8))
+                        dta = torch.tensor(dta).to(self.device)
+                        _dta = self.vis_transform(dta.to(torch.uint8))
                         dta = torch.unsqueeze(_dta, dim=0)
                         visualise_first_img_in_batch.extend([dta])
                         for i in range(self.num_classes):
