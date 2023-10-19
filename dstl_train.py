@@ -102,12 +102,8 @@ def write_metric(logger, writer, do_validation, val_per_epochs, stats,
         metric_t = func(train_m1[:, epoch])
         metrics = dict({ 'train': np.mean(metric_t) })
         val = dict({})
-        logger.debug(f"epoch: {(epoch + 1)} | val_per_epochs: {val_per_epochs} "
-                     f"do_validation | {do_validation} "
-                     f"| allowed: {(epoch + 1) % val_per_epochs == 0}")
         if do_validation and (epoch + 1) % val_per_epochs == 0:
             val_epoch = epoch // val_per_epochs
-            logger.debug(f"val epoch: {val_epoch}")
             metric_v = func(val_m1[:, val_epoch])
             val = dict({ 'val': np.mean(metric_v) })
             metrics.update(val)
@@ -125,12 +121,8 @@ def write_metric_2_param(logger, writer, do_validation, val_per_epochs, stats,
         metric_t = func(train_m1[:, epoch], train_m2[:, epoch])
         train = dict({ 'train': np.mean(metric_t) })
         val = dict({})
-        logger.debug(f"epoch: {(epoch + 1)} | val_per_epochs: {val_per_epochs} "
-                     f"do_validation | {do_validation} "
-                     f"| allowed: {(epoch + 1) % val_per_epochs == 0}")
         if do_validation and (epoch + 1) % val_per_epochs == 0:
             val_epoch = epoch // val_per_epochs
-            logger.debug(f"val epoch: {val_epoch}")
             metric_v = func(val_m1[:, val_epoch], val_m2[:, val_epoch])
             val = dict({ 'val': np.mean(metric_v) })
             train.update(val)
@@ -151,12 +143,8 @@ def write_metric_3_param(logger, writer, do_validation, val_per_epochs, stats,
         metric_t = func(train_m1[:, epoch], train_m2[:, epoch], train_m3[:, epoch])
         train = dict({ 'train': np.mean(metric_t) })
         val = dict({})
-        logger.debug(f"epoch: {(epoch + 1)} | val_per_epochs: {val_per_epochs} "
-                     f"do_validation | {do_validation} "
-                     f"| allowed: {(epoch + 1) % val_per_epochs == 0}")
         if do_validation and ((epoch + 1)) % val_per_epochs == 0:
             val_epoch = epoch // val_per_epochs
-            logger.debug(f"val epoch: {val_epoch}")
             metric_v = func(val_m1[:, val_epoch], val_m2[:, val_epoch], val_m3[:, val_epoch])
             val = dict({ 'val': np.mean(metric_v) })
             train.update(val)
@@ -201,6 +189,54 @@ def write_stats_to_tensorboard(logger, writer, do_validation, val_per_epochs,
                              'intersection', 'union',
                              intersection_over_union, class_name, 'Mean_IoU')
 
+    stat_key = 'correct_pixels'
+
+    metric_stats = [{
+            "metric": "Mean_IoU",
+            "component_names": []
+        },
+        {
+            "metric": "Pixel_Accuracy",
+            "component_names": []
+        },
+        {
+            "metric": "Precision",
+            "component_names": []
+        },
+        {
+            "metric": "Recall",
+            "component_names": []
+        },
+        {
+            "metric": "F1_Score",
+            "component_names": []
+        }
+    }]
+    for class_name_indx, stats in class_stats.items():
+        for epoch in range(stats[stat_key][key].shape[1]):
+            scalars = dict({})
+            for key in ['train', 'val']:
+                if key == 'val':
+                    if do_validation and (epoch + 1) % val_per_epochs == 0:
+                        val_epoch = epoch // val_per_epochs
+                    else:
+                        continue
+                else:
+                    val_epoch = epoch
+
+                acc = pixel_accuracy(stats[stat_key][key][:, val_epoch], stats[
+                'total_labeled_pixels'][key][:, val_epoch])
+                res = dict({ [key]: np.mean(acc)})
+                scalars.update(res)
+
+
+                        metric_v = func(val_m1[:, val_epoch], val_m2[:, val_epoch])
+                        val = dict({'val': np.mean(metric_v)})
+                        scalars.update(val)
+
+
+
+    writer.add_scalars(f'{metric_name}/{class_name}', scalars, (epoch + 1))
 
 def _append_stats(all_stats, stats):
     for key in all_stats.keys():
