@@ -19,6 +19,6 @@ fi
 # Loop from 0 to 9 (inclusive) and call the Python script
 for i in {0..9}; do
     config="dstl_ex${number}.json"
-    echo "Calling python3 ../dstl_train.py --config $config --cl $i"
-    python3 ../dstl_train.py --config "$config" --cl "$i"
+    echo "Calling srun --mem=50G --cpus-per-task=8 --gres=gpu:1 python3 ../dstl_train.py --config $config --cl $i"
+    srun --mem=50G --cpus-per-task=8 --gres=gpu:1 python3 ../dstl_train.py --config "$config" --cl "$i"
 done
