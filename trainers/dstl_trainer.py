@@ -263,8 +263,6 @@ class DSTLTrainer(BaseTrainer):
                     description += f'{self.convert_to_title_case(k)}: {v:.3f} | '
                 tbar.set_description(description)
 
-                self.writer.add_graph(self.model, data)
-
                 # WRTING & VISUALIZING THE MASKS
                 # LIST OF IMAGE TO VIZ (15 images)
                 if batch_idx % 20 == 0 and self.k_fold == 0:
