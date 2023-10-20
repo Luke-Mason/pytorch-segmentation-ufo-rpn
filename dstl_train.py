@@ -12,7 +12,7 @@ from torch.utils import tensorboard
 from dataloaders import DSTL
 import models
 from trainers import DSTLTrainer
-from utils import Logger, losses, Array3dMergeConfig, BandGroup
+from utils import Logger, losses, FilterConfig3D, BandGroup
 import copy
 from pathlib import Path
 import numpy as np
@@ -32,13 +32,17 @@ def get_loader_instance(name, _wkt_data, config, train_indxs=None,
     training_band_groups = []
     for group in config["train_loader"]['preprocessing'][
         'training_band_groups']:
-        cfg = Array3dMergeConfig(group['merge_3d']["strategy"],
-                                 group['merge_3d']["kernel"],
-                                 group['merge_3d']["stride"]) if (
-                    "merge_3d" in group) else None
-        training_band_groups.append(BandGroup(group['bands'], cfg))
+        strategy = None
+        filter = None
+        if "filter_config" in group:
+            filter = FilterConfig3D(group['filter_config']["kernel"],
+                             group['filter_config']["stride"])
+        if "strategy" in group:
+            strategy = group["strategy"]
+        training_band_groups.append(BandGroup(group['bands'], filter, strategy))
 
     # Preprocessing config
+    print(config["train_loader"]['preprocessing'])
     preproccessing_config = copy.deepcopy(
         config["train_loader"]['preprocessing'])
     del preproccessing_config['training_band_groups']
@@ -450,7 +454,7 @@ if __name__ == '__main__':
     if args.cl is not None:
         config["train_loader"]["preprocessing"]["training_classes"] = [args.cl]
 
-    if config["train_loader"]["preprocessing"]["training_classes"] is None:
+    if "training_classes" not in config["train_loader"]["preprocessing"]:
         raise ValueError("Training classes is None")
 
     print(f"Running experiment for class {args.cl}...")

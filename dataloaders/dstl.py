@@ -20,7 +20,7 @@ import shapely.wkt
 import torch
 from base import BaseDataSet, BaseDataLoader
 from shapely.geometry import MultiPolygon
-from utils import (array_3d_merge, Array3dMergeConfig, BandGroup,
+from utils import (array_3d_merge, FilterConfig3D, BandGroup,
                    mask_for_polygons,
                    palette, generate_unique_config_hash)
 
@@ -57,7 +57,7 @@ class DSTLDataset(BaseDataSet):
             raise ValueError("Band groups must be 3")
 
         for group in training_band_groups:
-            if group.merge_3d is None and len(group.bands) != 1:
+            if group.strategy is None and len(group.bands) != 1:
                 raise ValueError("Number of bands in a group must be 1 if "
                                  "there is no merge strategy for the group")
 
@@ -571,9 +571,8 @@ class DSTLDataset(BaseDataSet):
     def _preprocess_image_stage_2(self, image_id: str, src_path: str, dst_path: str):
         image = np.load(src_path + ".data.npy",  allow_pickle=True)
         image = np.array([
-            image[group.bands - 1, :, :].squeeze() if group.merge_3d is None else
-            array_3d_merge(image[group.bands - 1, :, :].squeeze(), group.merge_3d)
-            for group in self.training_band_groups
+            array_3d_merge(image[group.bands - 1, :, :].squeeze(),
+                           group.filter_config) if group.filter_config is not None else image[group.bands - 1, :, :].squeeze() if group.strategy is None else group.strategy(image[group.bands - 1, :, :].squeeze()) for group in self.training_band_groups
         ], dtype=np.float32)
 
         # Save images

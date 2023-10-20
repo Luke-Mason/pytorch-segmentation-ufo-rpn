@@ -31,43 +31,47 @@ def generate_unique_config_hash(config):
 
     return unique_filename
 
-class Array3dMergeConfig:
-    def __init__(self, strategy: str, kernel: Tuple[int, int, int], stride: Tuple[int, int, int]):
-        self.strategy_name = strategy  # Store strategy name for serialization
-        if strategy == 'max':
-            self.strategy = lambda x: np.max(x)
-        elif strategy == 'mean':
-            self.strategy = lambda x: np.mean(x)
-        elif strategy == 'min':
-            self.strategy = lambda x: np.min(x)
-        elif strategy == 'sum':
-            self.strategy = lambda x: np.sum(x)
-        else:
-            raise ValueError(f"Unknown merge strategy: {strategy}")
-
+class FilterConfig3D:
+    def __init__(self, kernel: Tuple[int, int, int], stride: Tuple[int, int, int]):
         self.kernel = kernel
         self.stride = stride
 
     def to_dict(self):
         return {
-            "strategy": self.strategy_name,
             "kernel": self.kernel,
             "stride": self.stride
         }
 
 class BandGroup:
-    def __init__(self, bands: List[int], merge_3d: Array3dMergeConfig or None = None):
+    def __init__(self, bands: List[int], filter_config: FilterConfig3D = None,
+                 strategy: str = None):
         self.bands = np.array(bands)
-        self.merge_3d = merge_3d
+        self.filter_config = filter_config
+        self.strategy_name = strategy
 
+        if strategy == 'max':
+            self.strategy = lambda x: np.max(x, axis=0 if self.filter_config is None else None)
+        elif strategy == 'mean':
+            self.strategy = lambda x: np.mean(x, axis=0 if self.filter_config is None else None)
+        elif strategy == 'min':
+            self.strategy = lambda x: np.min(x, axis=0 if self.filter_config is None else None)
+        elif strategy == 'sum':
+            self.strategy = lambda x: np.sum(x, axis=0 if self.filter_config is None else None)
+        else:
+            self.strategy = None
     def to_dict(self):
-        merge_3d_dict = self.merge_3d.to_dict() if self.merge_3d else None
-        return {
-            "bands": self.bands.tolist(),  # Convert numpy array to list
-            "merge_3d": merge_3d_dict
+        filter_config = self.filter_config.to_dict() if self.filter_config else None
+        band_group = {
+            "bands": self.bands.tolist()
         }
+        if self.filter_config is not None:
+            band_group.update({"filter_config": filter_config})
+        if self.strategy_name is not None:
+            band_group.update({"strategy": self.strategy_name})
+        print(band_group)
+        return band_group
 
-def array_3d_merge(arr, config: Array3dMergeConfig):
+def array_3d_merge(arr, config: FilterConfig3D):
     kernel_shape = config.kernel
     stride = config.stride
     func = config.strategy
