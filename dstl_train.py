@@ -189,54 +189,54 @@ def write_stats_to_tensorboard(logger, writer, do_validation, val_per_epochs,
                              'intersection', 'union',
                              intersection_over_union, class_name, 'Mean_IoU')
 
-    stat_key = 'correct_pixels'
-
-    metric_stats = [{
-            "metric": "Mean_IoU",
-            "component_names": []
-        },
-        {
-            "metric": "Pixel_Accuracy",
-            "component_names": []
-        },
-        {
-            "metric": "Precision",
-            "component_names": []
-        },
-        {
-            "metric": "Recall",
-            "component_names": []
-        },
-        {
-            "metric": "F1_Score",
-            "component_names": []
-        }
-    }]
-    for class_name_indx, stats in class_stats.items():
-        for epoch in range(stats[stat_key][key].shape[1]):
-            scalars = dict({})
-            for key in ['train', 'val']:
-                if key == 'val':
-                    if do_validation and (epoch + 1) % val_per_epochs == 0:
-                        val_epoch = epoch // val_per_epochs
-                    else:
-                        continue
-                else:
-                    val_epoch = epoch
-
-                acc = pixel_accuracy(stats[stat_key][key][:, val_epoch], stats[
-                'total_labeled_pixels'][key][:, val_epoch])
-                res = dict({ [key]: np.mean(acc)})
-                scalars.update(res)
-
-
-                        metric_v = func(val_m1[:, val_epoch], val_m2[:, val_epoch])
-                        val = dict({'val': np.mean(metric_v)})
-                        scalars.update(val)
-
-
-
-    writer.add_scalars(f'{metric_name}/{class_name}', scalars, (epoch + 1))
+    # stat_key = 'correct_pixels'
+    #
+    # metric_stats = [{
+    #         "metric": "Mean_IoU",
+    #         "component_names": []
+    #     },
+    #     {
+    #         "metric": "Pixel_Accuracy",
+    #         "component_names": []
+    #     },
+    #     {
+    #         "metric": "Precision",
+    #         "component_names": []
+    #     },
+    #     {
+    #         "metric": "Recall",
+    #         "component_names": []
+    #     },
+    #     {
+    #         "metric": "F1_Score",
+    #         "component_names": []
+    #     }
+    # }]
+    # for class_name_indx, stats in class_stats.items():
+    #     for epoch in range(stats[stat_key][key].shape[1]):
+    #         scalars = dict({})
+    #         for key in ['train', 'val']:
+    #             if key == 'val':
+    #                 if do_validation and (epoch + 1) % val_per_epochs == 0:
+    #                     val_epoch = epoch // val_per_epochs
+    #                 else:
+    #                     continue
+    #             else:
+    #                 val_epoch = epoch
+    #
+    #             acc = pixel_accuracy(stats[stat_key][key][:, val_epoch], stats[
+    #             'total_labeled_pixels'][key][:, val_epoch])
+    #             res = dict({ [key]: np.mean(acc)})
+    #             scalars.update(res)
+    #
+    #
+    #                     metric_v = func(val_m1[:, val_epoch], val_m2[:, val_epoch])
+    #                     val = dict({'val': np.mean(metric_v)})
+    #                     scalars.update(val)
+    #
+    #
+    #
+    # writer.add_scalars(f'{metric_name}/{class_name}', scalars, (epoch + 1))
 
 def _append_stats(all_stats, stats):
     for key in all_stats.keys():
@@ -438,14 +438,22 @@ if __name__ == '__main__':
                         help='Path to the .pth model checkpoint to resume training')
     parser.add_argument('-d', '--device', default=None, type=str,
                         help='indices of GPUs to enable (default: all)')
+    parser.add_argument('-l', '--cl', default=None, type=int,
+                        help='A specific class to train on, overriting config')
     args = parser.parse_args()
 
     config = json.load(open(args.config))
-    # args.resume = 'saved/ERFNet_voc_512_batch8_split_1_2/06-21_21-18/best_model.pth'
-    # if args.resume:
-    # config = torch.load(args.resume)['config']
+
     if args.device:
         os.environ["CUDA_VISIBLE_DEVICES"] = args.device
+
+    if args.cl is not None:
+        config["train_loader"]["preprocessing"]["training_classes"] = [args.cl]
+
+    if config["train_loader"]["preprocessing"]["training_classes"] is None:
+        raise ValueError("Training classes is None")
+
+    print(f"Running experiment for class {args.cl}...")
 
     main(config, args.resume)
     # main(config, args.resume)
