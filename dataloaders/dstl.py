@@ -369,8 +369,7 @@ class DSTLDataset(BaseDataSet):
         return self.files[index]
 
     def __getitem__(self, index):
-        data, patch_y_mask, image_id = self._load_data(index)
-        patch = data.transpose(1, 2, 0)
+        patch, patch_y_mask, image_id = self._load_data(index)
         self.logger.debug(f"Patch Shape: {patch.shape}")
         if self.val and self.augment:
             patch, patch_y_mask = self._val_augmentation(patch, patch_y_mask)
