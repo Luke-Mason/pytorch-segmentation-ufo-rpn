@@ -45,7 +45,7 @@
         "args": {
             "auto_balance_classes": true,
             "batch_size": 128,
-            "augment": false,
+            "augment": true,
             "shuffle": true,
             "flip": true,
             "rotate": true,
