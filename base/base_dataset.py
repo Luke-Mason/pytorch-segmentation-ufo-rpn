@@ -29,10 +29,7 @@ class BaseDataSet(Dataset):
 
         # Optionally normalize, does require dataset class to override __item__.
         if len(mean) != 0 and len(std) != 0:
-            self.normalize = transforms.Normalize(np.array(mean).reshape(1, 1,
-                                                                       3),
-                                                  np.array(std).reshape(1, 1,
-                                                                        3))
+            self.normalize = transforms.Normalize(mean, std)
         self.return_id = return_id
 
         cv2.setNumThreads(0)
@@ -45,7 +42,7 @@ class BaseDataSet(Dataset):
 
     def _val_augmentation(self, image, label):
         if self.crop_size:
-            h, w = label.shape
+            _, h, w = label.shape
             # Scale the smaller side to crop size
             if h < w:
                 h, w = (self.crop_size, int(self.crop_size * w / h))
@@ -69,7 +66,7 @@ class BaseDataSet(Dataset):
         return image, label
 
     def _augmentation(self, image, label):
-        h, w, _ = image.shape
+        _, h, w = image.shape
         # Scaling, we set the bigger to base size, and the smaller 
         # one is rescaled to maintain the same ratio, if we don't have any obj in the image, re-do the processing
         if self.base_size:
