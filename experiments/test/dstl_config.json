@@ -33,7 +33,6 @@
             "img_ref_scale": "RGB",
             "overlap_pixels": 56,
             "interpolation_method": 4,
-            "training_classes": [0],
             "training_band_groups": [{
                 "bands": [1]
             }, {

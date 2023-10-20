@@ -1,5 +1,5 @@
 {
-    "name": "dstl_ex1",
+    "name": "dstl_ex4",
     "n_gpu": 1,
     "use_synch_bn": false,
     "arch": {
@@ -30,16 +30,15 @@
         "preprocessing": {
             "patch_size": 256,
             "align_images": false,
-            "img_ref_scale": "RGB",
+            "img_ref_scale": "M",
             "overlap_pixels": 56,
             "interpolation_method": 4,
-            "training_classes": [0],
             "training_band_groups": [{
-                "bands": [1]
-            }, {
-                "bands": [3]
-            }, {
                 "bands": [5]
+            }, {
+                "bands": [7]
+            }, {
+                "bands": [9]
             }]
         },
         "args": {
