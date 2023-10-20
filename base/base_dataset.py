@@ -29,7 +29,10 @@ class BaseDataSet(Dataset):
 
         # Optionally normalize, does require dataset class to override __item__.
         if len(mean) != 0 and len(std) != 0:
-            self.normalize = transforms.Normalize(mean.reshape(1, 1, 3), std.reshape(1, 1, 3))
+            self.normalize = transforms.Normalize(np.array(mean).reshape(1, 1,
+                                                                       3),
+                                                  np.array(std).reshape(1, 1,
+                                                                        3))
         self.return_id = return_id
 
         cv2.setNumThreads(0)
