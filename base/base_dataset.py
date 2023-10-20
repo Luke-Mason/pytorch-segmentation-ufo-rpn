@@ -66,7 +66,7 @@ class BaseDataSet(Dataset):
         return image, label
 
     def _augmentation(self, image, label):
-        _, h, w = image.shape
+        c, h, w = image.shape
         # Scaling, we set the bigger to base size, and the smaller 
         # one is rescaled to maintain the same ratio, if we don't have any obj in the image, re-do the processing
         if self.base_size:
@@ -77,17 +77,17 @@ class BaseDataSet(Dataset):
             h, w = (longside, int(1.0 * longside * w / h + 0.5)) if h > w else (int(1.0 * longside * h / w + 0.5), longside)
             h = self.base_size
             w = self.base_size
-            image = cv2.resize(image, (w, h), interpolation=cv2.INTER_LINEAR)
-            label = cv2.resize(label, (w, h), interpolation=cv2.INTER_NEAREST)
+            image = cv2.resize(image.transpose((1,2,0)), (w, h), interpolation=cv2.INTER_LINEAR).transpose((2,0,1))
+            label = cv2.resize(label.transpose((1,2,0)), (w, h), interpolation=cv2.INTER_NEAREST).transpose((2,0,1))
     
-        _, h, w = image.shape
+        c, h, w = image.shape
         # Rotate the image with an angle between -10 and 10
         if self.rotate:
             angle = random.randint(-90, 90)
             center = (w / 2, h / 2)
             rot_matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
-            image = cv2.warpAffine(image, rot_matrix, (w, h), flags=cv2.INTER_LINEAR)#, borderMode=cv2.BORDER_REFLECT)
-            label = cv2.warpAffine(label, rot_matrix, (w, h), flags=cv2.INTER_NEAREST)#,  borderMode=cv2.BORDER_REFLECT)
+            image = cv2.warpAffine(image.transpose((1,2,0)), rot_matrix, (w, h), flags=cv2.INTER_LINEAR).transpose((2,0,1))#, borderMode=cv2.BORDER_REFLECT)
+            label = cv2.warpAffine(label.transpose((1,2,0)), rot_matrix, (w, h), flags=cv2.INTER_NEAREST).transpose((2,0,1))#,  borderMode=cv2.BORDER_REFLECT)
 
         # Padding to return the correct crop size
         if self.crop_size:
@@ -109,8 +109,8 @@ class BaseDataSet(Dataset):
             start_w = random.randint(0, w - self.crop_size)
             end_h = start_h + self.crop_size
             end_w = start_w + self.crop_size
-            image = image[start_h:end_h, start_w:end_w]
-            label = label[start_h:end_h, start_w:end_w]
+            image = image[:, start_h:end_h, start_w:end_w]
+            label = label[:, start_h:end_h, start_w:end_w]
 
         # Random H flip
         if self.flip:
