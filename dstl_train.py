@@ -160,7 +160,8 @@ def write_stats_to_tensorboard(logger, writer, do_validation, val_per_epochs,
         for metric in class_stats[stat].keys():
             for key in ['train', 'val']:
                 logger.debug("metric: ", metric)
-                logger.debug(f"{stat}-{metric}-{key} shape: ", class_stats[stat][metric][key].shape)
+                logger.debug(f"{stat}-{metric}-{key} shape: ",
+                             np.array(class_stats[stat][metric][key]).shape)
     return
     # LOSS
     write_metric(logger, writer, do_validation, val_per_epochs, class_stats['all'], 'loss', np.mean, 'All', 'Loss')
