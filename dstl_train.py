@@ -157,7 +157,10 @@ def write_metric_3_param(logger, writer, do_validation, val_per_epochs, stats,
 def write_stats_to_tensorboard(logger, writer, do_validation, val_per_epochs,
                                class_stats):
     for key in class_stats.keys():
-        logger.debug("stats shape: ", class_stats[key].shape)
+        for metric in class_stats[key].keys():
+            logger.debug("metric: ", metric)
+            logger.debug("metric shape: ", class_stats[key][metric].shape)
+    return
     # LOSS
     write_metric(logger, writer, do_validation, val_per_epochs, class_stats['all'], 'loss', np.mean, 'All', 'Loss')
 
