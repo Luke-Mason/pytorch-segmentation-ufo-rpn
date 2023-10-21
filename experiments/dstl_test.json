@@ -11,7 +11,7 @@
         }
     },
     "trainer": {
-        "epochs": 30,
+        "epochs": 5,
         "save_dir": "saved/",
         "save_period": 20,
         "monitor": "max Mean_IoU",
@@ -43,7 +43,7 @@
             }]
         },
         "args": {
-            "return_id": true,
+            "return_id": false,
             "auto_balance_classes": true,
             "batch_size": 128,
             "augment": false,
