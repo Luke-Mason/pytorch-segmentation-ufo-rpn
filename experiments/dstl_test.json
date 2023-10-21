@@ -43,6 +43,7 @@
             }]
         },
         "args": {
+            "return_id": true,
             "auto_balance_classes": true,
             "batch_size": 128,
             "augment": false,
