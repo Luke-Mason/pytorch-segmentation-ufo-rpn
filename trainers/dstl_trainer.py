@@ -126,9 +126,9 @@ class DSTLTrainer(BaseTrainer):
         self.batch_time = AverageMeter()
         self.data_time = AverageMeter()
         tbar = tqdm(self.train_loader, ncols=130)
-        for batch_idx, (data, target) in enumerate(tbar):
+        for batch_idx, (data, target, image_id) in enumerate(tbar):
             self.data_time.update(time.time() - tic)
-
+            self.logger.debug(f"Image id: {batch_idx}-{image_id}")
             # LOSS & OPTIMIZE
             output = self.model(data)
             target = target.to(self.device)
