@@ -53,11 +53,11 @@
         }
     },
     "optimizer": {
-        "type": "Adam",
+        "type": "AdamW",
         "differential_lr": true,
-        "args": {
-            "lr": 0.01,
-            "weight_decay": 1e-3
+        "args":{
+            "lr": 0.005,
+            "weight_decay": 1e-4
         }
     },
     "loss": "JaccardCoefficient",
