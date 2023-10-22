@@ -200,7 +200,7 @@ class DSTLTrainer(BaseTrainer):
         self.logger.debug(f"Learning Group Shape: {np.array(self.optimizer.param_groups).shape}")
         self.logger.debug(f"Learning Group Shape 0:"
                           f" {np.array(self.optimizer.param_groups[0]).shape}")
-        self.logger.debug(f"Learning Group 0: "
+        self.logger.debug(f"Learning Group 0 keys: "
                           f"{self.optimizer.param_groups[0].keys()}")
 
 
