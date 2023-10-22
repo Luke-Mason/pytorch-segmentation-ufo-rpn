@@ -198,9 +198,9 @@ class DSTLTrainer(BaseTrainer):
         # Add loss
         epoch_metrics['all']['loss'] = loss_history
         # self.logger.debug(f"Learning Group 0: {self.optimizer.param_groups[0]}")
-        # self.logger.debug(f"Learning Group Shape: "
-        #                   f""
-        #                   f"{np.array(self.optimizer.param_groups).shape}")
+        self.logger.debug(f"Learning Group Shape: "
+                          f""
+                          f"{np.array(self.optimizer.param_groups).shape}")
 
         # for i, opt_group in enumerate(self.optimizer.param_groups):
         #     self.logger.debug(f"Learning rate {i}: "
