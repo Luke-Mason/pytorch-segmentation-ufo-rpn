@@ -122,7 +122,7 @@ class DSTLTrainer(BaseTrainer):
         tic = time.time()
 
         loss_history = np.array([])
-        total_metric_totals = dict()
+        epoch_metrics = dict()
         self.batch_time = AverageMeter()
         self.data_time = AverageMeter()
         tbar = tqdm(self.train_loader, ncols=130)
@@ -162,43 +162,45 @@ class DSTLTrainer(BaseTrainer):
             # FOR EVAL
             start_time = time.time()
 
-            metrics_totals = eval_metrics(output, target, self.threshold)
-            if 'all' not in total_metric_totals:
-                total_metric_totals['all'] = metrics_totals
+            # Caluclate metrics for all classes
+            batch_metrics = eval_metrics(output, target, self.threshold)
+            if 'all' not in epoch_metrics:
+                epoch_metrics['all'] = batch_metrics
             else:
-                for k, v in metrics_totals.items():
-                    total_metric_totals['all'][k] += v
+                for metric, total in batch_metrics.items():
+                    epoch_metrics['all'][metric] += total
 
+            # Caluclate metrics for each class
             for class_idx in range(self.num_classes):
-                class_metrics_totals = eval_metrics(
+                class_batch_metrics = eval_metrics(
                     output[:, class_idx, :, :][:, np.newaxis, :, :],
                     target[:, class_idx, :, :][:, np.newaxis, :, :],
                                                     self.threshold)
-                # Convert class_indx into class_name_indx
+                # Mapping class_indx to class_name_indx i.e 0,1,2 into 2,5,9
                 class_name_idx = self.training_classes[class_idx] if class_idx < len(self.training_classes) else 10
-                if str(class_name_idx) not in total_metric_totals:
-                    total_metric_totals[str(class_name_idx)] = class_metrics_totals
+                if str(class_name_idx) not in epoch_metrics:
+                    epoch_metrics[str(class_name_idx)] = class_batch_metrics
                 else:
-                    for k, v in class_metrics_totals.items():
-                        total_metric_totals[str(class_name_idx)][k] += v
+                    for metric, total in class_batch_metrics.items():
+                        epoch_metrics[str(class_name_idx)][metric] += total
             end_time = time.time()
             elapsed_time = end_time - start_time
 
             # PRINT INFO
-            seg_metrics = self._get_metrics(metrics_totals)
+            seg_metrics = self._get_metrics(batch_metrics)
             tbar.set_description(f'TRAIN EPOCH {epoch} | Batch: {batch_idx + 1} | ')
             message = (f'\nTRAIN EPOCH {epoch} | Batch: {batch_idx + 1} | '
                        f'Loss: {loss.item():.3f} | ')
-            for k, v in seg_metrics.items():
-                message += f'{k}: {v:.3f} | '
+            for metric, total in seg_metrics.items():
+                message += f'{metric}: {total:.3f} | '
             self.logger.info(message)
 
         self.logger.info(f"Finished training epoch {epoch}")
 
         # Add loss
-        total_metric_totals['all']['loss'] = loss_history
+        epoch_metrics['all']['loss'] = loss_history
 
-        return total_metric_totals
+        return epoch_metrics
 
     def convert_to_title_case(self, input_string):
         words = input_string.split('_')

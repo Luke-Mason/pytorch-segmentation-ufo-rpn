@@ -394,9 +394,10 @@ def main(config, resume):
                 root=dstl_data_path,
             )
 
-            train_stats = trainer.train()
+            fold_stats = trainer.train()
             # im lazy and dont want to refactor the code
-            for class_name, class_stats in train_stats.items():
+            # class, metric, mode, epochs
+            for class_name, class_stats in fold_stats.items():
                 if class_name not in fold_stats:
                     fold_stats[class_name] = dict()
                 for metric_name, metric_stats in class_stats.items():
@@ -405,6 +406,7 @@ def main(config, resume):
                     for type, stats in metric_stats.items():
                         if type not in fold_stats[class_name][metric_name]:
                             fold_stats[class_name][metric_name][type] = []
+                        logger.debug(f"Length of stats: {len(stats)}")
                         fold_stats[class_name][metric_name][type].append(stats)
 
             logger.info(f'Finished Fold {fold + 1}:')
