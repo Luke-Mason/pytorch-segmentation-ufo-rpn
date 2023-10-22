@@ -122,9 +122,14 @@ class DSTLTrainer(BaseTrainer):
         tic = time.time()
 
         loss_history = np.array([])
+        learning_rates = np.array([[] for _ in enumerate(self.optimizer.param_groups)])
+
         epoch_metrics = dict()
         self.batch_time = AverageMeter()
         self.data_time = AverageMeter()
+
+
+
         tbar = tqdm(self.train_loader, ncols=130)
         for batch_idx, (data, target) in enumerate(tbar):
             self.data_time.update(time.time() - tic)
@@ -159,6 +164,9 @@ class DSTLTrainer(BaseTrainer):
             if batch_idx % self.log_step == 0:
                 loss_history = np.append(loss_history, loss.item())
 
+            for i, opt_group in enumerate(self.optimizer.param_groups):
+                learning_rates[i] = np.append(learning_rates[i], opt_group['lr'])
+
             # Caluclate metrics for all classes
             batch_metrics = eval_metrics(output, target, self.threshold)
             if 'all' not in epoch_metrics:
@@ -187,8 +195,7 @@ class DSTLTrainer(BaseTrainer):
             # PRINT INFO
             seg_metrics = self._get_metrics(batch_metrics)
             tbar.set_description(f'TRAIN EPOCH {epoch} | Batch: {batch_idx + 1} | ')
-            message = (f'\nTRAIN EPOCH {epoch} | Batch: {batch_idx + 1} | '
-                       f'Loss: {loss.item():.3f} | ')
+            message = (f'\nTRAIN EPOCH {epoch} | Batch: {batch_idx + 1} | Loss: {loss.item():.3f} | ')
             for metric, total in seg_metrics.items():
                 message += f'{metric}: {total:.3f} | '
             self.logger.info(message)
@@ -200,11 +207,10 @@ class DSTLTrainer(BaseTrainer):
         # self.logger.debug(f"Learning Group Shape: {np.array(self.optimizer.param_groups).shape}")
         # self.logger.debug(f"Learning Group Shape 0:"
         #                   f" {np.array(self.optimizer.param_groups[0]).shape}")
-        # self.logger.debug(f"Learning Group 0 keys: "
-        #                   f"{self.optimizer.param_groups[0].keys()}")
+        self.logger.debug(f"Learning Group 0 keys: {self.optimizer.param_groups[0]['lr']}")
 
         for i, opt_group in enumerate(self.optimizer.param_groups):
-            epoch_metrics['all'][f'lr_{i}'] = opt_group['lr']
+            epoch_metrics['all'][f'lr_{i}'] = [opt_group['lr']]
 
         return epoch_metrics
 
