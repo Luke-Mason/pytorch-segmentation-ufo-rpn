@@ -406,8 +406,9 @@ def main(config, resume):
                     for type, stats in metric_stats.items():
                         if type not in fold_stats[class_name][metric_name]:
                             fold_stats[class_name][metric_name][type] = []
-                        logger.debug(f"Length of stats: {len(stats)}")
                         fold_stats[class_name][metric_name][type].append(stats)
+
+            logger.debug(f"Fold stats: {fold_stats}")
 
             logger.info(f'Finished Fold {fold + 1}:')
             if config["trainer"]["k_stop"] is not None and config["trainer"][
