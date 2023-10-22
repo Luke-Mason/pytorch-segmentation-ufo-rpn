@@ -165,9 +165,9 @@ class DSTLTrainer(BaseTrainer):
                 batch_loss_history = np.append(batch_loss_history, loss.item())
 
             for i, opt_group in enumerate(self.optimizer.param_groups):
-                self.logger.debug(f"\nLearning {i}: {opt_group['lr']}")
+                # self.logger.debug(f"\nLearning {i}: {opt_group['lr']}")
                 batch_learning_rates[i] = np.append(batch_learning_rates[i], opt_group['lr'])
-                self.logger.debug(f"\n Size Learning {i}: {len(batch_learning_rates[i])}")
+                # self.logger.debug(f"\n Size Learning {i}: {len(batch_learning_rates[i])}")
 
             # Caluclate metrics for all classes
             batch_metrics = eval_metrics(output, target, self.threshold)
@@ -209,7 +209,7 @@ class DSTLTrainer(BaseTrainer):
         # self.logger.debug(f"Learning Group Shape: {np.array(self.optimizer.param_groups).shape}")
         # self.logger.debug(f"Learning Group Shape 0:"
         #                   f" {np.array(self.optimizer.param_groups[0]).shape}")
-        self.logger.debug(f"Learning Group 0 keys: {self.optimizer.param_groups[0]['lr']}")
+        # self.logger.debug(f"Learning Group 0 keys: {self.optimizer.param_groups[0]['lr']}")
 
         for i, opt_group in enumerate(self.optimizer.param_groups):
             epoch_metrics['all'][f'lr_{i}'] = batch_learning_rates[i]
