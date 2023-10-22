@@ -195,11 +195,11 @@ class DSTLDataset(BaseDataSet):
                              f"...\n")
 
         if self.auto_balance_classes:
-            auto_balance_classes()
+            self.auto_balance()
 
         self.logger.info(f"Total files: {len(self.files)}")
 
-    def auto_balance_classes(self):
+    def auto_balance(self):
         self.logger.info("Auto balancing classes...")
 
         if self.num_classes == 1:
