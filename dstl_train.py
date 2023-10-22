@@ -160,7 +160,7 @@ def write_stats_to_tensorboard(logger, writer, do_validation, val_per_epochs,
         for metric in class_stats[stat].keys():
             for key in ['train', 'val']:
                 logger.debug(f"{stat}-{metric}-{key}: {class_stats[stat][metric][key]}")
-    return
+
     # LOSS
     write_metric(logger, writer, do_validation, val_per_epochs, class_stats['all'], 'loss', np.mean, 'All', 'Loss')
 
@@ -168,7 +168,7 @@ def write_stats_to_tensorboard(logger, writer, do_validation, val_per_epochs,
         class_name = metric_indx[str(class_name_indx)]
 
         # # mAP
-        # write_metric(writer, stats, 'average_precision', np.mean, class_name, 'mAP')
+        # write_metric(logger, writer, do_validation, val_per_epochs, stats, 'average_precision', np.mean, class_name, 'mAP')
 
         # PIXEL ACCURACY
         write_metric_2_param(logger, writer, do_validation, val_per_epochs,
@@ -404,6 +404,8 @@ def main(config, resume):
                     for type, stats in metric_stats.items():
                         if type not in fold_stats[class_name][metric_name]:
                             fold_stats[class_name][metric_name][type] = []
+                            logger.debug(f"Adding {class_name}-"
+                                         f"{metric_name}-{type}, {stats}")
                         fold_stats[class_name][metric_name][type].append(stats)
 
             logger.debug(f"Fold stats: {fold_stats}")
