@@ -332,7 +332,6 @@ class DSTLDataset(BaseDataSet):
                     # or (self.num_classes == 1 and np.sum(patch_y_mask[0]) > 0)
             ):
                 updated_list.append(self.files[i])
-                # TODO don't remove the indixes
                 if i in self._file_train_indxs:
                     self.file_train_indxs.append(i)
                 if i in self._file_val_indxs:
@@ -349,9 +348,9 @@ class DSTLDataset(BaseDataSet):
                 if i in self._file_val_indxs and i not in self.file_val_indxs:
                     self.file_val_indxs.append(i)
 
-        threshold = len(updated_list) - 1  # Define the threshold value
-        self.file_train_indxs = [index for index in self.file_train_indxs if index <= threshold]
-        self.file_val_indxs = [index for index in self.file_val_indxs if index <= threshold]
+        # threshold = len(updated_list) + len(files_to_append) - 1  # Define the threshold value
+        # self.file_train_indxs = [index for index in self.file_train_indxs if index <= threshold]
+        # self.file_val_indxs = [index for index in self.file_val_indxs if index <= threshold]
         self.logger.debug(f"Train Indices LEN: {len(self.file_train_indxs)}")
         self.logger.debug(f"Val Indices LEN: {len(self.file_val_indxs)}")
 
