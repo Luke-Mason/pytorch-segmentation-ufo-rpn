@@ -149,15 +149,14 @@ class DSTLDataset(BaseDataSet):
             stage_2_file_path = self.get_stage_2_file_path(image_id)
             if not os.path.exists(stage_2_file_path + ".data.npy"):
                 # Saves image to file with 3 bands
-                self._preprocess_image_stage_2(image_id, stage_1_file_path,
-                                               stage_2_file_path)
+                self._preprocess_image_stage_2(image_id, stage_1_file_path,stage_2_file_path)
 
         # Load Images
         for index, [image_id, _] in enumerate(self._wkt_data):
             # Load image with 3 bands
             image = np.load(Path(self.get_stage_2_file_path(image_id) +
                                  ".data.npy"),  allow_pickle=True)
-
+            print(f"loaded image shape: {image.shape}")
             height, width = image.shape[1], image.shape[2]
             chunk_offsets = self._gen_chunk_offsets(width, height, step_size)
 
@@ -230,7 +229,6 @@ class DSTLDataset(BaseDataSet):
                 if (not more_than_5_percent_difference or np.any(
                         old_stat < pixel_area_stats[
                             ascending_imblanced_classes[-1]])):
-                    print(more_than_5_percent_difference)
                     break
 
                 old_stat = pixel_area_stats[ascending_imblanced_classes[-1]]
@@ -554,7 +552,6 @@ class DSTLDataset(BaseDataSet):
         im_m = (im_m / 2047.0)
         im_a = (im_a / 16383.0)
         image = np.concatenate([im_p, im_rgb, im_m, im_a], axis=0)
-        self.logger.debug(f"Image shape: {image.shape}")
 
         # Save images
         np.save(Path(file_path + ".data.npy"), image)
@@ -577,6 +574,8 @@ class DSTLDataset(BaseDataSet):
             array_3d_merge(image[group.bands - 1, :, :].squeeze(),
                            group.filter_config) if group.filter_config is not None else image[group.bands - 1, :, :].squeeze() if group.strategy is None else group.strategy(image[group.bands - 1, :, :].squeeze()) for group in self.training_band_groups
         ], dtype=np.float32)
+
+        print(f"merged shape: {image.shape}")
 
         # Save images
         self.logger.debug(f"Saving image to {dst_path}.data.npy")
@@ -654,9 +653,6 @@ class DSTL(BaseDataLoader):
         train_indxs, val_indxs = self.dataset.get_file_indexes()
         # Convert the image indexes into files indexes.
 
-        print("LENGTH: ", len(self.dataset))
-        print("TRAIN: ", len(train_indxs))
-        print("VAL: ", len(val_indxs))
         super(DSTL, self).__init__(self.dataset, batch_size, shuffle,
                                    num_workers, train_indxs, val_indxs, val)
 
