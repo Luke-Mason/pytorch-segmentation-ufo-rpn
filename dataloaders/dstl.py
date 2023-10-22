@@ -236,7 +236,6 @@ class DSTLDataset(BaseDataSet):
         train_count = 0
         val_count = 0
         for i in to_be_deleted:
-            new_file_idxs.append(self.files[i])
             if i in self.file_train_indxs:
                 new_file_idxs.append(train_indxs[train_count % len(train_indxs)])
                 train_count += 1
@@ -250,7 +249,6 @@ class DSTLDataset(BaseDataSet):
         self.file_train_indxs = train_indxs
         self.file_val_indxs = val_indxs
         updated_list = []
-        print(new_file_idxs)
         for i in new_file_idxs:
             updated_list.append(self.files[i])
 
