@@ -366,9 +366,6 @@ class DSTLTrainer(BaseTrainer):
 
         # Add loss
         total_metric_totals['all']['loss'] = loss_history
-        # for i, opt_group in enumerate(self.optimizer.param_groups):
-        #     epoch_metrics['all'][f'lr_{i}'] = opt_group['lr']
-        #     epoch_metrics['all'][f'momentum_{i}'] = opt_group['momentum']
 
         return total_metric_totals
 
