@@ -100,6 +100,10 @@ def stratified_split(sorted_array, group_size):
 def write_metric(logger, writer, do_validation, val_per_epochs, stats,
                  metric, func, class_name, metric_name):
     m = stats[metric]
+    logging.debug(f"Train length {len(m['train'])}")
+
+    for i in enumerate(m['train'])
+        logging.debug(f"{len(m['train'][i])}")
     train_m1 = np.array(m['train'])
     val_m1 = np.array(m['val'])
     for epoch in range(train_m1.shape[1]):
@@ -342,8 +346,8 @@ def main(config, resume):
         fold_stats = dict()
 
         # Iterate over the K folds
-        for fold, (train_indxs_of_indxs, val_indxs_of_indxs) in enumerate(kfold.split(stratisfied_indices)):
-            logger.info(f'Starting Fold {fold + 1}:')
+        for fold_indx, (train_indxs_of_indxs, val_indxs_of_indxs) in enumerate(kfold.split(stratisfied_indices)):
+            logger.info(f'Starting Fold {fold_indx + 1}:')
             train_indxs = stratisfied_indices[train_indxs_of_indxs]
             val_indxs = stratisfied_indices[val_indxs_of_indxs]
 
@@ -380,7 +384,7 @@ def main(config, resume):
             # TRAINING
             trainer = DSTLTrainer(
                 start_time=start_time,
-                k_fold=fold,
+                k_fold=fold_indx,
                 model=model,
                 loss=loss,
                 resume=resume,
@@ -392,12 +396,12 @@ def main(config, resume):
                 root=dstl_data_path,
             )
 
-            fold_stats = trainer.train()
+            epochs_stats = trainer.train(fold_indx)
 
             logger.debug(f"Fold stats BLALBLBLALSDLALSDLASLDLASD")
             # im lazy and dont want to refactor the code
             # class, metric, mode, epochs
-            for class_name, class_stats in fold_stats.items():
+            for class_name, class_stats in epochs_stats.items():
                 if class_name not in fold_stats:
                     fold_stats[class_name] = dict()
                 for metric_name, metric_stats in class_stats.items():
@@ -406,15 +410,16 @@ def main(config, resume):
                     for type, stats in metric_stats.items():
                         if type not in fold_stats[class_name][metric_name]:
                             fold_stats[class_name][metric_name][type] = []
-                            logger.debug(f"SHAPE {np.array(stats).shape},"
-                                         f" {stats}")
-                        fold_stats[class_name][metric_name][type].append(stats)
+                        if fold_indx >= len(fold_stats[class_name][metric_name][type]):
+                            fold_stats[class_name][metric_name][type].append([])
+                        logger.debug(f"SHAPE {np.array(stats).shape}, {stats}")
+                        fold_stats[class_name][metric_name][type][fold_indx].append(stats)
 
             logger.debug(f"Fold stats: {fold_stats}")
 
-            logger.info(f'Finished Fold {fold + 1}:')
+            logger.info(f'Finished Fold {fold_indx + 1}:')
             if config["trainer"]["k_stop"] is not None and config["trainer"][
-                "k_stop"] > 0 and config["trainer"]["k_stop"] == fold + 1:
+                "k_stop"] > 0 and config["trainer"]["k_stop"] == fold_indx + 1:
                 break
 
         # Write the stats to tensorboard

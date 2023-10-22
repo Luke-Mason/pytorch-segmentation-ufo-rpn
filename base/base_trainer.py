@@ -134,36 +134,38 @@ class BaseTrainer:
         available_gpus = list(range(n_gpu))
         return device, available_gpus
     
-    def train(self):
-        all_epoch_stats = dict()
+    def train(self, fold):
+        stats = dict()
 
         for epoch in range(self.start_epoch, self.epochs+1):
             # RUN TRAIN (AND VAL) Metric is dict[Class][Metric Name]: [Idx, Total]
             epoch_stats = self._train_epoch(epoch)
             for class_name, metric_totals in epoch_stats.items():
-                if class_name not in all_epoch_stats:
-                    all_epoch_stats[class_name] = dict()
+                if class_name not in stats:
+                    stats[class_name] = dict()
                 for metric_name, total in metric_totals.items():
-                    if metric_name not in all_epoch_stats[class_name]:
-                        all_epoch_stats[class_name][metric_name] = dict({
+                    if metric_name not in stats[class_name]:
+                        stats[class_name][metric_name] = dict({
                             # List because I append arrays into it
                             'train': [],
                             'val': []
                         })
-                    all_epoch_stats[class_name][metric_name]['train'].append(total)
+                    # if fold_indx >= len(fold_stats[class_name][metric_name][type]):
+                    #     fold_stats[class_name][metric_name][type].append([])
+                    stats[class_name][metric_name]['train'].append(total)
             metrics = {}
             if self.do_validation and epoch % self.config['trainer']['val_per_epochs'] == 0:
                 epoch_stats = self._valid_epoch(epoch)
                 for class_name, metric_totals in epoch_stats.items():
-                    if class_name not in all_epoch_stats:
-                        all_epoch_stats[class_name] = dict()
+                    if class_name not in stats:
+                        stats[class_name] = dict()
                     for metric_name, total in metric_totals.items():
-                        if metric_name not in all_epoch_stats[class_name]:
-                            all_epoch_stats[class_name][metric_name] = dict({
+                        if metric_name not in stats[class_name]:
+                            stats[class_name][metric_name] = dict({
                                 'train': [],
                                 'val': []
                             })
-                        all_epoch_stats[class_name][metric_name]['val'].append(total)
+                        stats[class_name][metric_name]['val'].append(total)
 
                 # LOGGING INFO
                 self.logger.info(f'\n         ## Info for epoch {epoch} ## ')
@@ -208,7 +210,7 @@ class BaseTrainer:
 
         # stats['all']['lr']['0'] = self.optimizer.param_groups[0]['lr']
         # stats['all']['lr']['1'] = self.optimizer.param_groups[1]['lr']
-        return all_epoch_stats
+        return stats
 
 
     def _save_checkpoint(self, epoch, save_best=False):
