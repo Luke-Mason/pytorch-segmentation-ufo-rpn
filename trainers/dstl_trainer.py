@@ -146,7 +146,7 @@ class DSTLTrainer(BaseTrainer):
                 loss += self.loss(output[1], target) * 0.4
                 output = output[0]
             else:
-                assert output.size()[2:] == target.size()[2:]
+                assert output.size()[1:] == target.size()[1:]
                 assert output.size()[1] == self.num_classes
                 loss = self.loss(output, target)
 

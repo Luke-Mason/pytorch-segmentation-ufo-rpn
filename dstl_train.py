@@ -362,10 +362,11 @@ def main(config, resume):
             # DATA LOADERS
             train_loader = get_loader_instance(
                 'train_loader', _wkt_data, config, train_indxs, val_indxs)
-
+            add_negative_class = config["train_loader"]["args"]["add_negative_class"]
+            negative_class_bonus = 1 if add_negative_class else 0
             # MODEL
             model = get_instance(models, 'arch', config,
-                                 len(training_classes_) + 1)
+                                 len(training_classes_) + negative_class_bonus)
 
             if train_loader.get_val_loader() is None:
                 raise ValueError("Val Loader is None")
@@ -383,7 +384,7 @@ def main(config, resume):
                 val_loader=train_loader.get_val_loader(),
                 train_logger=logger,
                 root=dstl_data_path,
-                add_negative_class=config["train_loader"]["args"]["add_negative_class"],
+                add_negative_class=add_negative_class,
             )
 
             epochs_stats = trainer.train(fold_indx)
@@ -421,7 +422,7 @@ def main(config, resume):
         train_loader = get_loader_instance('train_loader', _wkt_data, config)
 
         # MODELMODEL
-        model = get_instance(models, 'arch', config, len(training_classes_) + 1)
+        model = get_instance(models, 'arch', config, len(training_classes_))
 
         # TRAINING
         trainer = DSTLTrainer(
