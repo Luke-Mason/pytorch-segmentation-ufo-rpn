@@ -230,8 +230,6 @@ class DSTLTrainer(BaseTrainer):
         self.wrt_mode = 'val'
 
         loss_history = np.array([])
-        learning_rates = np.array([[] for _ in enumerate(self.optimizer.param_groups)])
-
         total_metric_totals = dict()
 
         tbar = tqdm(self.val_loader, ncols=130)
@@ -247,10 +245,6 @@ class DSTLTrainer(BaseTrainer):
 
                 if batch_idx % self.log_step == 0:
                     loss_history = np.append(loss_history, loss.item())
-
-                for i, opt_group in enumerate(self.optimizer.param_groups):
-                    learning_rates[i] = np.append(learning_rates[i],
-                                                  opt_group['lr'])
 
                 # METRICS
                 metrics_totals = eval_metrics(output, target, self.threshold)
@@ -373,9 +367,6 @@ class DSTLTrainer(BaseTrainer):
         # for i, opt_group in enumerate(self.optimizer.param_groups):
         #     epoch_metrics['all'][f'lr_{i}'] = opt_group['lr']
         #     epoch_metrics['all'][f'momentum_{i}'] = opt_group['momentum']
-
-        for i, opt_group in enumerate(self.optimizer.param_groups):
-            epoch_metrics['all'][f'lr_{i}'] = learning_rates[i]
 
         return total_metric_totals
 
