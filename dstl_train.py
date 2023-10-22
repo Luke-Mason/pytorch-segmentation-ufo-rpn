@@ -383,6 +383,7 @@ def main(config, resume):
                 val_loader=train_loader.get_val_loader(),
                 train_logger=logger,
                 root=dstl_data_path,
+                add_negative_class=config["train_loader"]["args"]["add_negative_class"],
             )
 
             epochs_stats = trainer.train(fold_indx)

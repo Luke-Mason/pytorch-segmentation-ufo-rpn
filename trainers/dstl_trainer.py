@@ -22,7 +22,9 @@ from utils import transforms as local_transforms
 
 class DSTLTrainer(BaseTrainer):
     def __init__(self, start_time, model, loss, resume, config, train_loader,
-                 writer, k_fold = None, val_loader=None, train_logger=None,
+                 writer,
+                 add_negative_class,
+                 k_fold = None, val_loader=None, train_logger=None,
                  prefetch=False, root='.'):
         super(DSTLTrainer, self).__init__(start_time, model, loss, resume,
                                           config, train_loader, writer, k_fold,
@@ -144,7 +146,7 @@ class DSTLTrainer(BaseTrainer):
                 loss += self.loss(output[1], target) * 0.4
                 output = output[0]
             else:
-                assert output.size()[1:] == target.size()[1:]
+                assert output.size()[2:] == target.size()[2:]
                 assert output.size()[1] == self.num_classes
                 loss = self.loss(output, target)
 
@@ -184,7 +186,10 @@ class DSTLTrainer(BaseTrainer):
                     target[:, class_idx, :, :][:, np.newaxis, :, :],
                                                     self.threshold)
                 # Mapping class_indx to class_name_indx i.e 0,1,2 into 2,5,9
-                class_name_idx = self.training_classes[class_idx] if class_idx < len(self.training_classes) else 10
+                extra_negative_class = 1 if self.add_negative_class == True \
+                    else 0
+                class_name_idx = self.training_classes[class_idx] if (
+                        class_idx < len(self.training_classes)) else 9 + extra_negative_class
                 if str(class_name_idx) not in epoch_metrics:
                     epoch_metrics[str(class_name_idx)] = class_batch_metrics
                 else:
@@ -235,7 +240,7 @@ class DSTLTrainer(BaseTrainer):
         total_metric_totals = dict()
 
         tbar = tqdm(self.val_loader, ncols=130)
-        with ((((torch.no_grad())))):
+        with (((((((((((torch.no_grad()))))))))))):
             for batch_idx, (data, target) in enumerate(tbar):
                 # LOSS
                 output = self.model(data)
@@ -262,7 +267,8 @@ class DSTLTrainer(BaseTrainer):
                         target[:, class_idx, :, :][:, np.newaxis, :, :],
                                                     self.threshold)
                     # Convert class_indx into class_name_indx
-                    class_name_idx = self.training_classes[class_idx] if class_idx < len(self.training_classes) else 10
+                    extra_negative_class = 1 if self.add_negative_class == True else 0
+                    class_name_idx = self.training_classes[class_idx] if class_idx < len(self.training_classes) else 9 + extra_negative_class
                     if str(class_name_idx) not in total_metric_totals:
                         # Convert class_indx into class_name_indx
 
@@ -357,7 +363,8 @@ class DSTLTrainer(BaseTrainer):
 
                             # Get class name from the class index
                             #  TODO
-                            class_name_idx = self.training_classes[i] if i < len(self.training_classes) else 10
+                            extra_negative_class = 1 if self.add_negative_class == True else 0
+                            class_name_idx = self.training_classes[i] if i < len(self.training_classes) else 9 + extra_negative_class
                             class_name = metric_indx[str(class_name_idx)]
                             # row shows one class (num_classes_to_predict)
                             self.writer.add_image(
@@ -372,15 +379,11 @@ class DSTLTrainer(BaseTrainer):
     def _get_metrics(self, seg_class_totals):
         seg_totals = seg_class_totals['all'] if 'all' in seg_class_totals else seg_class_totals
         pixAcc = pixel_accuracy(seg_totals['correct_pixels'], seg_totals['total_pixels'])
-        p = precision(seg_totals['intersection'], seg_totals[
-            'predicted_positives'])
-        r = recall(seg_totals['intersection'], seg_totals[
-            'total_positives'])
-        f1 = f1_score(seg_totals['intersection'], seg_totals[
-            'predicted_positives'], seg_totals['total_positives'])
+        p = precision(seg_totals['intersection'], seg_totals['predicted_positives'])
+        r = recall(seg_totals['intersection'], seg_totals['total_positives'])
+        f1 = f1_score(seg_totals['intersection'], seg_totals['predicted_positives'], seg_totals['total_positives'])
         # mAP = mean_average_precision(seg_totals['average_precision'])
-        mIoU = intersection_over_union(seg_totals['intersection'], seg_totals[
-            'union'])
+        mIoU = intersection_over_union(seg_totals['intersection'], seg_totals['union'])
 
         return {
             "Mean_IoU": np.round(mIoU, 3),
