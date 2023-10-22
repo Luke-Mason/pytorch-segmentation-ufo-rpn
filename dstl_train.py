@@ -102,8 +102,8 @@ def write_metric(logger, writer, do_validation, val_per_epochs, stats,
     m = stats[metric]
     logging.debug(f"Train length {len(m['train'])}")
 
-    for i in enumerate(m['train']):
-        logging.debug(f"{len(m['train'][i])}")
+    for i, train in enumerate(m['train']):
+        logging.debug(f"{len(train[i])}")
     train_m1 = np.array(m['train'])
     val_m1 = np.array(m['val'])
     for epoch in range(train_m1.shape[1]):
