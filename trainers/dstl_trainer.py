@@ -159,9 +159,6 @@ class DSTLTrainer(BaseTrainer):
             if batch_idx % self.log_step == 0:
                 loss_history = np.append(loss_history, loss.item())
 
-            # FOR EVAL
-            start_time = time.time()
-
             # Caluclate metrics for all classes
             batch_metrics = eval_metrics(output, target, self.threshold)
             if 'all' not in epoch_metrics:
@@ -183,8 +180,9 @@ class DSTLTrainer(BaseTrainer):
                 else:
                     for metric, total in class_batch_metrics.items():
                         epoch_metrics[str(class_name_idx)][metric] += total
-            end_time = time.time()
-            elapsed_time = end_time - start_time
+
+            # TODO
+
 
             # PRINT INFO
             seg_metrics = self._get_metrics(batch_metrics)
@@ -199,6 +197,13 @@ class DSTLTrainer(BaseTrainer):
 
         # Add loss
         epoch_metrics['all']['loss'] = loss_history
+        for i, opt_group in enumerate(self.optimizer.param_groups):
+            self.logger.debug(f"Learning rate {i}: "
+                              f"{np.array(opt_group['lr']).shape}")
+            self.logger.debug(f"Momentum {i}: "
+                                f"{np.array(opt_group['momentum']).shape}")
+            # epoch_metrics['all'][f'lr_{i}'] = opt_group['lr']
+            # epoch_metrics['all'][f'momentum_{i}'] = opt_group['momentum']
 
         return epoch_metrics
 
@@ -352,6 +357,9 @@ class DSTLTrainer(BaseTrainer):
 
         # Add loss
         total_metric_totals['all']['loss'] = loss_history
+        # for i, opt_group in enumerate(self.optimizer.param_groups):
+        #     epoch_metrics['all'][f'lr_{i}'] = opt_group['lr']
+        #     epoch_metrics['all'][f'momentum_{i}'] = opt_group['momentum']
 
         return total_metric_totals
 
