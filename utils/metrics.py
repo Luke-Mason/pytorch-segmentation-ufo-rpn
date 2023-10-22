@@ -72,7 +72,7 @@ def eval_metrics(o, t, threshold=0.5):
         "intersection": intersection.item(),
         "union": union.item(),
         "total_positives": total_positives.item(),
-        "total_pixels": total_pixels.item(),
+        "total_pixels": total_pixels,
         "correct_pixels": correct_pixels.item(),
         "predicted_positives": predicted_positives.item(),
         # "average_precision": average_precision,
