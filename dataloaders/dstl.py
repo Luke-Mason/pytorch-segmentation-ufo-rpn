@@ -214,12 +214,15 @@ class DSTLDataset(BaseDataSet):
                     if index in self.file_val_indxs:
                         self.file_val_indxs.remove(index)
 
-                    threshold = len(updated_list) - 1
-                    self.file_train_indxs = [index for index in self.file_train_indxs if index <= threshold]
-                    self.file_val_indxs = [index for index in self.file_val_indxs if index <= threshold]
+            threshold = len(updated_list) - 1
+            self.file_train_indxs = [index for index in self.file_train_indxs if index <= threshold]
+            self.file_val_indxs = [index for index in self.file_val_indxs if index <= threshold]
+
+            self.logger.debug("Train Indices LEN: ", len(self.file_train_indxs))
+            self.logger.debug("Val Indices LEN: ", len(self.file_val_indxs))
+
 
             self.files = updated_list
-            print("UPDATED LEN: ", len(self.files))
 
             return
 
@@ -335,9 +338,9 @@ class DSTLDataset(BaseDataSet):
                     self.file_train_indxs.remove(i)
                 if i in self.file_val_indxs:
                     self.file_val_indxs.remove(i)
-                threshold = len(updated_list) - 1  # Define the threshold value
-                self.file_train_indxs = [index for index in self.file_train_indxs if index <= threshold]
-                self.file_val_indxs = [index for index in self.file_val_indxs if index <= threshold]
+        threshold = len(updated_list) - 1  # Define the threshold value
+        self.file_train_indxs = [index for index in self.file_train_indxs if index <= threshold]
+        self.file_val_indxs = [index for index in self.file_val_indxs if index <= threshold]
         self.files = updated_list
 
         # Append the files that need to be duplicated
