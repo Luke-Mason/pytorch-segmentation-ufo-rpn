@@ -38,8 +38,6 @@ def eval_metrics(o, t, threshold=0.5):
     # Correct pixels
     correct_pixels = torch.sum(output == target)
     total_pixels = output.numel()
-    print(f"correct_pixels: {correct_pixels}")
-    print(f"total_pixels: {total_pixels}")
 
     # Recall Components
     total_positives = torch.sum(target)
