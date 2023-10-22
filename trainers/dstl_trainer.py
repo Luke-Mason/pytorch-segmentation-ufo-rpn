@@ -36,7 +36,7 @@ class DSTLTrainer(BaseTrainer):
             self.log_step / self.train_loader.batch_size) + 1
 
         self.num_classes = self.train_loader.dataset.num_classes
-
+        self.add_negative_class = add_negative_class
         # TRANSORMS FOR VISUALIZATION
         self.restore_transform = transforms.Compose([
             transforms.Resize((400, 400), antialias=True),
@@ -189,7 +189,8 @@ class DSTLTrainer(BaseTrainer):
                 extra_negative_class = 1 if self.add_negative_class == True \
                     else 0
                 class_name_idx = self.training_classes[class_idx] if (
-                        class_idx < len(self.training_classes)) else 9 + extra_negative_class
+                        class_idx < len(self.training_classes) else 9 +
+                extra_negative_class)
                 if str(class_name_idx) not in epoch_metrics:
                     epoch_metrics[str(class_name_idx)] = class_batch_metrics
                 else:
