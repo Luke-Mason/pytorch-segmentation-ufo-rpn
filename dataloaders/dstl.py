@@ -211,6 +211,7 @@ class DSTLDataset(BaseDataSet):
                     updated_list.append(self.files[index])
 
             self.files = updated_list
+            print("UPDATED LEN: ", len(self.files))
             return
 
         for index, (_, patch_y_mask, __) in enumerate(self.files):
