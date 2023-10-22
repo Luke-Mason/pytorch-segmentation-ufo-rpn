@@ -110,12 +110,12 @@ class Trainer(BaseTrainer):
                                                 self.batch_time.average, self.data_time.average))
 
         # METRICS TO TENSORBOARD
-        # seg_metrics = self._get_seg_metrics()
-        # for k, v in list(seg_metrics.items())[:-1]:
-        #     self.writer.add_scalar(f'{self.wrt_mode}/{k}', v, self.wrt_step)
-        # for i, opt_group in enumerate(self.optimizer.param_groups):
-        #     self.writer.add_scalar(f'{self.wrt_mode}/Learning_rate_{i}', opt_group['lr'], self.wrt_step)
-            #self.writer.add_scalar(f'{self.wrt_mode}/Momentum_{k}', opt_group['momentum'], self.wrt_step)
+        seg_metrics = self._get_seg_metrics()
+        for k, v in list(seg_metrics.items())[:-1]:
+            self.writer.add_scalar(f'{self.wrt_mode}/{k}', v, self.wrt_step)
+        for i, opt_group in enumerate(self.optimizer.param_groups):
+            self.writer.add_scalar(f'{self.wrt_mode}/Learning_rate_{i}', opt_group['lr'], self.wrt_step)
+            self.writer.add_scalar(f'{self.wrt_mode}/Momentum_{k}', opt_group['momentum'], self.wrt_step)
 
         # RETURN LOSS & METRICS
         log = {'loss': self.total_loss.average, **seg_metrics}
