@@ -253,9 +253,9 @@ class DSTLDataset(BaseDataSet):
             more_than_5_percent_difference = np.any(np.abs(
                 pixel_area_stats - pixel_area_stats[:, None]) > threshold[:,
                                                                 None])
-            if (not more_than_5_percent_difference or np.any(
-                    old_stat < pixel_area_stats[
-                        ascending_imblanced_classes[-1]])):
+            if (not more_than_5_percent_difference
+                    # or np.any(old_stat < pixel_area_stats[ascending_imblanced_classes[-1]])
+            ):
                 break
 
             old_stat = pixel_area_stats[ascending_imblanced_classes[-1]]
@@ -328,7 +328,9 @@ class DSTLDataset(BaseDataSet):
         self.file_train_indxs = []
         self.file_val_indxs = []
         for i in range(len(self.files)):
-            if i not in indices_to_delete or (self.num_classes == 1 and np.sum(patch_y_mask[0]) > 0):
+            if (i not in indices_to_delete
+                    # or (self.num_classes == 1 and np.sum(patch_y_mask[0]) > 0)
+            ):
                 updated_list.append(self.files[i])
                 # TODO don't remove the indixes
                 if i in self._file_train_indxs:
