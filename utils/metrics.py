@@ -37,7 +37,7 @@ def eval_metrics(o, t, threshold=0.5):
     # Pixel Accuracy Components
     # Correct pixels
     correct_pixels = torch.sum(output == target)
-    total_labeled_pixels = torch.sum(target == 1)
+    total_pixels = output.size(0) * output.size(1) * output.size(2)
 
     # Recall Components
     total_positives = torch.sum(target)
@@ -72,7 +72,7 @@ def eval_metrics(o, t, threshold=0.5):
         "intersection": intersection.item(),
         "union": union.item(),
         "total_positives": total_positives.item(),
-        "total_labeled_pixels": total_labeled_pixels.item(),
+        "total_pixels": total_labeled_pixels.item(),
         "correct_pixels": correct_pixels.item(),
         "predicted_positives": predicted_positives.item(),
         # "average_precision": average_precision,

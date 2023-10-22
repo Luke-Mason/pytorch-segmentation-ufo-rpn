@@ -155,10 +155,10 @@ def write_metric_3_param(logger, writer, do_validation, val_per_epochs, stats,
 
 def write_stats_to_tensorboard(logger, writer, do_validation, val_per_epochs,
                                class_stats):
-    for stat in class_stats.keys():
-        for metric in class_stats[stat].keys():
-            for key in ['train', 'val']:
-                logger.debug(f"{stat}-{metric}-{key}: {class_stats[stat][metric][key]}")
+    # for stat in class_stats.keys():
+    #     for metric in class_stats[stat].keys():
+    #         for key in ['train', 'val']:
+    #             logger.debug(f"{stat}-{metric}-{key}: {class_stats[stat][metric][key]}")
 
     # LOSS
     write_metric(logger, writer, do_validation, val_per_epochs, class_stats['all'], 'loss', np.mean, 'All', 'Loss')
@@ -173,7 +173,7 @@ def write_stats_to_tensorboard(logger, writer, do_validation, val_per_epochs,
 
         # PIXEL ACCURACY
         write_metric_2_param(logger, writer, do_validation, val_per_epochs,
-                             stats, 'correct_pixels', 'total_labeled_pixels',
+                             stats, 'correct_pixels', 'total_pixels',
                              pixel_accuracy, class_name, 'Pixel_Accuracy')
 
         # PRECISION
@@ -387,7 +387,7 @@ def main(config, resume):
 
             epochs_stats = trainer.train(fold_indx)
 
-            logger.debug(f"Fold stats BLALBLBLALSDLALSDLASLDLASD")
+            # logger.debug(f"Fold stats BLALBLBLALSDLALSDLASLDLASD")
             # im lazy and dont want to refactor the code
             # class, metric, mode, epochs
             for class_name, class_stats in epochs_stats.items():
