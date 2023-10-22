@@ -68,6 +68,8 @@ class DSTLDataset(BaseDataSet):
         self.train_indxs = train_indxs
         self.val_indxs = val_indxs
 
+        self._file_train_indxs = []
+        self._file_val_indxs = []
         self.file_train_indxs = []
         self.file_val_indxs = []
 
@@ -181,8 +183,10 @@ class DSTLDataset(BaseDataSet):
                 file_idx = len(self.files)
                 if index in self.train_indxs:
                     self.file_train_indxs.append(file_idx)
+                    self._file_train_indxs.append(file_idx)
                 elif index in self.val_indxs:
                     self.file_val_indxs.append(file_idx)
+                    self._file_val_indxs.append(file_idx)
                 else:
                     raise ValueError(f"Index {index} not in train or val indexes")
 
@@ -202,39 +206,33 @@ class DSTLDataset(BaseDataSet):
     def auto_balance(self):
         self.logger.info("Auto balancing classes...")
 
-        if self.num_classes == 1:
-            # First delete all patches that do not contain any of the object
-            # class we want
-            updated_list = []
-            for index, (_, patch_y_mask, __) in enumerate(self.files):
-                if np.sum(patch_y_mask[0]) > 0:
-                    updated_list.append(self.files[index])
-                    if index in self.file_train_indxs:
-                        self.file_train_indxs.remove(index)
-                    if index in self.file_val_indxs:
-                        self.file_val_indxs.remove(index)
-
-            threshold = len(updated_list) - 1
-            self.file_train_indxs = [index for index in self.file_train_indxs if index <= threshold]
-            self.file_val_indxs = [index for index in self.file_val_indxs if index <= threshold]
-
-            self.logger.debug("Train Indices LEN: ", len(self.file_train_indxs))
-            self.logger.debug("Val Indices LEN: ", len(self.file_val_indxs))
-
-
-            self.files = updated_list
-
-            return
-
         # Auto balance the classes so that the negative class is not over represented.
-        pixel_area_stats = np.zeros((self.num_classes,))
-        class_area_stats = np.zeros((len(self.files), self.num_classes + 1))
-        # Get the pixel area statistics for each class and set it
-        for index, (_, patch_y_mask, __) in enumerate(self.files):
-            for i in range(self.num_classes):
-                pixel_area_stats[i] += np.sum(patch_y_mask[i])
-                class_area_stats[index, i] = np.sum(patch_y_mask[i])
-                class_area_stats[index, -1] = index  # Mark with index of file
+        pixel_area_stats = None
+        class_area_stats = None
+
+        if self.num_classes == 1:
+            pixel_area_stats = np.zeros((2,))
+            class_area_stats = np.zeros((len(self.files), 3))
+
+            # Get the pixel area statistics for each class and set it
+            for index, (_, patch_y_mask, __) in enumerate(self.files):
+                for i in range(2):
+                    pixel_area_stats[0] += np.sum(patch_y_mask[0])
+                    pixel_area_stats[1] += (patch_y_mask.size - np.count_nonzero(patch_y_mask))
+
+                    class_area_stats[index, 0] = np.sum(patch_y_mask[0])
+                    class_area_stats[index, 1] = (patch_y_mask.size - np.count_nonzero(patch_y_mask))
+                    class_area_stats[index, -1] = index  # Mark with index of file
+
+        else:
+            pixel_area_stats = np.zeros((self.num_classes,))
+            class_area_stats = np.zeros((len(self.files), self.num_classes + 1))
+            # Get the pixel area statistics for each class and set it
+            for index, (_, patch_y_mask, __) in enumerate(self.files):
+                for i in range(self.num_classes):
+                    pixel_area_stats[i] += np.sum(patch_y_mask[i])
+                    class_area_stats[index, i] = np.sum(patch_y_mask[i])
+                    class_area_stats[index, -1] = index  # Mark with index of file
 
         area_stats = class_area_stats.copy()
         indices_to_delete = [np.array([])]
@@ -323,27 +321,40 @@ class DSTLDataset(BaseDataSet):
                                                       :-1]
                 area_stats = area_stats[1:]
 
+
+
+        # Delete the files that are not needed and any blank files
+        updated_list = []
+        self.file_train_indxs = []
+        self.file_val_indxs = []
+        for i in range(len(self.files)):
+            if i not in indices_to_delete or (self.num_classes == 1 and np.sum(patch_y_mask[0]) > 0):
+                updated_list.append(self.files[i])
+                # TODO don't remove the indixes
+                if i in self._file_train_indxs:
+                    self.file_train_indxs.append(i)
+                if i in self._file_val_indxs:
+                    self.file_val_indxs.append(i)
+
         # Copy the files that need to be duplicated
         files_to_append = []
         for group in indices_to_duplicate:
             for i in group.astype(int):
                 files_to_append.append(self.files[i])
+                if (i in self._file_train_indxs and i not in
+                        self.file_train_indxs):
+                    self.file_train_indxs.append(i)
+                if i in self._file_val_indxs and i not in self.file_val_indxs:
+                    self.file_val_indxs.append(i)
 
-        # Delete the files that are not needed
-        updated_list = []
-        for i in range(len(self.files)):
-            if i not in indices_to_delete:
-                updated_list.append(self.files[i])
-                if i in self.file_train_indxs:
-                    self.file_train_indxs.remove(i)
-                if i in self.file_val_indxs:
-                    self.file_val_indxs.remove(i)
         threshold = len(updated_list) - 1  # Define the threshold value
         self.file_train_indxs = [index for index in self.file_train_indxs if index <= threshold]
         self.file_val_indxs = [index for index in self.file_val_indxs if index <= threshold]
-        self.files = updated_list
+        self.logger.debug(f"Train Indices LEN: {len(self.file_train_indxs)}")
+        self.logger.debug(f"Val Indices LEN: {len(self.file_val_indxs)}")
 
         # Append the files that need to be duplicated
+        self.files = updated_list
         self.files.extend(files_to_append)
 
     def get_file_indexes(self):
