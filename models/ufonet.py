@@ -59,7 +59,7 @@ class DeConv2d(nn.Module):
 
 class UFONet(BaseModel):
     def __init__(self, num_classes, **_):
-        print(num_classes)
+        print(f"MODEL CLASSES = {num_classes}")
         super().__init__()
         self.pool = nn.MaxPool2d(2, stride=2)
         self.initial_block = Conv2d(3, 16)
