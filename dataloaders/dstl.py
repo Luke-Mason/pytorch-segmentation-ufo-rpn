@@ -199,9 +199,67 @@ class DSTLDataset(BaseDataSet):
                              f"...\n")
 
         if self.auto_balance_classes:
-            self.auto_balance()
+            if self.num_classes == 1:
+                self.auto_balance2()
+            else:
+                self.auto_balance()
 
         self.logger.info(f"Total files: {len(self.files)}")
+
+    def auto_balance2(self):
+        train_duplicates = []
+        val_duplicates = []
+        to_be_deleted = []
+
+        # Get all the images that do not contain any of the classes
+        for index, (_, patch_y_mask, __) in enumerate(self.files):
+            if np.count_nonzero(patch_y_mask) == 0:
+                to_be_deleted.append(index)
+            else:
+                if index in self._file_train_indxs:
+                    train_duplicates.append(index)
+                if index in self._file_val_indxs:
+                    val_duplicates.append(index)
+        self.logger.debug(f"To be Deleted LEN: {len(to_be_deleted)}")
+        self.logger.debug(f"File Len: {len(self.files)}")
+        self.logger.debug(f"Train Indices LEN: {len(self.file_train_indxs)}")
+
+        # Get the rest of the images
+        # Delete the files that are not needed and any blank files
+        updated_list = []
+        self.file_train_indxs = []
+        self.file_val_indxs = []
+        for i in range(len(self.files)):
+            if i not in to_be_deleted:
+                updated_list.append(self.files[i])
+                if i in self._file_train_indxs:
+                    self.file_train_indxs.append(i)
+                if i in self._file_val_indxs:
+                    self.file_val_indxs.append(i)
+
+        # Copy the files that need to be duplicated
+        files_to_append = []
+        for i in val_duplicates:
+            files_to_append.append(self.files[i])
+            if i not in self.file_val_indxs:
+                self.file_val_indxs.append(i)
+        for i in train_duplicates:
+            files_to_append.append(self.files[i])
+            if i not in self.file_train_indxs:
+                self.file_train_indxs.append(i)
+
+        self.files = updated_list
+        print(len(updated_list))
+        self.files.extend(files_to_append)
+
+        self.logger.debug(f"Train Indices LEN: {len(self.file_train_indxs)}")
+        self.logger.debug(f"Val Indices LEN: {len(self.file_val_indxs)}")
+    
+        # For every image deleted, replace with the next image that is not to b e
+        # deleted.
+    
+
+
 
     def auto_balance(self):
         self.logger.info("Auto balancing classes...")
