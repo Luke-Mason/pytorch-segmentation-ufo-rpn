@@ -393,6 +393,8 @@ def main(config, resume):
             )
 
             fold_stats = trainer.train()
+
+            logger.debug(f"Fold stats BLALBLBLALSDLALSDLASLDLASD")
             # im lazy and dont want to refactor the code
             # class, metric, mode, epochs
             for class_name, class_stats in fold_stats.items():
@@ -404,8 +406,8 @@ def main(config, resume):
                     for type, stats in metric_stats.items():
                         if type not in fold_stats[class_name][metric_name]:
                             fold_stats[class_name][metric_name][type] = []
-                            logger.debug(f"Adding {class_name}-"
-                                         f"{metric_name}-{type}, {stats}")
+                            logger.debug(f"SHAPE {np.array(stats).shape},"
+                                         f" {stats}")
                         fold_stats[class_name][metric_name][type].append(stats)
 
             logger.debug(f"Fold stats: {fold_stats}")
