@@ -121,8 +121,8 @@ class DSTLTrainer(BaseTrainer):
 
         tic = time.time()
 
-        loss_history = np.array([])
-        learning_rates = np.array([[] for _ in enumerate(self.optimizer.param_groups)])
+        batch_loss_history = np.array([])
+        beatch_learning_rates = np.array([[] for _ in enumerate(self.optimizer.param_groups)])
 
         epoch_metrics = dict()
         self.batch_time = AverageMeter()
@@ -162,11 +162,12 @@ class DSTLTrainer(BaseTrainer):
 
             # LOGGING & TENSORBOARD
             if batch_idx % self.log_step == 0:
-                loss_history = np.append(loss_history, loss.item())
+                batch_loss_history = np.append(batch_loss_history, loss.item())
 
             for i, opt_group in enumerate(self.optimizer.param_groups):
-                self.logger.debug(f"Learning {i}: {opt_group['lr']}")
-                learning_rates[i] = np.append(learning_rates[i], opt_group['lr'])
+                self.logger.debug(f"\nLearning {i}: {opt_group['lr']}")
+                beatch_learning_rates[i] = np.append(beatch_learning_rates[i], opt_group['lr'])
+                self.logger.debug(f"\n Size Learning {i}: {len(beatch_learning_rates[i])}")
 
             # Caluclate metrics for all classes
             batch_metrics = eval_metrics(output, target, self.threshold)
@@ -204,14 +205,14 @@ class DSTLTrainer(BaseTrainer):
         self.logger.info(f"Finished training epoch {epoch}")
 
         # Add loss
-        epoch_metrics['all']['loss'] = loss_history
+        epoch_metrics['all']['loss'] = batch_loss_history
         # self.logger.debug(f"Learning Group Shape: {np.array(self.optimizer.param_groups).shape}")
         # self.logger.debug(f"Learning Group Shape 0:"
         #                   f" {np.array(self.optimizer.param_groups[0]).shape}")
         self.logger.debug(f"Learning Group 0 keys: {self.optimizer.param_groups[0]['lr']}")
 
         for i, opt_group in enumerate(self.optimizer.param_groups):
-            epoch_metrics['all'][f'lr_{i}'] = learning_rates[i]
+            epoch_metrics['all'][f'lr_{i}'] = beatch_learning_rates[i]
 
         return epoch_metrics
 
