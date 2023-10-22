@@ -17,7 +17,7 @@ metric_indx = dict({
     "7": "Standing water",
     "8": "Vehicle Large",
     "9": "Vehicle Small",
-    "10": "Nothing"
+    "10": "Negative"
 })
 
 def generate_unique_config_hash(config):

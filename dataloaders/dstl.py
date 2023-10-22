@@ -25,7 +25,6 @@ from utils import (array_3d_merge, FilterConfig3D, BandGroup,
                    palette, generate_unique_config_hash)
 
 
-
 class DSTLDataset(BaseDataSet):
 
     def __init__(self,
@@ -38,6 +37,7 @@ class DSTLDataset(BaseDataSet):
                  align_images: bool,
                  interpolation_method: int,
                  auto_balance_classes: bool,
+                 add_negative_class: bool,
                  train_indxs: List[int] or None = None,
                  val_indxs: List[int] or None = None,
                  **kwargs):
@@ -61,7 +61,8 @@ class DSTLDataset(BaseDataSet):
                 raise ValueError("Number of bands in a group must be 1 if "
                                  "there is no merge strategy for the group")
 
-        self.num_classes = 10 if len(training_classes) == 0 else len(training_classes) + 1
+        extra_negative_class = 1 if add_negative_class == True else 0
+        self.num_classes = 9 + extra_negative_class if len(training_classes) == 0 else len(training_classes) + extra_negative_class
 
         # Preprocessing
         self.train_indxs = train_indxs
@@ -79,6 +80,7 @@ class DSTLDataset(BaseDataSet):
         self.align_images = align_images
         self.interpolation_method = interpolation_method
         self.auto_balance_classes = auto_balance_classes
+        self.add_negative_class = add_negative_class
 
         # Setup directories and paths
         self.root = kwargs['root']
@@ -169,8 +171,9 @@ class DSTLDataset(BaseDataSet):
                                x:x + self.patch_size]
 
                 # Add the mask for all where there is no mask
-                patch_y_mask = np.concatenate((patch_y_mask, np.expand_dims(
-                    np.logical_not(np.any(patch_y_mask, axis=0)), axis=0)), axis=0)
+                if self.add_negative_class:
+                    patch_y_mask = np.concatenate((patch_y_mask, np.expand_dims(
+                        np.logical_not(np.any(patch_y_mask, axis=0)), axis=0)), axis=0)
 
                 patch = image[:, y:y + self.patch_size, x:x + self.patch_size]
 
