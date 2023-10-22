@@ -189,7 +189,8 @@ class DSTLTrainer(BaseTrainer):
                 extra_negative_class = 1 if self.add_negative_class == True \
                     else 0
                 class_name_idx = self.training_classes[class_idx] if (
-                        class_idx < len(self.training_classes)) else 9 + extra_negative_class
+                        class_idx < len(self.training_classes) else 9 +
+                extra_negative_class)
                 if str(class_name_idx) not in epoch_metrics:
                     epoch_metrics[str(class_name_idx)] = class_batch_metrics
                 else:
