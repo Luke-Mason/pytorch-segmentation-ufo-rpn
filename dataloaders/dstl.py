@@ -403,7 +403,6 @@ class DSTLDataset(BaseDataSet):
         np.save(Path(mask_path + ".mask.npy"), mask, allow_pickle=True)
 
     def _load_data(self, index: int):
-        print(f"Loading data for index: {index}")
         if index > len(self.files):
             index = index % len(self.files)
         return self.files[index]
