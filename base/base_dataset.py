@@ -127,6 +127,7 @@ class BaseDataSet(Dataset):
         return image, label
         
     def __len__(self):
+        print("LEN: ", len(self.files))
         return len(self.files)
 
     def __getitem__(self, index):
