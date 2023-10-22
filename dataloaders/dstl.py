@@ -218,8 +218,11 @@ class DSTLDataset(BaseDataSet):
                     self.file_train_indxs = [index for index in self.file_train_indxs if index <= threshold]
                     self.file_val_indxs = [index for index in self.file_val_indxs if index <= threshold]
 
+                    self.logger.debug("Train Indices LEN: ", len(self.file_train_indxs))
+                    self.logger.debug("Val Indices LEN: ", len(self.file_val_indxs))
+
+
             self.files = updated_list
-            print("UPDATED LEN: ", len(self.files))
 
             return
 
