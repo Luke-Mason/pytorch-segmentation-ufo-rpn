@@ -210,7 +210,7 @@ class DSTLTrainer(BaseTrainer):
         self.logger.debug(f"Learning Group 0 keys: {self.optimizer.param_groups[0]['lr']}")
 
         for i, opt_group in enumerate(self.optimizer.param_groups):
-            epoch_metrics['all'][f'lr_{i}'] = [opt_group['lr']]
+            epoch_metrics['all'][f'lr_{i}'] = learning_rates[i]
 
         return epoch_metrics
 
