@@ -209,16 +209,19 @@ class DSTLDataset(BaseDataSet):
             for index, (_, patch_y_mask, __) in enumerate(self.files):
                 if np.sum(patch_y_mask[0]) > 0:
                     updated_list.append(self.files[index])
+                    if index in self.file_train_indxs:
+                        self.file_train_indxs.remove(index)
+                    if index in self.file_val_indxs:
+                        self.file_val_indxs.remove(index)
+
+                    threshold = len(updated_list) - 1
+                    self.file_train_indxs = [index for index in self.file_train_indxs if index <= threshold]
+                    self.file_val_indxs = [index for index in self.file_val_indxs if index <= threshold]
 
             self.files = updated_list
             print("UPDATED LEN: ", len(self.files))
-            return
 
-        for index, (_, patch_y_mask, __) in enumerate(self.files):
-            for i in range(self.num_classes):
-                pixel_area_stats[i] += np.sum(patch_y_mask[i])
-                class_area_stats[index, i] = np.sum(patch_y_mask[i])
-                class_area_stats[index, -1] = index  # Mark with index of file
+            return
 
         # Auto balance the classes so that the negative class is not over represented.
         pixel_area_stats = np.zeros((self.num_classes,))
@@ -328,6 +331,13 @@ class DSTLDataset(BaseDataSet):
         for i in range(len(self.files)):
             if i not in indices_to_delete:
                 updated_list.append(self.files[i])
+                if i in self.file_train_indxs:
+                    self.file_train_indxs.remove(i)
+                if i in self.file_val_indxs:
+                    self.file_val_indxs.remove(i)
+                threshold = len(updated_list) - 1  # Define the threshold value
+                self.file_train_indxs = [index for index in self.file_train_indxs if index <= threshold]
+                self.file_val_indxs = [index for index in self.file_val_indxs if index <= threshold]
         self.files = updated_list
 
         # Append the files that need to be duplicated
@@ -390,6 +400,9 @@ class DSTLDataset(BaseDataSet):
         np.save(Path(mask_path + ".mask.npy"), mask, allow_pickle=True)
 
     def _load_data(self, index: int):
+        print(f"Loading data for index: {index}")
+        if index > len(self.files):
+            index = index % len(self.files)
         return self.files[index]
 
     def __getitem__(self, index):

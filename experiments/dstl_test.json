@@ -46,7 +46,7 @@
             "add_negative_class": false,
             "return_id": false,
             "auto_balance_classes": true,
-            "batch_size": 128,
+            "batch_size": 64,
             "augment": false,
             "shuffle": true,
             "flip": true,
