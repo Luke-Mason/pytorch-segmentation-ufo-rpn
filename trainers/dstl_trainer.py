@@ -36,7 +36,7 @@ class DSTLTrainer(BaseTrainer):
             self.log_step / self.train_loader.batch_size) + 1
 
         self.num_classes = self.train_loader.dataset.num_classes
-
+        self.add_negative_class = add_negative_class
         # TRANSORMS FOR VISUALIZATION
         self.restore_transform = transforms.Compose([
             transforms.Resize((400, 400), antialias=True),
