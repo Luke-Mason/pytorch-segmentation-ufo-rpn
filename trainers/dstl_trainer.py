@@ -374,7 +374,7 @@ class DSTLTrainer(BaseTrainer):
 
     def _get_metrics(self, seg_class_totals):
         seg_totals = seg_class_totals['all'] if 'all' in seg_class_totals else seg_class_totals
-        pixAcc = pixel_accuracy(seg_totals['correct_pixels'], seg_totals['total_labeled_pixels'])
+        pixAcc = pixel_accuracy(seg_totals['correct_pixels'], seg_totals['total_pixels'])
         p = precision(seg_totals['intersection'], seg_totals[
             'predicted_positives'])
         r = recall(seg_totals['intersection'], seg_totals[
