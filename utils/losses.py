@@ -112,12 +112,16 @@ class JaccardCoefficient(nn.Module):
         super(JaccardCoefficient, self).__init__()
 
     def forward(self, output, target):
-        y_pred_f = output.flatten()
-        y_true_f = target.flatten()
-        intersection = (y_true_f * y_pred_f).sum()
-        return (intersection + 1.0) / (
-                y_true_f.sum() + y_pred_f.sum() -
-                intersection + 1.0)
+        # Calculate the intersection by element-wise multiplication and sum
+        intersection = (target * output).sum()
+
+        # Calculate the union by summing the individual sums of target and output
+        union = target.sum() + output.sum() - intersection
+
+        # Calculate the Jaccard coefficient (IoU)
+        jaccard = (intersection + 1.0) / (union + 1.0)
+
+        return jaccard
 
 
 class Recall(nn.Module):
