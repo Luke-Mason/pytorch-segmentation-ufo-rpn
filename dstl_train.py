@@ -162,10 +162,8 @@ def write_stats_to_tensorboard(logger, writer, do_validation, val_per_epochs,
 
     # LOSS
     write_metric(logger, writer, do_validation, val_per_epochs, class_stats['all'], 'loss', np.mean, 'All', 'Loss')
-    write_metric(logger, writer, False, val_per_epochs, class_stats[
-        'all'], 'lr_0', np.mean, 'All', 'Learning_Rate_0')
-    write_metric(logger, writer, False, val_per_epochs, class_stats[
-        'all'], 'lr_1', np.mean, 'All', 'Learning_Rate_1')
+    write_metric(logger, writer, False, val_per_epochs, class_stats['all'], 'lr_0', np.mean, 'All', 'Learning_Rate_0')
+    write_metric(logger, writer, False, val_per_epochs, class_stats['all'], 'lr_1', np.mean, 'All', 'Learning_Rate_1')
 
     for class_name_indx, stats in class_stats.items():
         class_name = metric_indx[str(class_name_indx)]
