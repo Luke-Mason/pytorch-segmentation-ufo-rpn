@@ -165,6 +165,7 @@ class DSTLTrainer(BaseTrainer):
                 loss_history = np.append(loss_history, loss.item())
 
             for i, opt_group in enumerate(self.optimizer.param_groups):
+                self.logger.debug(f"Learning {i}: {opt_group['lr']}")
                 learning_rates[i] = np.append(learning_rates[i], opt_group['lr'])
 
             # Caluclate metrics for all classes
