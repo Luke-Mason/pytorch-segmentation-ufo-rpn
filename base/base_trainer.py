@@ -151,7 +151,6 @@ class BaseTrainer:
                             'val': []
                         })
                     all_epoch_stats[class_name][metric_name]['train'].append(total)
-            self.logger.debug(f'Train Epoch {epoch} stats: {epoch_stats}')
             metrics = {}
             if self.do_validation and epoch % self.config['trainer']['val_per_epochs'] == 0:
                 epoch_stats = self._valid_epoch(epoch)
@@ -165,7 +164,6 @@ class BaseTrainer:
                                 'val': []
                             })
                         all_epoch_stats[class_name][metric_name]['val'].append(total)
-                self.logger.debug(f'Val Epoch {epoch} stats: {epoch_stats}')
 
                 # LOGGING INFO
                 self.logger.info(f'\n         ## Info for epoch {epoch} ## ')
@@ -205,6 +203,8 @@ class BaseTrainer:
             # SAVE CHECKPOINT
             if epoch % self.save_period == 0:
                 self._save_checkpoint(epoch, save_best=self.improved)
+
+        self.logger.debug(f'Epoch {epoch} stats: {epoch_stats}')
 
         # stats['all']['lr']['0'] = self.optimizer.param_groups[0]['lr']
         # stats['all']['lr']['1'] = self.optimizer.param_groups[1]['lr']
