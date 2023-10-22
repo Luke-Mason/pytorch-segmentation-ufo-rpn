@@ -100,8 +100,6 @@ def stratified_split(sorted_array, group_size):
 def write_metric(logger, writer, do_validation, val_per_epochs, stats,
                  metric, func, class_name, metric_name):
     m = stats[metric]
-    logging.debug(f"Train length {len(m['train'])}")
-
     for i, train in enumerate(m['train']):
         logging.debug(f"{len(train[i])}")
     train_m1 = np.array(m['train'])
@@ -109,7 +107,6 @@ def write_metric(logger, writer, do_validation, val_per_epochs, stats,
     for epoch in range(train_m1.shape[1]):
         metric_t = func(train_m1[:, epoch])
         metrics = dict({ 'train': np.mean(metric_t) })
-        val = dict({})
         if do_validation and (epoch + 1) % val_per_epochs == 0:
             val_epoch = epoch // val_per_epochs
             metric_v = func(val_m1[:, val_epoch])
@@ -128,7 +125,6 @@ def write_metric_2_param(logger, writer, do_validation, val_per_epochs, stats,
     for epoch in range(train_m1.shape[1]):
         metric_t = func(train_m1[:, epoch], train_m2[:, epoch])
         train = dict({ 'train': np.mean(metric_t) })
-        val = dict({})
         if do_validation and (epoch + 1) % val_per_epochs == 0:
             val_epoch = epoch // val_per_epochs
             metric_v = func(val_m1[:, val_epoch], val_m2[:, val_epoch])
@@ -150,7 +146,6 @@ def write_metric_3_param(logger, writer, do_validation, val_per_epochs, stats,
     for epoch in range(train_m1.shape[1]):
         metric_t = func(train_m1[:, epoch], train_m2[:, epoch], train_m3[:, epoch])
         train = dict({ 'train': np.mean(metric_t) })
-        val = dict({})
         if do_validation and ((epoch + 1)) % val_per_epochs == 0:
             val_epoch = epoch // val_per_epochs
             metric_v = func(val_m1[:, val_epoch], val_m2[:, val_epoch], val_m3[:, val_epoch])
@@ -251,12 +246,6 @@ def write_stats_to_tensorboard(logger, writer, do_validation, val_per_epochs,
     #
     # writer.add_scalars(f'{metric_name}/{class_name}', scalars, (epoch + 1))
 
-def _append_stats(all_stats, stats):
-    for key in all_stats.keys():
-        all_stats[key]['train'] = np.append(all_stats[key]['train'], stats[key]['train'])
-        all_stats[key]['val'] = np.append(all_stats[key]['val'], stats[key]['val'])
-
-    return all_stats
 
 def main(config, resume):
     logger = logging.getLogger(__name__)
@@ -407,23 +396,21 @@ def main(config, resume):
                 for metric_name, metric_stats in class_stats.items():
                     if metric_name not in fold_stats[class_name]:
                         fold_stats[class_name][metric_name] = dict()
-                    for type, stats in metric_stats.items():
+                    for type, all_epoch_stats in metric_stats.items():
                         if type not in fold_stats[class_name][metric_name]:
                             fold_stats[class_name][metric_name][type] = []
-                        if fold_indx >= len(fold_stats[class_name][metric_name][type]):
-                            fold_stats[class_name][metric_name][type].append([])
-                        logger.debug(f"SHAPE {np.array(stats).shape}, {stats}")
-                        fold_stats[class_name][metric_name][type][fold_indx].append(stats)
+                        # logger.debug(f"SHAPE {np.array(all_epoch_stats).shape}, {all_epoch_stats}")
+                        fold_stats[class_name][metric_name][type].append(all_epoch_stats)
 
-            logger.debug(f"Fold stats: {fold_stats}")
-
-            logger.info(f'Finished Fold {fold_indx + 1}:')
+            # logger.debug(f"Fold stats: {fold_stats}")
+            #
+            # logger.info(f'Finished Fold {fold_indx + 1}:')
             if config["trainer"]["k_stop"] is not None and config["trainer"][
                 "k_stop"] > 0 and config["trainer"]["k_stop"] == fold_indx + 1:
                 break
 
         # Write the stats to tensorboard
-        logger.info(f"val per epoch!!!!!! {config['trainer']['val_per_epochs']}")
+        # logger.info(f"val per epoch!!!!!! {config['trainer']['val_per_epochs']}")
         write_stats_to_tensorboard(logger, writer, config['trainer']['val'],
                                    config['trainer']['val_per_epochs'],
                                    fold_stats)
