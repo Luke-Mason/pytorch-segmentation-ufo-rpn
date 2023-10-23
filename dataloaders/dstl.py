@@ -158,7 +158,7 @@ class DSTLDataset(BaseDataSet):
             # Load image with 3 bands
             image = np.load(Path(self.get_stage_2_file_path(image_id) +
                                  ".data.npy"),  allow_pickle=True)
-            print(f"loaded image shape: {image.shape}")
+
             height, width = image.shape[1], image.shape[2]
             chunk_offsets = self._gen_chunk_offsets(width, height, step_size)
 
@@ -262,32 +262,14 @@ class DSTLDataset(BaseDataSet):
         self.logger.info("Auto balancing classes...")
 
         # Auto balance the classes so that the negative class is not over represented.
-        pixel_area_stats = None
-        class_area_stats = None
-
-        if self.num_classes == 1:
-            pixel_area_stats = np.zeros((2,))
-            class_area_stats = np.zeros((len(self.files), 3))
-
-            # Get the pixel area statistics for each class and set it
-            for index, (_, patch_y_mask, __) in enumerate(self.files):
-                for i in range(2):
-                    pixel_area_stats[0] += np.sum(patch_y_mask[0])
-                    pixel_area_stats[1] += (patch_y_mask.size - np.count_nonzero(patch_y_mask))
-
-                    class_area_stats[index, 0] = np.sum(patch_y_mask[0])
-                    class_area_stats[index, 1] = (patch_y_mask.size - np.count_nonzero(patch_y_mask))
-                    class_area_stats[index, -1] = index  # Mark with index of file
-
-        else:
-            pixel_area_stats = np.zeros((self.num_classes,))
-            class_area_stats = np.zeros((len(self.files), self.num_classes + 1))
-            # Get the pixel area statistics for each class and set it
-            for index, (_, patch_y_mask, __) in enumerate(self.files):
-                for i in range(self.num_classes):
-                    pixel_area_stats[i] += np.sum(patch_y_mask[i])
-                    class_area_stats[index, i] = np.sum(patch_y_mask[i])
-                    class_area_stats[index, -1] = index  # Mark with index of file
+        pixel_area_stats = np.zeros((self.num_classes,))
+        class_area_stats = np.zeros((len(self.files), self.num_classes + 1))
+        # Get the pixel area statistics for each class and set it
+        for index, (_, patch_y_mask, __) in enumerate(self.files):
+            for i in range(self.num_classes):
+                pixel_area_stats[i] += np.sum(patch_y_mask[i])
+                class_area_stats[index, i] = np.sum(patch_y_mask[i])
+                class_area_stats[index, -1] = index  # Mark with index of file
 
         area_stats = class_area_stats.copy()
         indices_to_delete = [np.array([])]
@@ -308,9 +290,10 @@ class DSTLDataset(BaseDataSet):
             more_than_5_percent_difference = np.any(np.abs(
                 pixel_area_stats - pixel_area_stats[:, None]) > threshold[:,
                                                                 None])
-            if (not more_than_5_percent_difference
-                    # or np.any(old_stat < pixel_area_stats[ascending_imblanced_classes[-1]])
-            ):
+            if (not more_than_5_percent_difference or np.any(
+                    old_stat < pixel_area_stats[
+                        ascending_imblanced_classes[-1]])):
+                print(more_than_5_percent_difference)
                 break
 
             old_stat = pixel_area_stats[ascending_imblanced_classes[-1]]
@@ -376,42 +359,23 @@ class DSTLDataset(BaseDataSet):
                                                       :-1]
                 area_stats = area_stats[1:]
 
-
-
-        # Delete the files that are not needed and any blank files
-        updated_list = []
-        self.file_train_indxs = []
-        self.file_val_indxs = []
-        for i in range(len(self.files)):
-            if (i not in indices_to_delete
-                    # or (self.num_classes == 1 and np.sum(patch_y_mask[0]) > 0)
-            ):
-                updated_list.append(self.files[i])
-                if i in self._file_train_indxs:
-                    self.file_train_indxs.append(i)
-                if i in self._file_val_indxs:
-                    self.file_val_indxs.append(i)
-
         # Copy the files that need to be duplicated
         files_to_append = []
         for group in indices_to_duplicate:
             for i in group.astype(int):
                 files_to_append.append(self.files[i])
-                if (i in self._file_train_indxs and i not in
-                        self.file_train_indxs):
-                    self.file_train_indxs.append(i)
-                if i in self._file_val_indxs and i not in self.file_val_indxs:
-                    self.file_val_indxs.append(i)
 
-        # threshold = len(updated_list) + len(files_to_append) - 1  # Define the threshold value
-        # self.file_train_indxs = [index for index in self.file_train_indxs if index <= threshold]
-        # self.file_val_indxs = [index for index in self.file_val_indxs if index <= threshold]
-        self.logger.debug(f"Train Indices LEN: {len(self.file_train_indxs)}")
-        self.logger.debug(f"Val Indices LEN: {len(self.file_val_indxs)}")
+        # Delete the files that are not needed
+        updated_list = []
+        for i in range(len(self.files)):
+            if i not in indices_to_delete:
+                updated_list.append(self.files[i])
+        self.files = updated_list
 
         # Append the files that need to be duplicated
-        self.files = updated_list
         self.files.extend(files_to_append)
+
+        self.logger.info(f"Total files: {len(self.files)}")
 
     def get_file_indexes(self):
         return self.file_train_indxs, self.file_val_indxs
@@ -470,8 +434,6 @@ class DSTLDataset(BaseDataSet):
         np.save(Path(mask_path + ".mask.npy"), mask, allow_pickle=True)
 
     def _load_data(self, index: int):
-        if index > len(self.files):
-            index = index % len(self.files)
         return self.files[index]
 
     def __getitem__(self, index):

@@ -45,7 +45,7 @@
             "add_negative_class": false,
             "auto_balance_classes": true,
             "batch_size": 128,
-            "augment": false,
+            "augment": true,
             "shuffle": true,
             "flip": true,
             "rotate": true,
@@ -54,11 +54,11 @@
         }
     },
     "optimizer": {
-        "type": "AdamW",
+        "type": "Adam",
         "differential_lr": true,
-        "args":{
-            "lr": 0.005,
-            "weight_decay": 1e-4
+        "args": {
+            "lr": 0.01,
+            "weight_decay": 1e-3
         }
     },
     "loss": "JaccardCoefficient",

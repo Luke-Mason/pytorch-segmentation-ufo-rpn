@@ -100,8 +100,6 @@ def stratified_split(sorted_array, group_size):
 def write_metric(logger, writer, do_validation, val_per_epochs, stats,
                  metric, func, class_name, metric_name):
     m = stats[metric]
-    for i, train in enumerate(m['train']):
-        logging.debug(f"{len(train[i])}")
     train_m1 = np.array(m['train'])
     val_m1 = np.array(m['val'])
     for epoch in range(train_m1.shape[1]):
@@ -422,7 +420,7 @@ def main(config, resume):
         train_loader = get_loader_instance('train_loader', _wkt_data, config)
 
         # MODELMODEL
-        model = get_instance(models, 'arch', config, len(training_classes_))
+        model = get_instance(models, 'arch', config, len(training_classes_) + 1)
 
         # TRAINING
         trainer = DSTLTrainer(
