@@ -30,15 +30,15 @@
         "preprocessing": {
             "patch_size": 256,
             "align_images": false,
-            "img_ref_scale": "M",
+            "img_ref_scale": "RGB",
             "overlap_pixels": 56,
             "interpolation_method": 4,
             "training_band_groups": [{
-                "bands": [7]
+                "bands": [12]
             }, {
-                "bands": [8]
+                "bands": [13]
             }, {
-                "bands": [9]
+                "bands": [14]
             }]
         },
         "args": {

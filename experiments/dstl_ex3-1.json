@@ -34,22 +34,22 @@
             "overlap_pixels": 56,
             "interpolation_method": 4,
             "training_band_groups": [{
-                "bands": [1]
+                "bands": [3]
+            }, {
+                "bands": [4]
             }, {
                 "bands": [5]
-            }, {
-                "bands": [9]
             }]
         },
         "args": {
             "add_negative_class": false,
             "auto_balance_classes": true,
             "batch_size": 128,
-            "augment": false,
+            "augment": true,
             "shuffle": true,
             "flip": true,
             "rotate": true,
-            "blur": true,
+            "blur": false,
             "num_workers": 8
         }
     },

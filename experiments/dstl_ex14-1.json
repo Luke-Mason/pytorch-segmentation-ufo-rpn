@@ -1,4 +1,4 @@
-dstl_ex4.json{
+{
     "name": "dstl_ex4",
     "n_gpu": 1,
     "use_synch_bn": false,
@@ -34,25 +34,22 @@ dstl_ex4.json{
             "overlap_pixels": 56,
             "interpolation_method": 4,
             "training_band_groups": [{
-                "bands": [1,2,17,18,19,20],
-                "strategy": "max"
+                "bands": [14]
             }, {
-                "bands": [3,5,6,7,8,9],
-                "strategy": "max"
+                "bands": [15]
             }, {
-                "bands": [4,13,14,15,16,10,11,12],
-                "strategy": "max"
+                "bands": [16]
             }]
         },
         "args": {
             "add_negative_class": false,
             "auto_balance_classes": true,
             "batch_size": 128,
-            "augment": false,
+            "augment": true,
             "shuffle": true,
             "flip": true,
             "rotate": true,
-            "blur": true,
+            "blur": false,
             "num_workers": 8
         }
     },
