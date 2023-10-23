@@ -289,10 +289,9 @@ class DSTLDataset(BaseDataSet):
             more_than_5_percent_difference = np.any(np.abs(
                 pixel_area_stats - pixel_area_stats[:, None]) > threshold[:,
                                                                 None])
-            if (not more_than_5_percent_difference or np.any(
-                    old_stat < pixel_area_stats[
-                        ascending_imblanced_classes[-1]])):
-                print(more_than_5_percent_difference)
+            if (not more_than_5_percent_difference
+                    # or np.any(old_stat < pixel_area_stats[ascending_imblanced_classes[-1]])
+            ):
                 break
 
             old_stat = pixel_area_stats[ascending_imblanced_classes[-1]]
@@ -358,17 +357,40 @@ class DSTLDataset(BaseDataSet):
                                                       :-1]
                 area_stats = area_stats[1:]
 
+
+
+        # Delete the files that are not needed and any blank files
+        updated_list = []
+        self.file_train_indxs = []
+        self.file_val_indxs = []
+        for i in range(len(self.files)):
+            if (i not in indices_to_delete
+                    # or (self.num_classes == 1 and np.sum(patch_y_mask[0]) > 0)
+            ):
+                updated_list.append(self.files[i])
+                if i in self._file_train_indxs:
+                    self.file_train_indxs.append(i)
+                if i in self._file_val_indxs:
+                    self.file_val_indxs.append(i)
+
         # Copy the files that need to be duplicated
         files_to_append = []
         for group in indices_to_duplicate:
             for i in group.astype(int):
                 files_to_append.append(self.files[i])
+                if (i in self._file_train_indxs and i not in
+                        self.file_train_indxs):
+                    self.file_train_indxs.append(i)
+                if i in self._file_val_indxs and i not in self.file_val_indxs:
+                    self.file_val_indxs.append(i)
 
-        # Delete the files that are not needed
-        updated_list = []
-        for i in range(len(self.files)):
-            if i not in indices_to_delete:
-                updated_list.append(self.files[i])
+        # threshold = len(updated_list) + len(files_to_append) - 1  # Define the threshold value
+        # self.file_train_indxs = [index for index in self.file_train_indxs if index <= threshold]
+        # self.file_val_indxs = [index for index in self.file_val_indxs if index <= threshold]
+        self.logger.debug(f"Train Indices LEN: {len(self.file_train_indxs)}")
+        self.logger.debug(f"Val Indices LEN: {len(self.file_val_indxs)}")
+
+        # Append the files that need to be duplicated
         self.files = updated_list
 
         # Append the files that need to be duplicated
