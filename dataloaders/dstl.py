@@ -283,7 +283,7 @@ class DSTLDataset(BaseDataSet):
             ascending_imblanced_classes = np.argsort(pixel_area_stats)
 
             # Calculate the threshold for a 5% difference
-            threshold = 0.05 * pixel_area_stats
+            threshold = 0.02 * pixel_area_stats
 
             # Check if any element is more than 5% different from another element
             more_than_5_percent_difference = np.any(np.abs(
