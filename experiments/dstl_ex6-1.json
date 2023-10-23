@@ -30,7 +30,7 @@
         "preprocessing": {
             "patch_size": 128,
             "align_images": false,
-            "img_ref_scale": "A",
+            "img_ref_scale": "M",
             "overlap_pixels": 56,
             "interpolation_method": 4,
             "training_band_groups": [{

@@ -385,7 +385,7 @@ def main(config, resume):
                 add_negative_class=add_negative_class,
             )
 
-            epochs_stats = trainer.train(fold_indx)
+            epochs_stats = trainer.train()
 
             # logger.debug(f"Fold stats BLALBLBLALSDLALSDLASLDLASD")
             # im lazy and dont want to refactor the code

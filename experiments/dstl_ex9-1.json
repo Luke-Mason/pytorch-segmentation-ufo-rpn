@@ -30,7 +30,7 @@ dstl_ex8-1.json{
         "preprocessing": {
             "patch_size": 256,
             "align_images": false,
-            "img_ref_scale": "RGB",
+            "img_ref_scale": "M",
             "overlap_pixels": 56,
             "interpolation_method": 4,
             "training_band_groups": [{
