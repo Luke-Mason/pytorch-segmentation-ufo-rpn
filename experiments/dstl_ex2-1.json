@@ -42,7 +42,7 @@
             }]
         },
         "args": {
-            "add_negative_class": false,
+            "add_negative_class": true,
             "auto_balance_classes": true,
             "batch_size": 128,
             "augment": true,
