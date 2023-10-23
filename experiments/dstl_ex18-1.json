@@ -28,10 +28,10 @@
     },
     "train_loader": {
         "preprocessing": {
-            "patch_size": 256,
+            "patch_size": 64,
             "align_images": false,
-            "img_ref_scale": "RGB",
-            "overlap_pixels": 56,
+            "img_ref_scale": "A",
+            "overlap_pixels": 32,
             "interpolation_method": 4,
             "training_band_groups": [{
                 "bands": [18]
