@@ -357,53 +357,44 @@ class DSTLDataset(BaseDataSet):
                                                       :-1]
                 area_stats = area_stats[1:]
 
-        train_indxs = []
-        val_indxs = []
-        to_be_deleted = []
 
-        # Get all the images that do not contain any of the classes
-        for index, (_, patch_y_mask, __) in enumerate(self.files):
-            if np.count_nonzero(patch_y_mask) == 0:
-                to_be_deleted.append(index)
-            else:
-                if index in self._file_train_indxs:
-                    train_indxs.append(index)
-                if index in self._file_val_indxs:
-                    val_indxs.append(index)
 
-        if len(train_indxs) == 0 or len(val_indxs) == 0:
-            raise ValueError("All files from the validation set or training "
-                             "set were deleted because they were found to not "
-                             "contain any pixels from the classes that were to "
-                             "be trained on. Please use better data")
+        # Delete the files that are not needed and any blank files
+        updated_list = []
+        self.file_train_indxs = []
+        self.file_val_indxs = []
+        for i in range(len(self.files)):
+            if (i not in indices_to_delete
+                    # or (self.num_classes == 1 and np.sum(patch_y_mask[0]) > 0)
+            ):
+                updated_list.append(self.files[i])
+                if i in self._file_train_indxs:
+                    self.file_train_indxs.append(i)
+                if i in self._file_val_indxs:
+                    self.file_val_indxs.append(i)
 
         # Copy the files that need to be duplicated
-        new_file_idxs = []
-        train_count = 0
-        val_count = 0
-        for i in to_be_deleted:
-            if i in self.file_train_indxs:
-                new_file_idxs.append(
-                    train_indxs[train_count % len(train_indxs)])
-                train_count += 1
-            if i not in self.file_val_indxs:
-                new_file_idxs.append(val_indxs[val_count % len(val_indxs)])
-                val_count += 1
+        files_to_append = []
+        for group in indices_to_duplicate:
+            for i in group.astype(int):
+                files_to_append.append(self.files[i])
+                if (i in self._file_train_indxs and i not in
+                        self.file_train_indxs):
+                    self.file_train_indxs.append(i)
+                if i in self._file_val_indxs and i not in self.file_val_indxs:
+                    self.file_val_indxs.append(i)
 
-        new_file_idxs.extend(train_indxs)
-        new_file_idxs.extend(val_indxs)
-
-        self.file_train_indxs = train_indxs
-        self.file_val_indxs = val_indxs
-        updated_list = []
-        for i in new_file_idxs:
-            updated_list.append(self.files[i])
-
-        self.files = updated_list
-
-        self.logger.debug(f"AFTER File Len: {len(self.files)}")
+        # threshold = len(updated_list) + len(files_to_append) - 1  # Define the threshold value
+        # self.file_train_indxs = [index for index in self.file_train_indxs if index <= threshold]
+        # self.file_val_indxs = [index for index in self.file_val_indxs if index <= threshold]
         self.logger.debug(f"Train Indices LEN: {len(self.file_train_indxs)}")
         self.logger.debug(f"Val Indices LEN: {len(self.file_val_indxs)}")
+
+        # Append the files that need to be duplicated
+        self.files = updated_list
+
+        # Append the files that need to be duplicated
+        self.files.extend(files_to_append)
 
         self.logger.info(f"Total files: {len(self.files)}")
 
