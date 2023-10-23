@@ -125,8 +125,8 @@ class BaseDataSet(Dataset):
             ksize = ksize + 1 if ksize % 2 == 0 else ksize
             image = cv2.GaussianBlur(image, (ksize, ksize), sigmaX=sigma, sigmaY=sigma, borderType=cv2.BORDER_REFLECT_101)
 
-        print("image.shape: ", image.shape)
-        print("label.shape: ", label.shape)
+        # print("image.shape: ", image.shape)
+        # print("label.shape: ", label.shape)
         return image, label
         
     def __len__(self):
