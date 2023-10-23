@@ -1,0 +1,74 @@
+dstl_ex4.json{
+    "name": "dstl_ex4",
+    "n_gpu": 1,
+    "use_synch_bn": false,
+    "arch": {
+        "type": "UFONet",
+        "args": {
+            "backbone": "resnet50",
+            "freeze_bn": false,
+            "freeze_backbone": false
+        }
+    },
+    "trainer": {
+        "epochs": 200,
+        "save_dir": "saved/",
+        "save_period": 20,
+        "monitor": "max Mean_IoU",
+        "early_stop": 10000,
+        "tensorboard": true,
+        "log_dir": "saved/runs",
+        "log_per_iter": 10,
+        "val": true,
+        "val_per_epochs": 5,
+        "k_stop": 1,
+        "k_split": 5,
+        "k_shuffle": false,
+        "k_random_state": 42
+    },
+    "train_loader": {
+        "preprocessing": {
+            "patch_size": 256,
+            "align_images": false,
+            "img_ref_scale": "RGB",
+            "overlap_pixels": 56,
+            "interpolation_method": 4,
+            "training_band_groups": [{
+                "bands": [1,2,3,4],
+                "strategy": "mean"
+            }, {
+                "bands": [5,6,7,8,9,10,11,12],
+                "strategy": "mean"
+            }, {
+                "bands": [13,14,15,16,17,18,19,20],
+                "strategy": "mean"
+            }]
+        },
+        "args": {
+            "add_negative_class": false,
+            "auto_balance_classes": true,
+            "batch_size": 128,
+            "augment": false,
+            "shuffle": true,
+            "flip": true,
+            "rotate": true,
+            "blur": true,
+            "num_workers": 8
+        }
+    },
+    "optimizer": {
+        "type": "Adam",
+        "differential_lr": true,
+        "args": {
+            "lr": 0.01,
+            "weight_decay": 1e-3
+        }
+    },
+    "loss": "JaccardCoefficient",
+    "threshold": 0.5,
+    "ignore_index": 10,
+    "lr_scheduler": {
+        "type": "Poly",
+        "args": {}
+    }
+}

@@ -11,7 +11,7 @@
         }
     },
     "trainer": {
-        "epochs": 100,
+        "epochs": 1000,
         "save_dir": "saved/",
         "save_period": 20,
         "monitor": "max Mean_IoU",
@@ -34,8 +34,7 @@
             "overlap_pixels": 56,
             "interpolation_method": 4,
             "training_band_groups": [{
-                "bands": [1,5,6,7],
-                "strategy": "mean"
+                "bands": [1]
             }, {
                 "bands": [2]
             }, {
@@ -43,7 +42,7 @@
             }]
         },
         "args": {
-            "add_negative_class": false,
+            "add_negative_class": true,
             "return_id": false,
             "auto_balance_classes": true,
             "batch_size": 128,
