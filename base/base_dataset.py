@@ -40,46 +40,6 @@ class BaseDataSet(Dataset):
     def _load_data(self, index):
         raise NotImplementedError
 
-    def _val_augmentation(self, image, label):
-        if self.crop_size:
-            c, d, h, w = label.shape  # Assuming label is a 3D array
-            # Scale the smallest sides to crop size
-            if d < h and d < w:
-                scale_factor = self.crop_size / d
-                d, h, w = (
-                self.crop_size, int(h * scale_factor), int(w * scale_factor))
-            elif h < w:
-                scale_factor = self.crop_size / h
-                d, h, w = (
-                int(d * scale_factor), self.crop_size, int(w * scale_factor))
-            else:
-                scale_factor = self.crop_size / w
-                d, h, w = (
-                int(d * scale_factor), int(h * scale_factor), self.crop_size)
-
-            # Resize the 3D image using OpenCV
-            image = cv2.resize(image, (w, h), dsize=(d, w),
-                               interpolation=cv2.INTER_LINEAR)
-
-            # Resize the 3D label using PIL
-            label_pil = Image.fromarray(
-                label.transpose(1, 2, 0))  # Transpose for PIL
-            label_pil = label_pil.resize((w, h), resample=Image.NEAREST)
-
-            # Convert PIL image back to a NumPy array with the original shape
-            label = np.asarray(label_pil, dtype=np.int32).transpose(2, 0,
-                                                                    1)  # Transpose back
-
-            # Center Crop
-            # h, w = label.shape
-            # start_h = (h - self.crop_size )// 2
-            # start_w = (w - self.crop_size )// 2
-            # end_h = start_h + self.crop_size
-            # end_w = start_w + self.crop_size
-            # image = image[start_h:end_h, start_w:end_w]
-            # label = label[start_h:end_h, start_w:end_w]
-        return image, label
-
     def _augmentation(self, image, label):
         c, h, w = image.shape
         # Scaling, we set the bigger to base size, and the smaller 
