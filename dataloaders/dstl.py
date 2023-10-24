@@ -321,8 +321,8 @@ class DSTLDataset(BaseDataSet):
     def auto_balance(self):
         self.logger.info("Auto balancing classes...")
 
-        new_train_indxs = self.balance_classes(self.train_indxs)
-        new_val_indxs = self.balance_classes(self.val_indxs)
+        new_train_indxs = self.balance_classes(self._file_train_indxs)
+        new_val_indxs = self.balance_classes(self._file_val_indxs)
 
         self.save_count_plot(self.files, new_train_indxs, "train")
         self.save_count_plot(self.files, new_val_indxs, "val")
@@ -331,6 +331,8 @@ class DSTLDataset(BaseDataSet):
 
         # Set the new files
         self.files = [self.files[i] for i in np.append(new_train_indxs, new_val_indxs)]
+
+        # Set the new accessor indices
         self.file_train_indxs = list(range(len(new_train_indxs)))
         start = len(new_train_indxs)
         end = start + len(new_val_indxs)
