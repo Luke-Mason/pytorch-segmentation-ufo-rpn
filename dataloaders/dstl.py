@@ -369,7 +369,7 @@ class DSTLDataset(BaseDataSet):
         indices_to_duplicate = np.array([])
         imblanced_classes = np.argsort(all_patches_class_area_totals)
         last_largest_area_total = all_patches_class_area_totals[imblanced_classes[-1]]
-        current_dupe_limit = 10
+        current_dupe_limit = 20
 
         # Maximum split of the set is replaced, or duplicated.
         for _ in range(len(indxs) // self.num_classes):
