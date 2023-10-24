@@ -373,8 +373,8 @@ class DSTLDataset(BaseDataSet):
 
         # Maximum split of the set is replaced, or duplicated.
         for _ in range(len(indxs) // self.num_classes):
-            self.logger.info(
-                f"| Class Balancing {'% | '.join(map(str, np.round((all_patches_class_area_totals / np.sum(all_patches_class_area_totals) + epsilon) * 100, 2)))}% |")
+            # self.logger.info(
+            #     f"| Class Balancing {'% | '.join(map(str, np.round((all_patches_class_area_totals / np.sum(all_patches_class_area_totals) + epsilon) * 100, 2)))}% |")
 
             # Indices that would sort the array
             asc_class_locs = np.argsort(all_patches_class_area_totals)
@@ -429,7 +429,7 @@ class DSTLDataset(BaseDataSet):
                     indices_to_duplicate = np.append(indices_to_duplicate,
                                                      idx_to_be_duped)
                     all_patches_class_area_totals += patch_to_be_duped[:-1]
-                    # self.logger.debug(f"Duplicate {patch_to_be_duped[:-1]}")
+                    self.logger.debug(f"Duplicate {patch_to_be_duped[:-1]}")
                     break
             if idx_to_be_duped not in indices_to_duplicate:
                 raise ValueError("No samples to duplicate to balance the classes.")
@@ -442,7 +442,7 @@ class DSTLDataset(BaseDataSet):
                     if idx_to_be_deleted not in indices_to_delete:
                         indices_to_delete = np.append(indices_to_delete,
                                                       idx_to_be_deleted)
-                        # self.logger.debug(f"Delete {patch_class_area[:-1]}")
+                        self.logger.debug(f"Delete {patch_class_area[:-1]}")
 
                         # Have pixel values reduced
                         all_patches_class_area_totals -= patch_class_area[:-1]
