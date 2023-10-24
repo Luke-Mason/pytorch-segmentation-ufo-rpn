@@ -1,8 +1,8 @@
 # Written by Luke Mason
 # Date: 2020-06-03
 # Purpose: To create a dataloader for the DSTL dataset.
-
-
+import sys
+import time
 import csv
 import datetime
 import logging
@@ -23,7 +23,10 @@ from shapely.geometry import MultiPolygon
 from utils import (array_3d_merge, FilterConfig3D, BandGroup,
                    mask_for_polygons,
                    palette, generate_unique_config_hash)
-
+import seaborn as sns
+import matplotlib.pyplot as plt
+from utils import metric_indx
+epsilon = sys.float_info.epsilon
 
 class DSTLDataset(BaseDataSet):
 
@@ -38,6 +41,9 @@ class DSTLDataset(BaseDataSet):
                  interpolation_method: int,
                  auto_balance_classes: bool,
                  add_negative_class: bool,
+                 save_dir: str,
+                 name: str,
+                 start_time: str,
                  train_indxs: List[int] or None = None,
                  val_indxs: List[int] or None = None,
                  **kwargs):
@@ -61,8 +67,13 @@ class DSTLDataset(BaseDataSet):
                 raise ValueError("Number of bands in a group must be 1 if "
                                  "there is no merge strategy for the group")
 
-        extra_negative_class = 1 if add_negative_class == True else 0
-        self.num_classes = 9 + extra_negative_class if len(training_classes) == 0 else len(training_classes) + extra_negative_class
+        self.num_classes = len(training_classes)
+        if add_negative_class:
+            self.num_classes += 1
+
+        path = os.path.join(name, start_time)
+        self.run_dir = os.path.join(save_dir, "run_info", path)
+        os.makedirs(self.run_dir, exist_ok=True)
 
         # Preprocessing
         self.train_indxs = train_indxs
@@ -258,18 +269,92 @@ class DSTLDataset(BaseDataSet):
         self.logger.debug(f"Train Indices LEN: {len(self.file_train_indxs)}")
         self.logger.debug(f"Val Indices LEN: {len(self.file_val_indxs)}")
 
-    def auto_balance(self):
-        self.logger.info("Auto balancing classes...")
+    def save_count_plot(self, files, indxs, type: str):
+        timestamp = int(time.time())
+
+        # Create an array of values (you can replace this with your data)
+        data = np.array([files[i][2] for i in list(indxs)])
+        np.savetxt(os.path.join(self.run_dir, "files.txt"), data, fmt="%s")
+        value_counts = sns.countplot(data, palette="Set3")
+
+        # Customize the plot
+        value_counts.set(xlabel="Object Class", ylabel="Count")
+        plt.title("Count of Occurrences for Each Object Class")
+
+        # Save the plot to a file (e.g., PNG)
+        plt.savefig(os.path.join(self.run_dir, f"{type}_counts_"
+                                               f"({timestamp}).png"))
+
+    def plot_pixel_area_percentages(self, files, indxs, type: str):
+        timestamp = int(time.time())
 
         # Auto balance the classes so that the negative class is not over represented.
         pixel_area_stats = np.zeros((self.num_classes,))
-        class_area_stats = np.zeros((len(self.files), self.num_classes + 1))
+
         # Get the pixel area statistics for each class and set it
-        for index, (_, patch_y_mask, __) in enumerate(self.files):
+        for index in indxs:
+            (_, patch_y_mask, __) = files[index]
+            for i in range(self.num_classes):
+                pixel_area_stats[i] += np.sum(patch_y_mask[i])
+
+        pixel_area_perecentages = np.round((pixel_area_stats / np.sum(
+            pixel_area_stats)) * 100, 2)
+
+        classes = self.training_classes + [
+            10] if self.add_negative_class else self.training_classes
+        categories = [metric_indx[str(classes[i])] for i in
+                      range(self.num_classes)]
+
+        # Create a bar chart with Seaborn
+        sns.barplot(x=categories, y=pixel_area_perecentages, palette="Set3", hue=categories,
+                    legend=False)
+
+        # Add labels and a title
+        plt.xlabel("Object Class")
+        plt.ylabel("Pixel Area Percentage")
+        plt.title("Pixel Area Percentage for Each Object Class")
+
+        # Save the plot to a file (e.g., PNG)
+        plt.savefig(os.path.join(self.run_dir,
+                                 f"pixel_area_percentages_({timestamp}).png"))
+
+    def auto_balance(self):
+        self.logger.info("Auto balancing classes...")
+
+        new_train_indxs = self.balance_classes(self.train_indxs)
+        new_val_indxs = self.balance_classes(self.val_indxs)
+
+        self.save_count_plot(self.files, new_train_indxs, "train")
+        self.save_count_plot(self.files, new_val_indxs, "val")
+        self.plot_pixel_area_percentages(self.files, new_train_indxs, "train")
+        self.plot_pixel_area_percentages(self.files, new_val_indxs, "val")
+
+        # Set the new files
+        self.files = [self.files[i] for i in (new_train_indxs + new_val_indxs)]
+        self.file_train_indxs = list(range(len(new_train_indxs)))
+        start = len(new_train_indxs)
+        end = start + len(new_val_indxs)
+        self.file_val_indxs = list(range(start, end))
+
+        self.logger.debug(f"Train Indices LEN: {len(self.file_train_indxs)}")
+        self.logger.debug(f"Val Indices LEN: {len(self.file_val_indxs)}")
+        self.logger.info(f"Total files: {len(self.files)}")
+        if len(self.file_train_indxs) == 0 or len(self.file_val_indxs) == 0:
+            raise ValueError("No training files were found. Please check the "
+                                "data and try again.")
+
+    def balance_classes(self, indxs):
+
+        # Auto balance the classes so that the negative class is not over represented.
+        pixel_area_stats = np.zeros((self.num_classes,))
+        class_area_stats = np.zeros((len(indxs), self.num_classes + 1))
+        # Get the pixel area statistics for each class and set it
+        for index, file_index in enumerate(indxs):
+            _, patch_y_mask, __ = self.files[file_index]
             for i in range(self.num_classes):
                 pixel_area_stats[i] += np.sum(patch_y_mask[i])
                 class_area_stats[index, i] = np.sum(patch_y_mask[i])
-                class_area_stats[index, -1] = index  # Mark with index of file
+                class_area_stats[index, -1] = file_index  # Mark with index of file
 
         area_stats = class_area_stats.copy()
         indices_to_delete = [np.array([])]
@@ -279,18 +364,23 @@ class DSTLDataset(BaseDataSet):
         old_stat = pixel_area_stats[imblanced_classes[-1]]
 
         while True:
-            self.logger.info(f"| Class Balancing {'% | '.join(map(str, np.round((pixel_area_stats / np.sum(pixel_area_stats)) * 100, 2)))}% |")
+            self.logger.info(
+                f"| Class Balancing {'% | '.join(map(str, np.round((pixel_area_stats / np.sum(pixel_area_stats) + epsilon) * 100, 2)))}% |")
             ascending_imblanced_classes = np.argsort(pixel_area_stats)
 
             # Calculate the threshold for a 5% difference
             threshold = 0.02 * pixel_area_stats
 
             # Check if any element is more than 5% different from another element
-            more_than_5_percent_difference = np.any(np.abs(
+            more_than_x_percent_difference = np.any(np.abs(
                 pixel_area_stats - pixel_area_stats[:, None]) > threshold[:,
                                                                 None])
-            if (not more_than_5_percent_difference
-                    # or np.any(old_stat < pixel_area_stats[ascending_imblanced_classes[-1]])
+            if (not more_than_x_percent_difference
+                    # TODO check if any of the objects in the most imbalanced
+                    #  class have a sample that has more of it than the
+                    #  negative. If it does not, then we can stop.
+
+                    or np.any(old_stat < pixel_area_stats[ascending_imblanced_classes[-1]])
             ):
                 break
 
@@ -309,7 +399,8 @@ class DSTLDataset(BaseDataSet):
                 pixel_area_stats = pixel_area_stats - highest_imbalanced_entry[
                                                       :-1]
                 area_stats = area_stats[:-1]
-
+            if len(area_stats) == 0:
+                break
             lowest_imbalanced_entry = area_stats[0]
             most_imbalanced_class = ascending_imblanced_classes[-1]
             least_imbalanced_class = ascending_imblanced_classes[0]
@@ -357,46 +448,13 @@ class DSTLDataset(BaseDataSet):
                                                       :-1]
                 area_stats = area_stats[1:]
 
+        # Delete the files that are not needed
+        new_indxs = np.array(indices_to_duplicate).flatten().astype(int)
+        for i in indxs:
+            if i not in indices_to_delete:
+                new_indxs.append(i)
 
-
-        # Delete the files that are not needed and any blank files
-        updated_list = []
-        self.file_train_indxs = []
-        self.file_val_indxs = []
-        for i in range(len(self.files)):
-            if (i not in indices_to_delete
-                    # or (self.num_classes == 1 and np.sum(patch_y_mask[0]) > 0)
-            ):
-                updated_list.append(self.files[i])
-                if i in self._file_train_indxs:
-                    self.file_train_indxs.append(i)
-                if i in self._file_val_indxs:
-                    self.file_val_indxs.append(i)
-
-        # Copy the files that need to be duplicated
-        files_to_append = []
-        for group in indices_to_duplicate:
-            for i in group.astype(int):
-                files_to_append.append(self.files[i])
-                if (i in self._file_train_indxs and i not in
-                        self.file_train_indxs):
-                    self.file_train_indxs.append(i)
-                if i in self._file_val_indxs and i not in self.file_val_indxs:
-                    self.file_val_indxs.append(i)
-
-        # threshold = len(updated_list) + len(files_to_append) - 1  # Define the threshold value
-        # self.file_train_indxs = [index for index in self.file_train_indxs if index <= threshold]
-        # self.file_val_indxs = [index for index in self.file_val_indxs if index <= threshold]
-        self.logger.debug(f"Train Indices LEN: {len(self.file_train_indxs)}")
-        self.logger.debug(f"Val Indices LEN: {len(self.file_val_indxs)}")
-
-        # Append the files that need to be duplicated
-        self.files = updated_list
-
-        # Append the files that need to be duplicated
-        self.files.extend(files_to_append)
-
-        self.logger.info(f"Total files: {len(self.files)}")
+        return new_indxs
 
     def get_file_indexes(self):
         return self.file_train_indxs, self.file_val_indxs
