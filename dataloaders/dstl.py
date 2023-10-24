@@ -275,7 +275,7 @@ class DSTLDataset(BaseDataSet):
         # Create an array of values (you can replace this with your data)
         data = np.array([files[i][2] for i in list(indxs)])
         np.savetxt(os.path.join(self.run_dir, "files.txt"), data, fmt="%s")
-        value_counts = sns.countplot(data, palette="Set3")
+        value_counts = sns.countplot(data, palette="Set3", legend=False)
 
         # Customize the plot
         value_counts.set(xlabel="Object Class", ylabel="Count")
@@ -348,8 +348,8 @@ class DSTLDataset(BaseDataSet):
     def balance_classes(self, indxs):
 
         # Auto balance the classes so that the negative class is not over represented.
-        pixel_area_stats = np.zeros((self.num_classes,))
-        class_area_stats = np.zeros((len(indxs), self.num_classes + 1))
+        all_patches_class_area_totals = np.zeros((self.num_classes,))
+        patch_class_area_totals = np.zeros((len(indxs), self.num_classes + 1))
 
         self.logger.debug(f"num of indices: {len(indxs)}")
 
@@ -357,110 +357,99 @@ class DSTLDataset(BaseDataSet):
         for index, file_index in enumerate(indxs):
             _, patch_y_mask, __ = self.files[file_index]
             for i in range(self.num_classes):
-                self.logger.debug(f"class: {i}, sum: {np.sum(patch_y_mask[i])}")
+                all_patches_class_area_totals[i] += np.sum(patch_y_mask[i])
+                patch_class_area_totals[index, i] = np.sum(patch_y_mask[i])
+                patch_class_area_totals[index, -1] = file_index  # Mark with index of file
 
-                pixel_area_stats[i] += np.sum(patch_y_mask[i])
-                class_area_stats[index, i] = np.sum(patch_y_mask[i])
-                class_area_stats[index, -1] = file_index  # Mark with index of file
+        self.logger.debug(f"all_patches_class_area_totals: {all_patches_class_area_totals}")
+        self.logger.debug(f"patch_class_area_totals: {patch_class_area_totals}")
 
-        self.logger.debug(f"pixel_area_stats: {pixel_area_stats}")
-        self.logger.debug(f"class_area_stats: {class_area_stats}")
+        patch_class_areas = patch_class_area_totals.copy()
+        indices_to_delete = np.array([])
+        indices_to_duplicate = np.array([])
+        imblanced_classes = np.argsort(all_patches_class_area_totals)
+        last_largest_area_total = all_patches_class_area_totals[imblanced_classes[-1]]
+        current_dupe_limit = 1
 
-
-        area_stats = class_area_stats.copy()
-        indices_to_delete = [np.array([])]
-        indices_to_duplicate = [np.array([])]
-        group = 0
-        imblanced_classes = np.argsort(pixel_area_stats)
-        old_stat = pixel_area_stats[imblanced_classes[-1]]
-
-        while True:
+        # Maximum split of the set is replaced, or duplicated.
+        for _ in range(len(indxs) // self.num_classes):
             self.logger.info(
-                f"| Class Balancing {'% | '.join(map(str, np.round((pixel_area_stats / np.sum(pixel_area_stats) + epsilon) * 100, 2)))}% |")
-            ascending_imblanced_classes = np.argsort(pixel_area_stats)
+                f"| Class Balancing {'% | '.join(map(str, np.round((all_patches_class_area_totals / np.sum(all_patches_class_area_totals) + epsilon) * 100, 2)))}% |")
+
+            # Indices that would sort the array
+            asc_class_locs = np.argsort(all_patches_class_area_totals)
 
             # Calculate the threshold for a 5% difference
-            threshold = 0.02 * pixel_area_stats
+            threshold = 0.02 * all_patches_class_area_totals
 
-            # Check if any element is more than 5% different from another element
+            # Check if any element is more than x% different from another
+            # element.
             more_than_x_percent_difference = np.any(np.abs(
-                pixel_area_stats - pixel_area_stats[:, None]) > threshold[:,
+                all_patches_class_area_totals - all_patches_class_area_totals[:, None]) > threshold[:,
                                                                 None])
-            if (not more_than_x_percent_difference
-                    # TODO check if any of the objects in the most imbalanced
-                    #  class have a sample that has more of it than the
-                    #  negative. If it does not, then we can stop.
-
-                    or np.any(old_stat < pixel_area_stats[ascending_imblanced_classes[-1]])
-            ):
+            if not more_than_x_percent_difference:
                 break
 
-            old_stat = pixel_area_stats[ascending_imblanced_classes[-1]]
-
-            # Get the class with the most pixels
-            area_stats = area_stats[np.lexsort([
-                area_stats[:, ascending_imblanced_classes[i]] for i in
-                range(len(ascending_imblanced_classes))
+            # Sort patches by their class counts, smallest to largest class area
+            patch_class_areas_asc = patch_class_areas[np.lexsort([
+                # Sort the patches (0), by their class areas (1)
+                patch_class_areas[:, asc_class_locs[i]] for i in
+                range(len(asc_class_locs))
             ])]
 
-            if len(indices_to_duplicate[group]) == 0 or len(
-                    area_stats) - 1 > np.argmax(indices_to_duplicate[group]):
-                highest_imbalanced_entry = area_stats[-1]
-                indices_to_delete.append(highest_imbalanced_entry[-1])
-                pixel_area_stats = pixel_area_stats - highest_imbalanced_entry[
-                                                      :-1]
-                area_stats = area_stats[:-1]
-            if len(area_stats) == 0:
-                break
-            lowest_imbalanced_entry = area_stats[0]
-            most_imbalanced_class = ascending_imblanced_classes[-1]
-            least_imbalanced_class = ascending_imblanced_classes[0]
-            # Check that the most imbalanced class value is not greater than the
-            # least imbalanced class value
-            if lowest_imbalanced_entry[most_imbalanced_class] > \
-                    lowest_imbalanced_entry[least_imbalanced_class]:
-                if len(indices_to_duplicate[group]) == 0:
-                    print('No samples to duplicate to balance the classes.')
-                    print('lowest_imbalanced_entry',
-                          np.round(lowest_imbalanced_entry, 3))
-                    print('most_imbalanced_class', most_imbalanced_class)
+            # First try add patch with highest pixel ratio of the smallest
+            # class.
+            largest_area_of_smallest_class_patch = patch_class_areas_asc[0]
+
+            # We get the first element, because it is the smallest of the
+            # largest class, and so it will have the largest area of the
+            # smallest class by default.
+            smallest_class_idx = asc_class_locs[0]
+            patch_smallest_class_area = largest_area_of_smallest_class_patch[
+                smallest_class_idx]
+
+            largest_class_idx = asc_class_locs[-1]
+            patch_largest_class_area = largest_area_of_smallest_class_patch[
+                largest_class_idx]
+
+            # Check to see if duplicates need to increase
+            num_to_duplicate = len(patch_class_areas_asc) - len(indices_to_delete)
+            if len(indices_to_duplicate) >= num_to_duplicate:
+                current_dupe_limit += 1
+
+            # If when adding it, it increases the already largest class by more
+            # than we need to try delete the largest class instead,
+            # and continue to do it until they are balanced.
+            idx_to_be_duped = largest_area_of_smallest_class_patch[-1]
+            for patch_to_be_duped in patch_class_areas_asc:
+                idx_to_be_duped = patch_to_be_duped[-1]
+                count = np.sum(indices_to_duplicate == idx_to_be_duped)
+                if (idx_to_be_duped not in indices_to_delete and
+                        count < current_dupe_limit):
+                    indices_to_duplicate = np.append(indices_to_duplicate,
+                                                     idx_to_be_duped)
+                    all_patches_class_area_totals += patch_to_be_duped[:-1]
+                    self.logger.debug(f"Duplicate {patch_to_be_duped[:-1]}")
                     break
+            if idx_to_be_duped not in indices_to_duplicate:
+                raise ValueError("No samples to duplicate to balance the classes.")
 
-                if group == 0 or len(indices_to_duplicate[group]) == len(
-                        indices_to_duplicate[group - 1]):
-                    group += 1
-                    indices_to_delete.append(np.array([]))
-                    indices_to_duplicate.append(np.array([]))
+            # Optionally duplicate replaces the largest class.
+            if patch_largest_class_area > patch_smallest_class_area:
+                idx_to_be_deleted = None
+                for patch_class_area in patch_class_areas_asc[::-1]:
+                    idx_to_be_deleted = patch_class_area[-1]
+                    if idx_to_be_deleted not in indices_to_delete:
+                        indices_to_delete = np.append(indices_to_delete,
+                                                      idx_to_be_deleted)
+                        self.logger.debug(f"Delete {patch_class_area[:-1]}")
 
-                mask = np.isin(indices_to_duplicate[group - 1],
-                               indices_to_duplicate[group])
-                indices_left = indices_to_duplicate[group - 1][~mask].astype(
-                    int)
-                if len(indices_left) == 0:
-                    continue
-                # Select the least imbalanced entry from the duplicated indices
-                lowest_imbalanced_index = \
-                    class_area_stats[indices_left][np.lexsort([
-                        class_area_stats[indices_left][:,
-                        ascending_imblanced_classes[i]]
-                        for i in range(len(ascending_imblanced_classes))
-                    ])][0][-1].astype(int)
-                assert lowest_imbalanced_index in indices_left
-                indices_to_duplicate[group] = np.append(
-                    indices_to_duplicate[group], lowest_imbalanced_index)
-                pixel_area_stats = (pixel_area_stats +
-                                    class_area_stats[lowest_imbalanced_index][
-                                    :-1])
-            else:
-                indices_to_duplicate[group] = np.append(
-                    indices_to_duplicate[group],
-                    lowest_imbalanced_entry[-1])
-                pixel_area_stats = pixel_area_stats + lowest_imbalanced_entry[
-                                                      :-1]
-                area_stats = area_stats[1:]
+                        # Have pixel values reduced
+                        all_patches_class_area_totals -= patch_class_area[:-1]
+                        break
 
         # Delete the files that are not needed
-        new_indxs = np.array(indices_to_duplicate).flatten().astype(int)
+        new_indxs = indices_to_duplicate.flatten().astype(int)
         for i in indxs:
             if i not in indices_to_delete:
                 new_indxs = np.append(new_indxs, i)
@@ -731,8 +720,6 @@ class DSTLDataset(BaseDataSet):
             array_3d_merge(image[group.bands - 1, :, :].squeeze(),
                            group.filter_config) if group.filter_config is not None else image[group.bands - 1, :, :].squeeze() if group.strategy is None else group.strategy(image[group.bands - 1, :, :].squeeze()) for group in self.training_band_groups
         ], dtype=np.float32)
-
-        print(f"merged shape: {image.shape}")
 
         # Save images
         self.logger.debug(f"Saving image to {dst_path}.data.npy")
