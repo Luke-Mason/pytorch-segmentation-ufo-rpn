@@ -42,18 +42,33 @@ class BaseDataSet(Dataset):
 
     def _val_augmentation(self, image, label):
         if self.crop_size:
-            _, h, w = label.shape
-            # Scale the smaller side to crop size
-            if h < w:
-                h, w = (self.crop_size, int(self.crop_size * w / h))
+            c, d, h, w = label.shape  # Assuming label is a 3D array
+            # Scale the smallest sides to crop size
+            if d < h and d < w:
+                scale_factor = self.crop_size / d
+                d, h, w = (
+                self.crop_size, int(h * scale_factor), int(w * scale_factor))
+            elif h < w:
+                scale_factor = self.crop_size / h
+                d, h, w = (
+                int(d * scale_factor), self.crop_size, int(w * scale_factor))
             else:
-                h, w = (int(self.crop_size * h / w), self.crop_size)
+                scale_factor = self.crop_size / w
+                d, h, w = (
+                int(d * scale_factor), int(h * scale_factor), self.crop_size)
 
-            h = self.crop_size
-            w = self.crop_size
-            image = cv2.resize(image, (w, h), interpolation=cv2.INTER_LINEAR)
-            label = Image.fromarray(label).resize((w, h), resample=Image.NEAREST)
-            label = np.asarray(label, dtype=np.int32)
+            # Resize the 3D image using OpenCV
+            image = cv2.resize(image, (w, h), dsize=(d, w),
+                               interpolation=cv2.INTER_LINEAR)
+
+            # Resize the 3D label using PIL
+            label_pil = Image.fromarray(
+                label.transpose(1, 2, 0))  # Transpose for PIL
+            label_pil = label_pil.resize((w, h), resample=Image.NEAREST)
+
+            # Convert PIL image back to a NumPy array with the original shape
+            label = np.asarray(label_pil, dtype=np.int32).transpose(2, 0,
+                                                                    1)  # Transpose back
 
             # Center Crop
             # h, w = label.shape
@@ -79,15 +94,31 @@ class BaseDataSet(Dataset):
             w = self.base_size
             image = cv2.resize(image.transpose((1,2,0)), (w, h), interpolation=cv2.INTER_LINEAR).transpose((2,0,1))
             label = cv2.resize(label.transpose((1,2,0)), (w, h), interpolation=cv2.INTER_NEAREST).transpose((2,0,1))
-    
-        c, h, w = image.shape
-        # Rotate the image with an angle between -10 and 10
+
+        c, h, w = image.shape  # Assuming 'image' is a 3D array with dimensions (c, h, w)
+
+        # Rotate the image and label with an angle between -10 and 10
         if self.rotate:
-            angle = random.randint(-90, 90)
+            angle = random.randint(-10, 10)
             center = (w / 2, h / 2)
             rot_matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
-            image = cv2.warpAffine(image.transpose((1,2,0)), rot_matrix, (w, h), flags=cv2.INTER_LINEAR).transpose((2,0,1))#, borderMode=cv2.BORDER_REFLECT)
-            label = cv2.warpAffine(label.transpose((1,2,0)), rot_matrix, (w, h), flags=cv2.INTER_NEAREST).transpose((2,0,1))#,  borderMode=cv2.BORDER_REFLECT)
+
+            # Rotate the image
+            image_rotated = np.zeros_like(image)
+            for channel in range(c):
+                image_rotated[channel] = cv2.warpAffine(image[channel],
+                                                        rot_matrix, (w, h),
+                                                        flags=cv2.INTER_LINEAR)
+
+            # Rotate the label
+            label_rotated = np.zeros_like(label)
+            for channel in range(c):
+                label_rotated[channel] = cv2.warpAffine(label[channel],
+                                                        rot_matrix, (w, h),
+                                                        flags=cv2.INTER_NEAREST)
+
+            image = image_rotated
+            label = label_rotated
 
         # Padding to return the correct crop size
         if self.crop_size:
@@ -98,12 +129,13 @@ class BaseDataSet(Dataset):
                 "bottom": pad_h,
                 "left": 0,
                 "right": pad_w,
-                "borderType": cv2.BORDER_CONSTANT,}
+                "borderType": cv2.BORDER_CONSTANT,
+            }
             if pad_h > 0 or pad_w > 0:
                 image = cv2.copyMakeBorder(image, value=0, **pad_kwargs)
                 label = cv2.copyMakeBorder(label, value=0, **pad_kwargs)
-            
-            # Cropping 
+
+            # Cropping
             _, h, w = image.shape
             start_h = random.randint(0, h - self.crop_size)
             start_w = random.randint(0, w - self.crop_size)
@@ -115,15 +147,21 @@ class BaseDataSet(Dataset):
         # Random H flip
         if self.flip:
             if random.random() > 0.5:
-                image = np.fliplr(image).copy()
-                label = np.fliplr(label).copy()
+                image = np.flip(image, axis=2).copy()
+                label = np.flip(label, axis=2).copy()
 
-        # Gaussian Blud (sigma between 0 and 1.5)
+        # Gaussian Blur (sigma between 0 and 1.5)
         if self.blur:
-            sigma = random.random()
+            sigma = random.random() * 1.5
             ksize = int(3.3 * sigma)
             ksize = ksize + 1 if ksize % 2 == 0 else ksize
-            image = cv2.GaussianBlur(image, (ksize, ksize), sigmaX=sigma, sigmaY=sigma, borderType=cv2.BORDER_REFLECT_101)
+
+            # Apply Gaussian blur to each channel
+            for channel in range(c):
+                image[channel] = cv2.GaussianBlur(image[channel],
+                                                  (ksize, ksize), sigmaX=sigma,
+                                                  sigmaY=sigma,
+                                                  borderType=cv2.BORDER_REFLECT_101)
 
         # print("image.shape: ", image.shape)
         # print("label.shape: ", label.shape)

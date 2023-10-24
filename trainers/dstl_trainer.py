@@ -130,8 +130,6 @@ class DSTLTrainer(BaseTrainer):
         self.batch_time = AverageMeter()
         self.data_time = AverageMeter()
 
-
-
         tbar = tqdm(self.train_loader, ncols=130)
         for batch_idx, (data, target) in enumerate(tbar):
             self.data_time.update(time.time() - tic)
