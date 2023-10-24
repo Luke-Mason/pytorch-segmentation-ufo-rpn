@@ -16,3 +16,4 @@ geopandas
 tensorboard-logger
 descartes
 tensorboard-plugin-customizable-plots
+seaborn

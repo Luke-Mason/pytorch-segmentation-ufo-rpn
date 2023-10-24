@@ -27,7 +27,7 @@ from utils import metric_indx
 torch.cuda.empty_cache()
 
 
-def get_loader_instance(name, _wkt_data, config, train_indxs=None,
+def get_loader_instance(name, _wkt_data, config, start_time, train_indxs=None,
                         val_indxs=None):
     training_band_groups = []
     for group in config["train_loader"]['preprocessing'][
@@ -56,6 +56,9 @@ def get_loader_instance(name, _wkt_data, config, train_indxs=None,
                 batch_size_,
                 **loader_args,
                 **preproccessing_config,
+                save_dir=config['trainer']['save_dir'],
+                name=config['name'],
+                start_time=start_time,
                 train_indxs=train_indxs,
                 val_indxs=val_indxs,
                 val=config["trainer"]["val"],
@@ -333,6 +336,7 @@ def main(config, resume):
         fold_stats = dict()
 
         # Iterate over the K folds
+        bonus = 0
         for fold_indx, (train_indxs_of_indxs, val_indxs_of_indxs) in enumerate(kfold.split(stratisfied_indices)):
             logger.info(f'Starting Fold {fold_indx + 1}:')
             train_indxs = stratisfied_indices[train_indxs_of_indxs]
@@ -359,7 +363,8 @@ def main(config, resume):
 
             # DATA LOADERS
             train_loader = get_loader_instance(
-                'train_loader', _wkt_data, config, train_indxs, val_indxs)
+                'train_loader', _wkt_data, config, start_time, train_indxs,
+                val_indxs)
             add_negative_class = config["train_loader"]["args"]["add_negative_class"]
             negative_class_bonus = 1 if add_negative_class else 0
             # MODEL
@@ -385,7 +390,12 @@ def main(config, resume):
                 add_negative_class=add_negative_class,
             )
 
-            epochs_stats = trainer.train()
+            try:
+                epochs_stats = trainer.train()
+            except Exception as e:
+                logger.error(f"Error in fold {fold_indx + 1}: {e}")
+                bonus += 1
+                continue
 
             # logger.debug(f"Fold stats BLALBLBLALSDLALSDLASLDLASD")
             # im lazy and dont want to refactor the code
@@ -405,19 +415,23 @@ def main(config, resume):
             # logger.debug(f"Fold stats: {fold_stats}")
             #
             # logger.info(f'Finished Fold {fold_indx + 1}:')
-            if config["trainer"]["k_stop"] is not None and config["trainer"][
-                "k_stop"] > 0 and config["trainer"]["k_stop"] == fold_indx + 1:
+            if (config["trainer"]["k_stop"] is not None and config["trainer"][
+                "k_stop"] > 0 and config["trainer"]["k_stop"] + bonus ==
+                    fold_indx + 1):
                 break
 
         # Write the stats to tensorboard
         # logger.info(f"val per epoch!!!!!! {config['trainer']['val_per_epochs']}")
+        if not fold_stats:
+            logger.error("Class stats is empty")
+            return
         write_stats_to_tensorboard(logger, writer, config['trainer']['val'],
                                    config['trainer']['val_per_epochs'],
                                    fold_stats)
 
     else:
         # DATA LOADERS
-        train_loader = get_loader_instance('train_loader', _wkt_data, config)
+        train_loader = get_loader_instance('train_loader', _wkt_data, config, start_time)
 
         # MODELMODEL
         model = get_instance(models, 'arch', config, len(training_classes_) + 1)

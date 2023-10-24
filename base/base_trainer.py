@@ -90,10 +90,11 @@ class BaseTrainer:
                                            "checkpoints", path)
         helpers.dir_exists(self.checkpoint_dir)
 
-        self.config_dir = os.path.join(cfg_trainer['save_dir'], "config", path)
-        helpers.dir_exists(self.config_dir)
+        self.run_dir = os.path.join(cfg_trainer['save_dir'], "run_info", path)
 
-        config_save_path = os.path.join(self.config_dir, 'config.json')
+        helpers.dir_exists(self.run_dir)
+
+        config_save_path = os.path.join(self.run_dir, 'config.json')
         with open(config_save_path, 'w') as handle:
             json.dump(self.config, handle, indent=4, sort_keys=True)
 
