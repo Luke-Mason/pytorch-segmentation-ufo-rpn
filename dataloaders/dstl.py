@@ -452,7 +452,7 @@ class DSTLDataset(BaseDataSet):
         new_indxs = np.array(indices_to_duplicate).flatten().astype(int)
         for i in indxs:
             if i not in indices_to_delete:
-                new_indxs.append(i)
+                new_indxs = np.append(new_indxs, i)
 
         return new_indxs
 
