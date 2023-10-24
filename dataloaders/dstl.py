@@ -330,7 +330,7 @@ class DSTLDataset(BaseDataSet):
         self.plot_pixel_area_percentages(self.files, new_val_indxs, "val")
 
         # Set the new files
-        self.files = [self.files[i] for i in (new_train_indxs + new_val_indxs)]
+        self.files = [self.files[i] for i in new_train_indxs + new_val_indxs]
         self.file_train_indxs = list(range(len(new_train_indxs)))
         start = len(new_train_indxs)
         end = start + len(new_val_indxs)
