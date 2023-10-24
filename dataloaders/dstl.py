@@ -432,7 +432,7 @@ class DSTLDataset(BaseDataSet):
                     indices_to_duplicate = np.append(indices_to_duplicate,
                                                      idx_to_be_duped)
                     all_patches_class_area_totals += patch_to_be_duped[:-1]
-                    self.logger.debug(f"Duplicate {patch_to_be_duped[:-1]}")
+                    # self.logger.debug(f"Duplicate {patch_to_be_duped[:-1]}")
                     break
             if idx_to_be_duped not in indices_to_duplicate:
                 raise ValueError("No samples to duplicate to balance the classes.")
@@ -445,7 +445,7 @@ class DSTLDataset(BaseDataSet):
                     if idx_to_be_deleted not in indices_to_delete:
                         indices_to_delete = np.append(indices_to_delete,
                                                       idx_to_be_deleted)
-                        self.logger.debug(f"Delete {patch_class_area[:-1]}")
+                        # self.logger.debug(f"Delete {patch_class_area[:-1]}")
 
                         # Have pixel values reduced
                         all_patches_class_area_totals -= patch_class_area[:-1]
