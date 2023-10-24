@@ -348,13 +348,22 @@ class DSTLDataset(BaseDataSet):
         # Auto balance the classes so that the negative class is not over represented.
         pixel_area_stats = np.zeros((self.num_classes,))
         class_area_stats = np.zeros((len(indxs), self.num_classes + 1))
+
+        self.logger.debug(f"num of indices: {len(indxs)}")
+
         # Get the pixel area statistics for each class and set it
         for index, file_index in enumerate(indxs):
             _, patch_y_mask, __ = self.files[file_index]
             for i in range(self.num_classes):
+                self.logger.debug(f"class: {i}, sum: {np.sum(patch_y_mask[i])}")
+
                 pixel_area_stats[i] += np.sum(patch_y_mask[i])
                 class_area_stats[index, i] = np.sum(patch_y_mask[i])
                 class_area_stats[index, -1] = file_index  # Mark with index of file
+
+        self.logger.debug(f"pixel_area_stats: {pixel_area_stats}")
+        self.logger.debug(f"class_area_stats: {class_area_stats}")
+
 
         area_stats = class_area_stats.copy()
         indices_to_delete = [np.array([])]
