@@ -372,7 +372,7 @@ class DSTLDataset(BaseDataSet):
         current_dupe_limit = 1
 
         # Maximum split of the set is replaced, or duplicated.
-        for _ in range(len(indxs) // self.num_classes):
+        for _ in range(len(indxs)):
             self.logger.info(
                 f"| Class Balancing {'% | '.join(map(str, np.round((all_patches_class_area_totals / np.sum(all_patches_class_area_totals) + epsilon) * 100, 2)))}% |")
 
@@ -413,7 +413,8 @@ class DSTLDataset(BaseDataSet):
                 largest_class_idx]
 
             # Check to see if duplicates need to increase
-            num_to_duplicate = len(patch_class_areas_asc) - len(indices_to_delete)
+            num_to_duplicate = len(patch_class_areas_asc[patch_class_areas_asc[:, 0] != 0]) - len(
+                indices_to_delete)
             if len(indices_to_duplicate) >= num_to_duplicate:
                 current_dupe_limit += 1
 
