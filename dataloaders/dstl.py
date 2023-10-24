@@ -373,8 +373,8 @@ class DSTLDataset(BaseDataSet):
 
         # Maximum split of the set is replaced, or duplicated.
         for _ in range(len(indxs) // self.num_classes):
-            # self.logger.info(
-            #     f"| Class Balancing {'% | '.join(map(str, np.round((all_patches_class_area_totals / np.sum(all_patches_class_area_totals) + epsilon) * 100, 2)))}% |")
+            self.logger.info(
+                f"| Class Balancing {'% | '.join(map(str, np.round((all_patches_class_area_totals / np.sum(all_patches_class_area_totals) + epsilon) * 100, 2)))}% |")
 
             # Indices that would sort the array
             asc_class_locs = np.argsort(all_patches_class_area_totals)
@@ -420,12 +420,14 @@ class DSTLDataset(BaseDataSet):
             # If when adding it, it increases the already largest class by more
             # than we need to try delete the largest class instead,
             # and continue to do it until they are balanced.
+            # TODO fix this from not duplicating the right class of pixels.
             idx_to_be_duped = largest_area_of_smallest_class_patch[-1]
             for patch_to_be_duped in patch_class_areas_asc:
                 idx_to_be_duped = patch_to_be_duped[-1]
                 count = np.sum(indices_to_duplicate == idx_to_be_duped)
                 if (idx_to_be_duped not in indices_to_delete and
-                        count < current_dupe_limit):
+                        count < current_dupe_limit and patch_to_be_duped[0]
+                        != 0):
                     indices_to_duplicate = np.append(indices_to_duplicate,
                                                      idx_to_be_duped)
                     all_patches_class_area_totals += patch_to_be_duped[:-1]
