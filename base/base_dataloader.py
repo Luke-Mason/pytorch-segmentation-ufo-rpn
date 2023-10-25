@@ -5,10 +5,11 @@ from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 
 class BaseDataLoader(DataLoader):
-    def __init__(self, dataset, batch_size, shuffle, num_workers,
+    def __init__(self, dataset, val_dataset, batch_size, shuffle, num_workers,
                  train_indxs = None, val_indxs = None, val = False):
         self.shuffle = shuffle
         self.dataset = dataset
+        self.val_dataset = val_dataset
         self.nbr_examples = len(dataset)
         if val: self.train_sampler, self.val_sampler = (
             self._split_sampler(train_indxs, val_indxs))
@@ -26,10 +27,7 @@ class BaseDataLoader(DataLoader):
         if self.train_sampler is not None:
             del self.init_kwargs['shuffle']
 
-        train_kwargs = self.init_kwargs.copy()
-        train_kwargs['args']['val'] = False
-
-        super(BaseDataLoader, self).__init__(sampler=self.train_sampler, **self.train_kwargs)
+        super(BaseDataLoader, self).__init__(sampler=self.train_sampler, **self.init_kwargs)
 
     def _split_sampler(self, train_indxs, val_indxs):
         self.nbr_examples = len(train_indxs)
@@ -40,8 +38,11 @@ class BaseDataLoader(DataLoader):
     def get_val_loader(self):
         if self.val_sampler is None:
             return None
-        #self.init_kwargs['batch_size'] = 1
-        return DataLoader(sampler=self.val_sampler, **self.init_kwargs)
+
+        kwargs = self.init_kwargs.copy()
+        kwargs.update({ 'dataset': self.val_dataset, 'sampler': self.val_sampler })
+
+        return DataLoader(**kwargs)
 
 class DataPrefetcher(object):
     def __init__(self, loader, device, stop_after=None):

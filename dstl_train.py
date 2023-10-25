@@ -381,7 +381,7 @@ def main(config, resume):
                 config=config,
                 train_loader=train_loader,
                 writer=writer,
-                val_loader=train_loader.get_val_loader(),
+                val_loader=train_loader.get_val_loader(dataset),
                 train_logger=logger,
                 root=dstl_data_path,
                 add_negative_class=add_negative_class,
