@@ -26,7 +26,10 @@ class BaseDataLoader(DataLoader):
         if self.train_sampler is not None:
             del self.init_kwargs['shuffle']
 
-        super(BaseDataLoader, self).__init__(sampler=self.train_sampler, **self.init_kwargs)
+        train_kwargs = self.init_kwargs.copy()
+        train_kwargs['args']['val'] = False
+
+        super(BaseDataLoader, self).__init__(sampler=self.train_sampler, **self.train_kwargs)
 
     def _split_sampler(self, train_indxs, val_indxs):
         self.nbr_examples = len(train_indxs)

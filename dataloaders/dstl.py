@@ -395,20 +395,20 @@ class DSTLDataset(BaseDataSet):
                 range(len(asc_class_locs))
             ])]
 
-            # First try add patch with highest pixel ratio of the smallest
-            # class.
-            largest_area_of_smallest_class_patch = patch_class_areas_asc[0]
-
-            # We get the first element, because it is the smallest of the
-            # largest class, and so it will have the largest area of the
-            # smallest class by default.
-            smallest_class_idx = asc_class_locs[0]
-            patch_smallest_class_area = largest_area_of_smallest_class_patch[
-                smallest_class_idx]
-
-            largest_class_idx = asc_class_locs[-1]
-            patch_largest_class_area = largest_area_of_smallest_class_patch[
-                largest_class_idx]
+            # # First try add patch with highest pixel ratio of the smallest
+            # # class.
+            # largest_area_of_smallest_class_patch = patch_class_areas_asc[0]
+            #
+            # # We get the first element, because it is the smallest of the
+            # # largest class, and so it will have the largest area of the
+            # # smallest class by default.
+            # smallest_class_idx = asc_class_locs[0]
+            # patch_smallest_class_area = largest_area_of_smallest_class_patch[
+            #     smallest_class_idx]
+            #
+            # largest_class_idx = asc_class_locs[-1]
+            # patch_largest_class_area = largest_area_of_smallest_class_patch[
+            #     largest_class_idx]
 
             # Check to see if duplicates need to increase
             num_to_duplicate = len(patch_class_areas_asc[patch_class_areas_asc[:, 0] != 0]) - len(
@@ -420,33 +420,34 @@ class DSTLDataset(BaseDataSet):
             # than we need to try delete the largest class instead,
             # and continue to do it until they are balanced.
             idx_to_be_duped = largest_area_of_smallest_class_patch[-1]
-            for patch_to_be_duped in patch_class_areas_asc:
-                idx_to_be_duped = patch_to_be_duped[-1]
-                count = np.sum(indices_to_duplicate == idx_to_be_duped)
-                if (idx_to_be_duped not in indices_to_delete and
-                        count < current_dupe_limit and patch_to_be_duped[0]
-                        != 0):
-                    indices_to_duplicate = np.append(indices_to_duplicate,
-                                                     idx_to_be_duped)
-                    all_patches_class_area_totals += patch_to_be_duped[:-1]
-                    # self.logger.debug(f"Duplicate {patch_to_be_duped[:-1]}")
-                    break
+            # for patch_to_be_duped in patch_class_areas_asc:
+            patch_to_be_duped = patch_class_areas_asc[0]
+            idx_to_be_duped = patch_to_be_duped[-1]
+            count = np.sum(indices_to_duplicate == idx_to_be_duped)
+            if (idx_to_be_duped not in indices_to_delete and
+                    count < current_dupe_limit and patch_to_be_duped[0]
+                    != 0):
+                indices_to_duplicate = np.append(indices_to_duplicate,
+                                                 idx_to_be_duped)
+                all_patches_class_area_totals += patch_to_be_duped[:-1]
+                # self.logger.debug(f"Duplicate {patch_to_be_duped[:-1]}")
+                break
             if idx_to_be_duped not in indices_to_duplicate:
                 raise ValueError("No samples to duplicate to balance the classes.")
 
             # Optionally duplicate replaces the largest class.
-            if patch_largest_class_area > patch_smallest_class_area:
-                idx_to_be_deleted = None
-                for patch_class_area in patch_class_areas_asc[::-1]:
-                    idx_to_be_deleted = patch_class_area[-1]
-                    if idx_to_be_deleted not in indices_to_delete:
-                        indices_to_delete = np.append(indices_to_delete,
-                                                      idx_to_be_deleted)
-                        # self.logger.debug(f"Delete {patch_class_area[:-1]}")
+            # if patch_largest_class_area > patch_smallest_class_area:
+            #     idx_to_be_deleted = None
+            #     for patch_class_area in patch_class_areas_asc[::-1][0]:
+            idx_to_be_deleted = patch_class_areas_asc[-1][-1]
+            if idx_to_be_deleted not in indices_to_delete:
+                indices_to_delete = np.append(indices_to_delete,
+                                              idx_to_be_deleted)
+                # self.logger.debug(f"Delete {patch_class_area[:-1]}")
 
-                        # Have pixel values reduced
-                        all_patches_class_area_totals -= patch_class_area[:-1]
-                        break
+                # Have pixel values reduced
+                all_patches_class_area_totals -= patch_class_area[:-1]
+                # break
 
         # Delete the files that are not needed
         new_indxs = indices_to_duplicate.flatten().astype(int)
