@@ -4,7 +4,7 @@ import numpy as np
 from torchvision.utils import make_grid
 from torchvision import transforms
 from utils import transforms as local_transforms
-from base import BaseTrainer, DataPrefetcher
+from base import BaseTrainer
 from utils.helpers import colorize_mask
 from utils.metrics import eval_metrics, AverageMeter
 from tqdm import tqdm

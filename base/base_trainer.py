@@ -19,10 +19,12 @@ def get_instance(module, name, config, *args):
 
 class BaseTrainer:
 
-    def __init__(self, start_time, model, loss, resume, config, train_loader,
-                 writer,
-                 k_fold = None,
-                 val_loader=None, train_logger=None, root='.'):
+    def __init__(self,
+                 start_time, model, loss, resume, config,
+                 train_loader,
+                 val_loader,
+                 writer, k_fold, do_validation, training_classes,
+                 train_logger=None, root='.'):
         self.root = root
         self.model = model
         self.loss = loss
@@ -31,12 +33,12 @@ class BaseTrainer:
         self.val_loader = val_loader
         self.train_logger = train_logger
         self._setup_logging()
-        self.do_validation = self.config['trainer']['val']
+        self.do_validation = do_validation
         self.start_epoch = 1
         self.improved = False
         self.k_fold = k_fold
         self.writer = writer
-        self.training_classes = self.config["train_loader"]["preprocessing"]["training_classes"]
+        self.training_classes = training_classes
 
         # SETTING THE DEVICE
         self.device, availble_gpus = self._get_available_devices(self.config['n_gpu'])

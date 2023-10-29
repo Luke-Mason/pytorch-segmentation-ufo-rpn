@@ -105,7 +105,6 @@ data/
 input/
 saved/checkpoints/
 outputs/
-datasets/
 pretrained/
 trained_models/
 

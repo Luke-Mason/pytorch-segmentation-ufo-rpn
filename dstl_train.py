@@ -8,8 +8,8 @@ import torch
 import pandas as pd
 import datetime
 from torch.utils import tensorboard
-
-from dataloaders import DSTL
+from datasets import DSTLPreprocessor
+from dataloaders import DSTLLoader
 import models
 from trainers import DSTLTrainer
 from utils import Logger, losses, FilterConfig3D, BandGroup
@@ -27,42 +27,38 @@ from utils import metric_indx
 torch.cuda.empty_cache()
 
 
-def get_loader_instance(name, _wkt_data, config, start_time, train_indxs=None,
-                        val_indxs=None):
+def get_preprocessor(config, root, _wkt_data, start_time,
+                     train_indices, val_indices):
     training_band_groups = []
-    for group in config["train_loader"]['preprocessing'][
-        'training_band_groups']:
+    preprocessing_ = config["all_loader"]['preprocessing']
+    for group in preprocessing_['training_band_groups']:
         strategy = None
-        filter = None
+        filter3d = None
         if "filter_config" in group:
-            filter = FilterConfig3D(group['filter_config']["kernel"],
-                             group['filter_config']["stride"])
+            filter3d = FilterConfig3D(group['filter_config']["kernel"],
+                                      group['filter_config']["stride"])
         if "strategy" in group:
             strategy = group["strategy"]
-        training_band_groups.append(BandGroup(group['bands'], filter, strategy))
+        training_band_groups.append(
+            BandGroup(group['bands'], filter3d, strategy)
+        )
 
     # Preprocessing config
-    print(config["train_loader"]['preprocessing'])
-    preproccessing_config = copy.deepcopy(
-        config["train_loader"]['preprocessing'])
+    preproccessing_config = copy.deepcopy(preprocessing_)
     del preproccessing_config['training_band_groups']
 
-    # Loader args
-    loader_args = copy.deepcopy(config[name]['args'])
-    batch_size_ = loader_args['batch_size']
-    del loader_args['batch_size']
-
-    return DSTL(_wkt_data, training_band_groups,
-                batch_size_,
-                **loader_args,
-                **preproccessing_config,
-                save_dir=config['trainer']['save_dir'],
-                name=config['name'],
-                start_time=start_time,
-                train_indxs=train_indxs,
-                val_indxs=val_indxs,
-                val=config["trainer"]["val"],
-                )
+    return DSTLPreprocessor(
+        root=root,
+        data=_wkt_data,
+        start_time=start_time,
+        train_indices=train_indices,
+        val_indices=val_indices,
+        add_negative_class=config["all_loader"]["args"]["add_negative_class"],
+        name=config['name'],
+        training_band_groups=training_band_groups,
+        save_dir=config["trainer"]["save_dir"],
+        **preproccessing_config
+    )
 
 
 def get_instance(module, name, config, *args):
@@ -280,7 +276,8 @@ def main(config, resume):
     _wkt_data = list(_wkt_data.items())
     _wkt_data = dataset_gateway(_wkt_data)
 
-    training_classes_ = config['train_loader']['preprocessing']['training_classes']
+    training_classes_ = config['all_loader']['preprocessing'][
+        'training_classes']
 
     # Stratified K-Fold
     mask_stats = json.loads(Path(
@@ -312,14 +309,13 @@ def main(config, resume):
 
         area_by_id = dict(im_area)
 
-        preprocessing_ = config['train_loader']['preprocessing']
+        preprocessing_ = config['all_loader']['preprocessing']
         training_classes_str = '_'.join(
             str(i) for i in preprocessing_['training_classes'])
         training_band_groups = [f"({'_'.join(map(str, band_group['bands']))})"
                                 for band_group in
                                 preprocessing_['training_band_groups']]
-        loader_args = config['train_loader']['args']
-        run_name = (f"batch_size_{loader_args['batch_size']}"
+        run_name = (f"batch_size_{config['all_loader']['args']['batch_size']}"
                     f"_lr_{config['optimizer']['args']['lr']}"
                     f"_k_stop_{str(config['trainer']['k_stop'])}"
                     f"_epochs_{config['trainer']['epochs']}"
@@ -361,15 +357,46 @@ def main(config, resume):
             logger.info(f"Valid area by class: "
                         f"{' '.join(f'cls-{cls}: {valid_area_by_class[cls]:.6f}' for cls in training_classes_)}")
 
-            # DATA LOADERS
-            train_loader = get_loader_instance('train_loader', _wkt_data, config, start_time, train_indxs, val_indxs)
-            add_negative_class = config["train_loader"]["args"]["add_negative_class"]
+            preprocessor = get_preprocessor(config, dstl_data_path,
+                                            _wkt_data, start_time,
+                                            train_indices=train_indxs,
+                                            val_indices=val_indxs)
+
+            train_patch_files, val_patch_files = preprocessor.get_files()
+
+            logger.info("Creating file weights..")
+            train_patch_weights, val_patch_weights = preprocessor.get_file_weights()
+
+            # Create train and valiation data loaders that only load the data
+            # into batch by seleecting indexes from the list of indices we
+            # give each loader.
+            all_loader_config = {
+                "batch_size": config["all_loader"]["args"]["batch_size"],
+                "num_workers": config["all_loader"]["args"]["num_workers"],
+                "return_id": config["all_loader"]["args"]["return_id"],
+            }
+            logger.info("Creating loaders..")
+
+            train_loader = DSTLLoader(
+                **all_loader_config,
+                files=train_patch_files,
+                weights=train_patch_weights,
+                **config["train_loader"]["args"]
+            )
+            val_loader = DSTLLoader(
+                **all_loader_config,
+                files=val_patch_files,
+                weights=val_patch_weights,
+                **config["val_loader"]["args"]
+            )
+
+            add_negative_class = config["all_loader"]["args"]["add_negative_class"]
             negative_class_bonus = 1 if add_negative_class else 0
             # MODEL
-            model = get_instance(models, 'arch', config, len(training_classes_) + negative_class_bonus)
+            num_classes = len(training_classes_) + negative_class_bonus
+            model = get_instance(models, 'arch', config, num_classes)
 
-            if train_loader.get_val_loader() is None:
-                raise ValueError("Val Loader is None")
+            logger.info("Creating trainer..")
 
             # TRAINING
             trainer = DSTLTrainer(
@@ -380,19 +407,23 @@ def main(config, resume):
                 resume=resume,
                 config=config,
                 train_loader=train_loader,
+                val_loader=val_loader,
                 writer=writer,
-                val_loader=train_loader.get_val_loader(dataset),
                 train_logger=logger,
                 root=dstl_data_path,
+                training_classes=training_classes_,
+                do_validation=config['trainer']['val'],
+                num_classes=num_classes,
                 add_negative_class=add_negative_class,
             )
 
-            try:
-                epochs_stats = trainer.train()
-            except Exception as e:
-                logger.error(f"Error in fold {fold_indx + 1}: {e}")
-                bonus += 1
-                continue
+            # try:
+            logger.info("Train..")
+            epochs_stats = trainer.train()
+            # except Exception as e:
+            #     logger.error(f"Error in fold {fold_indx + 1}: {e}")
+            #     bonus += 1
+            #     continue
 
             # logger.debug(f"Fold stats BLALBLBLALSDLALSDLASLDLASD")
             # im lazy and dont want to refactor the code
@@ -429,6 +460,7 @@ def main(config, resume):
     else:
         # DATA LOADERS
         train_loader = get_loader_instance('train_loader', _wkt_data, config, start_time)
+        val_loader = get_loader_instance('val_loader', _wkt_data, config, start_time)
 
         # MODELMODEL
         model = get_instance(models, 'arch', config, len(training_classes_) + 1)
@@ -441,6 +473,7 @@ def main(config, resume):
             resume=resume,
             config=config,
             train_loader=train_loader,
+            val_loader=val_loader,
             train_logger=logger,
             root=dstl_data_path,
         )
@@ -467,9 +500,9 @@ if __name__ == '__main__':
         os.environ["CUDA_VISIBLE_DEVICES"] = args.device
 
     if args.cl is not None:
-        config["train_loader"]["preprocessing"]["training_classes"] = [args.cl]
+        config["all_loader"]["preprocessing"]["training_classes"] = [args.cl]
 
-    if "training_classes" not in config["train_loader"]["preprocessing"]:
+    if "training_classes" not in config["all_loader"]["preprocessing"]:
         raise ValueError("Training classes is None")
 
     print(f"Running experiment for class {args.cl}...")
