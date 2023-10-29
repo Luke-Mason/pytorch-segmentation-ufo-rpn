@@ -9,7 +9,7 @@ from scipy import ndimage
 
 class BaseDataSet(Dataset):
     def __init__(self, root, mean, std, base_size=None, augment=True,
-                 val=False, crop_size=321, scale=True, flip=True, rotate=False,
+                 crop_size=0, scale=False, flip=False, rotate=False,
                  blur=False, return_id=False):
         self.root = root
         self.mean = mean
@@ -22,8 +22,6 @@ class BaseDataSet(Dataset):
             self.flip = flip
             self.rotate = rotate
             self.blur = blur
-        self.val = val
-        self.files = []
         self._set_files()
         self.to_tensor = transforms.ToTensor()
 
@@ -72,16 +70,18 @@ class BaseDataSet(Dataset):
 
             # Rotate the label
             label_rotated = np.zeros_like(label)
-            for channel in range(c):
+            for channel in range(label.shape[0]):
                 label_rotated[channel] = cv2.warpAffine(label[channel],
-                                                        rot_matrix, (w, h),
+                                                        rot_matrix,
+                                                        (label.shape[2],
+                                                         label.shape[1]),
                                                         flags=cv2.INTER_NEAREST)
 
             image = image_rotated
             label = label_rotated
 
         # Padding to return the correct crop size
-        if self.crop_size:
+        if self.crop_size != 0:
             pad_h = max(self.crop_size - h, 0)
             pad_w = max(self.crop_size - w, 0)
             pad_kwargs = {
@@ -133,9 +133,7 @@ class BaseDataSet(Dataset):
 
     def __getitem__(self, index):
         image, label, image_id = self._load_data(index)
-        if self.val:
-            image, label = self._val_augmentation(image, label)
-        elif self.augment:
+        if self.augment:
             image, label = self._augmentation(image, label)
 
         label = torch.from_numpy(np.array(label, dtype=np.int32)).long()

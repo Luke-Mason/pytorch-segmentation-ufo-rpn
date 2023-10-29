@@ -11,7 +11,7 @@
         }
     },
     "trainer": {
-        "epochs": 1000,
+        "epochs": 100,
         "save_dir": "saved/",
         "save_period": 20,
         "monitor": "max Mean_IoU",
@@ -26,7 +26,7 @@
         "k_shuffle": false,
         "k_random_state": 42
     },
-    "train_loader": {
+    "all_loader": {
         "preprocessing": {
             "patch_size": 256,
             "align_images": false,
@@ -43,15 +43,27 @@
         },
         "args": {
             "add_negative_class": true,
-            "return_id": false,
-            "auto_balance_classes": true,
             "batch_size": 128,
-            "augment": false,
+            "return_id": false,
+            "num_workers": 8
+        }
+    },
+    "train_loader": {
+        "args": {
+            "augment": true,
             "shuffle": true,
             "flip": true,
             "rotate": true,
-            "blur": false,
-            "num_workers": 8
+            "blur": false
+        }
+    },
+    "val_loader":  {
+        "args": {
+            "augment": true,
+            "shuffle": true,
+            "flip": false,
+            "rotate": false,
+            "blur": false
         }
     },
     "optimizer": {

@@ -5,7 +5,7 @@ import time
 import datetime
 import numpy as np
 import torch
-from base import BaseTrainer, DataPrefetcher
+from base import BaseTrainer
 from torchvision import transforms
 from torchvision.utils import make_grid, make_grid
 import matplotlib.pyplot as plt
@@ -22,20 +22,25 @@ from utils import transforms as local_transforms
 
 class DSTLTrainer(BaseTrainer):
     def __init__(self, start_time, model, loss, resume, config, train_loader,
+                 val_loader,
                  writer,
+                 num_classes,
                  add_negative_class,
-                 k_fold = None, val_loader=None, train_logger=None,
-                 prefetch=False, root='.'):
+                 k_fold, do_validation, training_classes, train_logger=None,
+                 root='.'):
+
         super(DSTLTrainer, self).__init__(start_time, model, loss, resume,
-                                          config, train_loader, writer, k_fold,
-                                          val_loader, train_logger, root)
+                                          config, train_loader, val_loader,
+                                          writer, k_fold, do_validation,
+                                          training_classes,
+                                          train_logger, root)
         self.wrt_mode, self.wrt_step = 'train_', 0
         self.log_step = config['trainer'].get('log_per_iter', int(np.sqrt(
             self.train_loader.batch_size)))
         if config['trainer']['log_per_iter']: self.log_step = int(
             self.log_step / self.train_loader.batch_size) + 1
 
-        self.num_classes = self.train_loader.dataset.num_classes
+        self.num_classes = num_classes
         self.add_negative_class = add_negative_class
         # TRANSORMS FOR VISUALIZATION
         self.restore_transform = transforms.Compose([
@@ -184,11 +189,8 @@ class DSTLTrainer(BaseTrainer):
                     target[:, class_idx, :, :][:, np.newaxis, :, :],
                                                     self.threshold)
                 # Mapping class_indx to class_name_indx i.e 0,1,2 into 2,5,9
-                extra_negative_class = 1 if self.add_negative_class == True \
-                    else 0
-                class_name_idx = self.training_classes[class_idx] if \
-                        class_idx < len(self.training_classes) else (9 + \
-                                                                     extra_negative_class)
+                extra_negative_class = 1 if self.add_negative_class == True else 0
+                class_name_idx = self.training_classes[class_idx] if class_idx < len(self.training_classes) else 9 + extra_negative_class
                 if str(class_name_idx) not in epoch_metrics:
                     epoch_metrics[str(class_name_idx)] = class_batch_metrics
                 else:
@@ -239,7 +241,7 @@ class DSTLTrainer(BaseTrainer):
         total_metric_totals = dict()
 
         tbar = tqdm(self.val_loader, ncols=130)
-        with ((((torch.no_grad())))):
+        with torch.no_grad():
             for batch_idx, (data, target) in enumerate(tbar):
                 # LOSS
                 output = self.model(data)

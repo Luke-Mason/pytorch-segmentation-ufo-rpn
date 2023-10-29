@@ -68,7 +68,6 @@ class BandGroup:
             band_group.update({"filter_config": filter_config})
         if self.strategy_name is not None:
             band_group.update({"strategy": self.strategy_name})
-        print(band_group)
         return band_group
 
 def array_3d_merge(arr, config: FilterConfig3D):
@@ -89,11 +88,8 @@ def array_3d_merge(arr, config: FilterConfig3D):
 
     # Iterate over the array with the specified stride
     for i in range(0, arr_shape[0] - kernel_shape[0] + 1, stride[0]):
-        print(f"i: {i}")
         for j in range(0, arr_shape[1] - kernel_shape[1] + 1, stride[1]):
-            print(f"j: {j}")
             for k in range(0, arr_shape[2] - kernel_shape[2] + 1, stride[2]):
-                print(f"k: {k}")
                 # Extract the subarray within the sliding window
                 subarray = arr[i:i+kernel_shape[0], j:j+kernel_shape[1], k:k+kernel_shape[2]]
 

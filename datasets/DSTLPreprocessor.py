@@ -28,10 +28,11 @@ import matplotlib.pyplot as plt
 from utils import metric_indx
 epsilon = sys.float_info.epsilon
 
-class DSTLDataset(BaseDataSet):
+class DSTLPreprocessor:
 
     def __init__(self,
                  data,
+                 root,
                  training_band_groups: Tuple[BandGroup, BandGroup, BandGroup],
                  training_classes: List[int],
                  img_ref_scale: str,
@@ -39,14 +40,13 @@ class DSTLDataset(BaseDataSet):
                  overlap_pixels: float,
                  align_images: bool,
                  interpolation_method: int,
-                 auto_balance_classes: bool,
                  add_negative_class: bool,
                  save_dir: str,
                  name: str,
                  start_time: str,
-                 train_indxs: List[int] or None = None,
-                 val_indxs: List[int] or None = None,
-                 **kwargs):
+                 train_indices: List[int] or None = None,
+                 val_indices: List[int] or None = None
+                 ):
         """Constructor, initialiser.
 
         Args:
@@ -76,13 +76,13 @@ class DSTLDataset(BaseDataSet):
         os.makedirs(self.run_dir, exist_ok=True)
 
         # Preprocessing
-        self.train_indxs = train_indxs
-        self.val_indxs = val_indxs
+        self.train_indices = train_indices
+        self.val_indices = val_indices
 
-        self._file_train_indxs = []
-        self._file_val_indxs = []
-        self.file_train_indxs = []
-        self.file_val_indxs = []
+        self._train_files = []
+        self._val_files = []
+        self.train_files = []
+        self.val_files = []
 
         # Attributes
         self.img_ref_scale = img_ref_scale
@@ -92,11 +92,10 @@ class DSTLDataset(BaseDataSet):
         self.overlap_pixels = overlap_pixels
         self.align_images = align_images
         self.interpolation_method = interpolation_method
-        self.auto_balance_classes = auto_balance_classes
         self.add_negative_class = add_negative_class
 
         # Setup directories and paths
-        self.root = kwargs['root']
+        self.root = root
         self.image_dir = os.path.join(self.root, 'sixteen_band/sixteen_band')
         self.cache_dir = os.path.join(self.root, 'cached')
         if not os.path.exists(self.cache_dir):
@@ -123,7 +122,8 @@ class DSTLDataset(BaseDataSet):
         # Logging
         self._setup_logging()
 
-        super(DSTLDataset, self).__init__(**kwargs)
+        # Load
+        self._set_files()
 
     def _setup_logging(self):
         self.logger = logging.getLogger(__name__)
@@ -191,17 +191,13 @@ class DSTLDataset(BaseDataSet):
 
                 # All files associated with image @ index are put into train
                 # or val.
-                file_idx = len(self.files)
-                if index in self.train_indxs:
-                    self.file_train_indxs.append(file_idx)
-                    self._file_train_indxs.append(file_idx)
-                elif index in self.val_indxs:
-                    self.file_val_indxs.append(file_idx)
-                    self._file_val_indxs.append(file_idx)
+                if index in self.train_indices:
+                    self.train_files.append((patch, patch_y_mask, image_id))
+                elif index in self.val_indices:
+                    self.val_files.append((patch, patch_y_mask, image_id))
                 else:
                     raise ValueError(f"Index {index} not in train or val indexes")
 
-                self.files.append((patch, patch_y_mask, image_id))
                 self.print_progress_bar(c_index + 1, len(chunk_offsets),
                                       prefix=f"Chunking Image {image_id}...")
 
@@ -209,71 +205,24 @@ class DSTLDataset(BaseDataSet):
                              f" {(100 / len(self._wkt_data)) * (index + 1)}% "
                              f"...\n")
 
-        if self.auto_balance_classes:
-            if self.num_classes == 1:
-                self.auto_balance2()
-            else:
-                self.auto_balance()
+        self.logger.debug(f"Train LEN: {len(self.train_files)}")
+        self.logger.debug(f"Val LEN: {len(self.val_files)}")
+        self.logger.info(f"Total files: Train - {len(self.train_files)}, "
+                         f"Val - {len(self.val_files)}")
+        if len(self.train_files) == 0 or len(self.val_files) == 0:
+            raise ValueError("No training files were found. Please check the "
+                                "data and try again.")
 
-        self.logger.info(f"Total files: {len(self.files)}")
+        self.save_count_plot(self.train_files, "train")
+        self.save_count_plot(self.val_files, "val")
+        self.plot_pixel_area_percentages(self.train_files, "train")
+        self.plot_pixel_area_percentages(self.val_files, "val")
 
-    def auto_balance2(self):
-        self.logger.debug(f"BEFORE File Len: {len(self.files)}")
-        self.logger.debug(f"Train Indices LEN: {len(self.file_train_indxs)}")
-        self.logger.debug(f"Val Indices LEN: {len(self.file_val_indxs)}")
-
-        train_indxs = []
-        val_indxs = []
-        to_be_deleted = []
-
-        # Get all the images that do not contain any of the classes
-        for index, (_, patch_y_mask, __) in enumerate(self.files):
-            if np.count_nonzero(patch_y_mask) == 0:
-                to_be_deleted.append(index)
-            else:
-                if index in self._file_train_indxs:
-                    train_indxs.append(index)
-                if index in self._file_val_indxs:
-                    val_indxs.append(index)
-
-        if len(train_indxs) == 0 or len(val_indxs) == 0:
-            raise ValueError("All files from the validation set or training "
-                             "set were deleted because they were found to not "
-                             "contain any pixels from the classes that were to "
-                             "be trained on. Please use better data")
-
-        # Copy the files that need to be duplicated
-        new_file_idxs = []
-        train_count = 0
-        val_count = 0
-        for i in to_be_deleted:
-            if i in self.file_train_indxs:
-                new_file_idxs.append(train_indxs[train_count % len(train_indxs)])
-                train_count += 1
-            if i not in self.file_val_indxs:
-                new_file_idxs.append(val_indxs[val_count % len(val_indxs)])
-                val_count += 1
-
-        new_file_idxs.extend(train_indxs)
-        new_file_idxs.extend(val_indxs)
-
-        self.file_train_indxs = train_indxs
-        self.file_val_indxs = val_indxs
-        updated_list = []
-        for i in new_file_idxs:
-            updated_list.append(self.files[i])
-
-        self.files = updated_list
-
-        self.logger.debug(f"AFTER File Len: {len(self.files)}")
-        self.logger.debug(f"Train Indices LEN: {len(self.file_train_indxs)}")
-        self.logger.debug(f"Val Indices LEN: {len(self.file_val_indxs)}")
-
-    def save_count_plot(self, files, indxs, type: str):
+    def save_count_plot(self, files, type: str):
         timestamp = int(time.time())
 
         # Create an array of values (you can replace this with your data)
-        data = np.array([files[i][2] for i in list(indxs)])
+        data = np.array([file[2] for file in files])
         np.savetxt(os.path.join(self.run_dir, "files.txt"), data, fmt="%s")
         value_counts = sns.countplot(data, palette="Set3", legend=False)
 
@@ -285,15 +234,15 @@ class DSTLDataset(BaseDataSet):
         plt.savefig(os.path.join(self.run_dir, f"{type}_counts_"
                                                f"({timestamp}).png"))
 
-    def plot_pixel_area_percentages(self, files, indxs, type: str):
+    def plot_pixel_area_percentages(self, files, type: str):
         timestamp = int(time.time())
 
         # Auto balance the classes so that the negative class is not over represented.
         pixel_area_stats = np.zeros((self.num_classes,))
 
         # Get the pixel area statistics for each class and set it
-        for index in indxs:
-            (_, patch_y_mask, __) = files[index]
+        for file in files:
+            (_, patch_y_mask, __) = file
             for i in range(self.num_classes):
                 pixel_area_stats[i] += np.sum(patch_y_mask[i])
 
@@ -318,149 +267,52 @@ class DSTLDataset(BaseDataSet):
         plt.savefig(os.path.join(self.run_dir,
                                  f"pixel_area_percentages_({timestamp}).png"))
 
-    def auto_balance(self):
-        self.logger.info("Auto balancing classes...")
+    def calculate_weights(self, masks):
+        num_classes = masks.shape[1]
+        total_pixels_labeled = np.sum(masks)
+        all_patches_class_area_totals = np.sum(masks, axis=(0, 2, 3))
 
-        new_train_indxs = self.balance_classes(self._file_train_indxs)
-        new_val_indxs = self.balance_classes(self._file_val_indxs)
+        ratios = all_patches_class_area_totals / total_pixels_labeled
 
-        self.save_count_plot(self.files, new_train_indxs, "train")
-        self.save_count_plot(self.files, new_val_indxs, "val")
-        self.plot_pixel_area_percentages(self.files, new_train_indxs, "train")
-        self.plot_pixel_area_percentages(self.files, new_val_indxs, "val")
+        # How many labeled pixels in mask vs all labeled pixels
+        ps = []
+        for mask in masks:
+            p = 0
+            for i in range(num_classes):
+                pixel_ratio = np.sum(mask[i]) / total_pixels_labeled + epsilon
+                scale_value = (100 / ratios[i]) / (num_classes - 1)
+                p += pixel_ratio * scale_value
+            classes_ = p * ((100 / num_classes) / 100)
+            ps.append(np.round(classes_ / 100, 3))
+        return ps
 
-        # Set the new files
-        self.files = [self.files[i] for i in np.append(new_train_indxs, new_val_indxs)]
 
-        # Set the new accessor indices
-        self.file_train_indxs = list(range(len(new_train_indxs)))
-        start = len(new_train_indxs)
-        end = start + len(new_val_indxs)
-        self.file_val_indxs = list(range(start, end))
 
-        self.logger.debug(f"Train Indices LEN: {len(self.file_train_indxs)}")
-        self.logger.debug(f"Val Indices LEN: {len(self.file_val_indxs)}")
-        self.logger.info(f"Total files: {len(self.files)}")
-        if len(self.file_train_indxs) == 0 or len(self.file_val_indxs) == 0:
-            raise ValueError("No training files were found. Please check the "
-                                "data and try again.")
+        weights = []
+        for mask in masks:
+            # Calculate the sum of pixel values for each channel
+            channel_sums = mask.sum(dim=(0, 1))
 
-    def balance_classes(self, indxs):
+            # Calculate the balance score
+            balance_score = (
+                        1.0 - torch.abs(channel_sums[0] - channel_sums[1]) /
+                        (channel_sums[0] + channel_sums[1] + 0.01))
 
-        # Auto balance the classes so that the negative class is not over represented.
-        all_patches_class_area_totals = np.zeros((self.num_classes,))
-        patch_class_area_totals = np.zeros((len(indxs), self.num_classes + 1))
+            # Normalize the balance score to a weight between 0 and 1
+            weight = balance_score.item()
+            weights.append(weight)
 
-        self.logger.debug(f"num of indices: {len(indxs)}")
+        return weights
 
-        # Get the pixel area statistics for each class and set it
-        for index, file_index in enumerate(indxs):
-            _, patch_y_mask, __ = self.files[file_index]
-            for i in range(self.num_classes):
-                all_patches_class_area_totals[i] += np.sum(patch_y_mask[i])
-                patch_class_area_totals[index, i] = np.sum(patch_y_mask[i])
-                patch_class_area_totals[index, -1] = file_index  # Mark with index of file
+    def get_file_weights(self):
+        # Calculate weights based on file masks
+        return (
+            self.calculate_weights(np.array([file[1] for file in self.train_files])),
+            self.calculate_weights(np.array([file[1] for file in self.val_files]))
+        )
 
-        self.logger.debug(f"all_patches_class_area_totals: {all_patches_class_area_totals}")
-        self.logger.debug(f"patch_class_area_totals: {patch_class_area_totals}")
-
-        patch_class_areas = patch_class_area_totals.copy()
-        indices_to_delete = np.array([])
-        indices_to_duplicate = np.array([])
-        imblanced_classes = np.argsort(all_patches_class_area_totals)
-        last_largest_area_total = all_patches_class_area_totals[imblanced_classes[-1]]
-        current_dupe_limit = 20
-
-        # Maximum split of the set is replaced, or duplicated.
-        for _ in range(len(indxs) // self.num_classes):
-            self.logger.info(
-                f"| Class Balancing {'% | '.join(map(str, np.round((all_patches_class_area_totals / np.sum(all_patches_class_area_totals) + epsilon) * 100, 2)))}% |")
-
-            # Indices that would sort the array
-            asc_class_locs = np.argsort(all_patches_class_area_totals)
-
-            # Calculate the threshold for a 5% difference
-            threshold = 0.02 * all_patches_class_area_totals
-
-            # Check if any element is more than x% different from another
-            # element.
-            more_than_x_percent_difference = np.any(np.abs(
-                all_patches_class_area_totals - all_patches_class_area_totals[:, None]) > threshold[:,
-                                                                None])
-            if not more_than_x_percent_difference:
-                break
-
-            # Sort patches by their class counts, smallest to largest class area
-            patch_class_areas_asc = patch_class_areas[np.lexsort([
-                # Sort the patches (0), by their class areas (1)
-                patch_class_areas[:, asc_class_locs[i]] for i in
-                range(len(asc_class_locs))
-            ])]
-
-            # First try add patch with highest pixel ratio of the smallest
-            # class.
-            largest_area_of_smallest_class_patch = patch_class_areas_asc[0]
-
-            # We get the first element, because it is the smallest of the
-            # largest class, and so it will have the largest area of the
-            # smallest class by default.
-            smallest_class_idx = asc_class_locs[0]
-            patch_smallest_class_area = largest_area_of_smallest_class_patch[
-                smallest_class_idx]
-
-            largest_class_idx = asc_class_locs[-1]
-            patch_largest_class_area = largest_area_of_smallest_class_patch[
-                largest_class_idx]
-
-            # Check to see if duplicates need to increase
-            num_to_duplicate = len(patch_class_areas_asc[patch_class_areas_asc[:, 0] != 0]) - len(
-                indices_to_delete)
-            if len(indices_to_duplicate) >= num_to_duplicate:
-                current_dupe_limit += 1
-
-            # If when adding it, it increases the already largest class by more
-            # than we need to try delete the largest class instead,
-            # and continue to do it until they are balanced.
-            # TODO fix this from not duplicating the right class of pixels.
-            idx_to_be_duped = largest_area_of_smallest_class_patch[-1]
-            for patch_to_be_duped in patch_class_areas_asc:
-                idx_to_be_duped = patch_to_be_duped[-1]
-                count = np.sum(indices_to_duplicate == idx_to_be_duped)
-                if (idx_to_be_duped not in indices_to_delete and
-                        count < current_dupe_limit and patch_to_be_duped[0]
-                        != 0):
-                    indices_to_duplicate = np.append(indices_to_duplicate,
-                                                     idx_to_be_duped)
-                    all_patches_class_area_totals += patch_to_be_duped[:-1]
-                    # self.logger.debug(f"Duplicate {patch_to_be_duped[:-1]}")
-                    break
-            if idx_to_be_duped not in indices_to_duplicate:
-                raise ValueError("No samples to duplicate to balance the classes.")
-
-            # Optionally duplicate replaces the largest class.
-            if patch_largest_class_area > patch_smallest_class_area:
-                idx_to_be_deleted = None
-                for patch_class_area in patch_class_areas_asc[::-1]:
-                    idx_to_be_deleted = patch_class_area[-1]
-                    if idx_to_be_deleted not in indices_to_delete:
-                        indices_to_delete = np.append(indices_to_delete,
-                                                      idx_to_be_deleted)
-                        # self.logger.debug(f"Delete {patch_class_area[:-1]}")
-
-                        # Have pixel values reduced
-                        all_patches_class_area_totals -= patch_class_area[:-1]
-                        break
-
-        # Delete the files that are not needed
-        new_indxs = indices_to_duplicate.flatten().astype(int)
-        for i in indxs:
-            if i not in indices_to_delete:
-                new_indxs = np.append(new_indxs, i)
-
-        return new_indxs
-
-    def get_file_indexes(self):
-        return self.file_train_indxs, self.file_val_indxs
+    def get_files(self):
+        return self.train_files, self.val_files
 
     def print_progress_bar(self, iteration, total, prefix='', suffix='',
                            length=50,
@@ -759,45 +611,3 @@ class DSTLDataset(BaseDataSet):
         self.logger.info(
             f"Got alignment for {key} with cc {cc:.3f}: {matrix_str}")
         return cc, warp_matrix
-
-
-class DSTL(BaseDataLoader):
-    def __init__(self, data, training_band_groups, batch_size,
-                 num_workers=1, val=False, shuffle=False, flip=False,
-                 rotate=False, blur=False, augment=False, return_id=False,
-                 **params):
-
-        # Scale the bands to be between 0 - 255
-        # Min Max for Type P: [[0, 2047]]
-        # Min Max for Type RGB: [[1, 2047], [157, 2047], [91, 2047]]
-        # Min Max for Type M: [[156, 2047], [115, 2047], [87, 2047], [55, 2047], [1, 2047], [84, 2047], [160, 2047], [111, 2047]]
-        # Min Max for Type A: [[671, 15562], [489, 16383], [434, 16383], [390, 16383], [1, 16383], [129, 16383], [186, 16383], [1, 16383]]
-        # P is 11bit, RGB is 11bit, M is 11bit, A is 14bit
-
-        dstl_data_path = os.environ.get('DSTL_DATA_PATH')
-        self.MEAN = [0.219613, 0.219613, 0.219613]
-        self.STD = [0.110741, 0.110741, 0.110741]
-        kwargs = {
-            'root': dstl_data_path,
-            'augment': augment,
-            'flip': flip,
-            'blur': blur,
-            'rotate': rotate,
-            'return_id': return_id,
-            'val': val,
-            'mean': self.MEAN,
-            'std': self.STD
-        }
-
-
-        print("kwargs", kwargs)
-        print("params", params)
-
-        self.dataset = DSTLDataset(data, training_band_groups, **params,
-                                   **kwargs)
-        train_indxs, val_indxs = self.dataset.get_file_indexes()
-        # Convert the image indexes into files indexes.
-
-        super(DSTL, self).__init__(self.dataset, batch_size, shuffle,
-                                   num_workers, train_indxs, val_indxs, val)
-
