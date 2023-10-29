@@ -8,7 +8,7 @@ class BaseDataLoader(DataLoader):
     def __init__(self, dataset, batch_size, shuffle, num_workers, weights):
         self.dataset = dataset
         self.nbr_examples = len(dataset)
-        sampler = WeightedRandomSampler(weights, batch_size, True)
+        sampler = WeightedRandomSampler(weights, batch_size * 5, True)
         self.init_kwargs = {
             'dataset': dataset,
             'batch_size': batch_size,
