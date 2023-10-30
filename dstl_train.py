@@ -107,6 +107,9 @@ def write_metric(logger, writer, do_validation, val_per_epochs, stats,
             metrics = dict({ 'train': np.mean(metric_t) })
             if do_validation and val_m1 is not None and (epoch + 1) % val_per_epochs == 0:
                 val_epoch = epoch // val_per_epochs
+                if val_epoch >= val_m1.shape[1]:
+                    logger.error(f"val_epoch {val_epoch} is greater than val_m1.shape[1] {val_m1.shape[1]}")
+                    continue
                 metric_v = func(val_m1[:, val_epoch])
                 val = dict({ 'val': np.mean(metric_v) })
                 metrics.update(val)
