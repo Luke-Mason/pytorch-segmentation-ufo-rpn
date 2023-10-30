@@ -242,7 +242,7 @@ Config files are in `.json` format:
         "type": "SGD",
         "differential_lr": true,      // Using lr/10 for the backbone, and lr for the rest
         "args":{
-            "lr": 0.01,               // Learning rate
+            "lr": 0.1,               // Learning rate
             "weight_decay": 1e-4,     // Weight decay
             "momentum": 0.9
         }
