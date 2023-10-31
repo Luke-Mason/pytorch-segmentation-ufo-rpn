@@ -19,7 +19,7 @@
         "log_dir": "saved/runs",
         "log_per_iter": 10,
         "val": true,
-        "early_stop": 8,
+        "early_stop": 3,
         "val_per_epochs": 2,
         "k_stop": 1,
         "k_split": 5,

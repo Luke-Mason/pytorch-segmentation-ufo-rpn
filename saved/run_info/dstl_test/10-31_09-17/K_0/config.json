@@ -73,7 +73,7 @@
         }
     },
     "trainer": {
-        "early_stop": 8,
+        "early_stop": 3,
         "epochs": 100,
         "k_random_state": 42,
         "k_shuffle": false,
