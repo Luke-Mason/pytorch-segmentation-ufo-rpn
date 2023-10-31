@@ -9,18 +9,15 @@ class StepLR(SLR):
                  _iters_per_epoch,
                  stop_epoch,
                  step_size,
-                 gamma=0.1,
-                 last_epoch=-1):
+                 gamma=0.1):
         print("StepLR")
         print("step_size", step_size)
         print("gamma", gamma)
-        print("last_epoch", last_epoch)
         print("num_epochs", num_epochs)
         print("_iters_per_epoch", _iters_per_epoch)
         super(StepLR, self).__init__(optimizer,
                                      step_size * _iters_per_epoch,
-                                     gamma,
-                                     last_epoch * _iters_per_epoch)
+                                     gamma)
 
 class Poly(_LRScheduler):
     def __init__(self, optimizer, num_epochs, _iters_per_epoch=1,
