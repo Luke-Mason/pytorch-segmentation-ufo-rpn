@@ -57,8 +57,8 @@
     "lr_scheduler": {
         "type": "StepLR",
         "args": {
-            "gamma": 0.1,
-            "step_size": 6,
+            "gamma": 0.5,
+            "step_size": 3,
             "stop_epoch": 12
         }
     },
