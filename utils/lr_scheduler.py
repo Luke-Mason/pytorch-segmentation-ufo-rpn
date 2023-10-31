@@ -7,6 +7,7 @@ class StepLR(SLR):
     def __init__(self, optimizer,
                  num_epochs,
                  _iters_per_epoch,
+                 stop_epoch,
                  **kwargs):
         print("StepLR")
         super(StepLR, self).__init__(optimizer, **kwargs)
