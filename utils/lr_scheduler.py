@@ -5,7 +5,8 @@ from  torch.optim.lr_scheduler import _LRScheduler, StepLR as SLR
 # factor of gamma every step_size epochs with the last epoch being last_epoch.
 class StepLR(SLR):
     def __init__(self, optimizer, step_size, gamma=0.1, last_epoch=-1):
-        super(StepLR, self).__init__(optimizer, step_size=step_size, gamma=gamma
+        super(StepLR, self).__init__(optimizer, step_size=step_size,
+                                     gamma=gamma,
                                      last_epoch=last_epoch)
 
 class Poly(_LRScheduler):
