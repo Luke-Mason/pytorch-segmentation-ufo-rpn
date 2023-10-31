@@ -11,7 +11,6 @@
         }
     },
     "trainer": {
-        "delayed_val":  6,
         "epochs": 100,
         "save_dir": "saved/",
         "save_period": 20,

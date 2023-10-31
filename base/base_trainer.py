@@ -161,9 +161,7 @@ class BaseTrainer:
                         })
                     stats[class_name][metric_name]['train'].append(total)
             metrics = {}
-            if (self.do_validation and epoch >= self.config['trainer'][
-                'delayed_val'] and epoch % self.config['trainer'][
-                'val_per_epochs'] == 0):
+            if (self.do_validation and epoch % self.config['trainer']['val_per_epochs'] == 0):
                 epoch_stats = self._valid_epoch(epoch)
                 for class_name, metric_totals in epoch_stats.items():
                     if class_name not in stats:
@@ -190,7 +188,7 @@ class BaseTrainer:
 
             # CHECKING IF THIS IS THE BEST MODEL (ONLY FOR VAL)
             scheduler_args_ = self.config['lr_scheduler']["args"]
-            last_epoch_passed =  epoch > scheduler_args_['last_epoch'] if "last_epoch" in scheduler_args_ else True
+            last_epoch_passed =  epoch > scheduler_args_['stop_epoch'] if "stop_epoch" in scheduler_args_ else True
             if last_epoch_passed and self.mnt_mode != 'off' and epoch % self.config['trainer']['val_per_epochs'] == 0:
                 try:
                     # TODO Seg metrics, check result here
