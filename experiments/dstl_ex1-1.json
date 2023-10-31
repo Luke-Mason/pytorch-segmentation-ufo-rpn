@@ -1,5 +1,5 @@
 {
-    "name": "dstl_ex1-6",
+    "name": "dstl_ex1-7",
      "n_gpu": 1,
     "use_synch_bn": false,
     "arch": {
@@ -11,6 +11,7 @@
         }
     },
     "trainer": {
+        "delayed_val":  6,
         "epochs": 100,
         "save_dir": "saved/",
         "save_period": 20,
@@ -81,8 +82,8 @@
         "type": "StepLR",
         "args": {
             "gamma": 0.1,
-            "step_size": 10,
-            "stop_epoch": 20
+            "step_size": 6,
+            "stop_epoch": 12
         }
     }
 }
