@@ -484,6 +484,11 @@ def main(config, resume):
             val_loader=val_loader,
             train_logger=logger,
             root=dstl_data_path,
+            training_classes=training_classes_,
+            do_validation=config['trainer']['val'],
+            num_classes=len(training_classes_) + 1,
+            add_negative_class=config["all_loader"]["args"]["add_negative_class"],
+            k_fold=0,
         )
 
         trainer.train()

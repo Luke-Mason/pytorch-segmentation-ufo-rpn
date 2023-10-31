@@ -4,7 +4,16 @@ from  torch.optim.lr_scheduler import _LRScheduler, StepLR as SLR
 # Create a step learning rate class that makes the learning rate smaller my a
 # factor of gamma every step_size epochs with the last epoch being last_epoch.
 class StepLR(SLR):
-    def __init__(self, optimizer, step_size, gamma=0.1, last_epoch=-1):
+    def __init__(self, optimizer,
+                 num_epochs,
+                 _iters_per_epoch,
+                 step_size,
+                 gamma=0.1,
+                 last_epoch=-1):
+        print("StepLR")
+        print("step_size", step_size)
+        print("gamma", gamma)
+        print("last_epoch", last_epoch)
         super(StepLR, self).__init__(optimizer, step_size=step_size,
                                      gamma=gamma,
                                      last_epoch=last_epoch)
