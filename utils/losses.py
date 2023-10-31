@@ -121,7 +121,7 @@ class JaccardCoefficient(nn.Module):
         union = target.sum() + output.sum() - intersection
 
         # Calculate the Jaccard coefficient (IoU)
-        jaccard = (intersection + 1.0) / (union + 1.0) + epsilon
+        jaccard = (intersection + 1.0) / ((union + 1.0) + epsilon)
 
         return jaccard
 
