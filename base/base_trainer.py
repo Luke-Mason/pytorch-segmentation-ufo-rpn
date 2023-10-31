@@ -69,6 +69,7 @@ class BaseTrainer:
             trainable_params = filter(lambda p:p.requires_grad, self.model.parameters())
         self.optimizer = get_instance(torch.optim, 'optimizer', config, trainable_params)
         print(config['lr_scheduler']['args'])
+        print("ITERATIONS PER EPOCH: ", len(train_loader))
         self.lr_scheduler = getattr(utils.lr_scheduler, config['lr_scheduler']['type'])(optimizer=self.optimizer,
                                      num_epochs=self.epochs,
                                      _iters_per_epoch=len(train_loader),
