@@ -1,16 +1,12 @@
 import math
-from  torch.optim.lr_scheduler import _LRScheduler
+from  torch.optim.lr_scheduler import _LRScheduler, StepLR as SLR
 
-# Define StepLR
-class StepLR(_LRScheduler):
+# Create a step learning rate class that makes the learning rate smaller my a
+# factor of gamma every step_size epochs with the last epoch being last_epoch.
+class StepLR(SLR):
     def __init__(self, optimizer, step_size, gamma=0.1, last_epoch=-1):
-        self.step_size = step_size
-        self.gamma = gamma
-        super(StepLR, self).__init__(optimizer, last_epoch)
-
-    def get_lr(self):
-        return [base_lr * self.gamma ** (self.last_epoch // self.step_size)
-                for base_lr in self.base_lrs]
+        super(StepLR, self).__init__(optimizer, step_size=step_size, gamma=gamma
+                                     last_epoch=last_epoch)
 
 class Poly(_LRScheduler):
     def __init__(self, optimizer, num_epochs, _iters_per_epoch=1,
