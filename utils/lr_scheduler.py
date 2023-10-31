@@ -7,6 +7,7 @@ class StepLR(SLR):
     def __init__(self, optimizer,
                  num_epochs,
                  _iters_per_epoch,
+                 stop_epoch,
                  step_size,
                  gamma=0.1,
                  last_epoch=-1):
