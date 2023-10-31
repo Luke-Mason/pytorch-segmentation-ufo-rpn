@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from utils.lovasz_losses import lovasz_softmax
 from sklearn.metrics import average_precision_score
+epsilon = sys.float_info.epsilon
 
 
 def make_one_hot(labels, classes):
@@ -119,7 +120,7 @@ class JaccardCoefficient(nn.Module):
         union = target.sum() + output.sum() - intersection
 
         # Calculate the Jaccard coefficient (IoU)
-        jaccard = (intersection + 1.0) / (union + 1.0)
+        jaccard = (intersection + 1.0) / (union + 1.0) + epsilon
 
         return jaccard
 
