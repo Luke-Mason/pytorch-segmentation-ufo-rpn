@@ -160,6 +160,9 @@ class DSTLTrainer(BaseTrainer):
             loss.backward()
             self.optimizer.step()
 
+            if epoch < self.config["lr_scheduler"]["args"]["stop_epoch"]:
+                self.lr_scheduler.step()
+
             # measure elapsed time
             self.batch_time.update(time.time() - tic)
             tic = time.time()
@@ -206,9 +209,6 @@ class DSTLTrainer(BaseTrainer):
             for metric, total in seg_metrics.items():
                 message += f'{metric}: {total:.3f} | '
             self.logger.info(message)
-
-        if epoch < self.config["lr_scheduler"]["args"]["stop_epoch"]:
-            self.lr_scheduler.step()
 
         self.logger.info(f"Finished training epoch {epoch}")
 
