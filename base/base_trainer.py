@@ -181,13 +181,15 @@ class BaseTrainer:
                 self.train_logger.info(log)
 
             # CHECKING IF THIS IS THE BEST MODEL (ONLY FOR VAL)
-            if self.mnt_mode != 'off' and epoch % self.config['trainer']['val_per_epochs'] == 0:
+            scheduler_args_ = self.config['lr_scheduler']["args"]
+            last_epoch_passed =  epoch > scheduler_args_['last_epoch'] if "last_epoch" in scheduler_args_ else True
+            if last_epoch_passed and self.mnt_mode != 'off' and epoch % self.config['trainer']['val_per_epochs'] == 0:
                 try:
                     # TODO Seg metrics, check result here
                     if self.mnt_mode == 'min':
                         self.improved = (log[self.mnt_metric] < self.mnt_best)
                     else:
-                        self.improved = (log[self.mnt_metric] > self.mnt_best)
+                        self.improved = (log[self.mnt_metric] >= self.mnt_best)
                 except KeyError:
                     self.logger.warning(f'The metrics being tracked ({self.mnt_metric}) has not been calculated. Training stops.')
                     break

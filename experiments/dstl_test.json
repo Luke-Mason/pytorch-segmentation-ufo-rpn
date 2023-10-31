@@ -15,11 +15,11 @@
         "save_dir": "saved/",
         "save_period": 20,
         "monitor": "max Mean_IoU",
-        "early_stop": 2,
         "tensorboard": true,
         "log_dir": "saved/runs",
         "log_per_iter": 10,
         "val": true,
+        "early_stop": 8,
         "val_per_epochs": 2,
         "k_stop": 1,
         "k_split": 5,
@@ -59,8 +59,8 @@
     },
     "val_loader":  {
         "args": {
-            "augment": true,
-            "shuffle": true,
+            "augment": false,
+            "shuffle": false,
             "flip": false,
             "rotate": false,
             "blur": false
@@ -68,17 +68,21 @@
     },
     "optimizer": {
         "type": "Adam",
-        "differential_lr": true,
+        "differential_lr": false,
         "args": {
             "lr": 0.1,
-            "weight_decay": 1e-3
+            "weight_decay": 1e-4
         }
     },
     "loss": "JaccardCoefficient",
     "threshold": 0.5,
     "ignore_index": 10,
     "lr_scheduler": {
-        "type": "Poly",
-        "args": {}
+        "type": "StepLR",
+        "args": {
+            "gamma": 0.1,
+            "step_size": 3,
+            "last_epoch": 9
+        }
     }
 }

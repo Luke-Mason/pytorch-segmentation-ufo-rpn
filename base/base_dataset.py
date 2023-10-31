@@ -57,7 +57,7 @@ class BaseDataSet(Dataset):
 
         # Rotate the image and label with an angle between -10 and 10
         if self.rotate:
-            angle = random.randint(-10, 10)
+            angle = random.randint(-90, 90)
             center = (w / 2, h / 2)
             rot_matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
 
