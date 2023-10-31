@@ -81,8 +81,8 @@
         "type": "StepLR",
         "args": {
             "gamma": 0.1,
-            "step_size": 5,
-            "stop_epoch": 15
+            "step_size": 10,
+            "stop_epoch": 20
         }
     }
 }
