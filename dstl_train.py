@@ -417,13 +417,13 @@ def main(config, resume):
                 add_negative_class=add_negative_class,
             )
 
-            # try:
-            logger.info("Train..")
-            epochs_stats = trainer.train()
-            # except Exception as e:
-            #     logger.error(f"Error in fold {fold_indx + 1}: {e}")
-            #     bonus += 1
-            #     continue
+            try:
+                logger.info("Train..")
+                epochs_stats = trainer.train()
+            except Exception as e:
+                logger.error(f"Error in fold {fold_indx + 1}: {e}")
+                bonus += 1
+                continue
 
             # logger.debug(f"Fold stats BLALBLBLALSDLALSDLASLDLASD")
             # im lazy and dont want to refactor the code
